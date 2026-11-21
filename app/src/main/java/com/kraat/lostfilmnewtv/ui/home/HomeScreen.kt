@@ -724,26 +724,26 @@ private fun HomeBackdrop(item: ReleaseSummary?) {
         modifier = Modifier
             .fillMaxSize()
             .drawBehind {
-                drawRect(Color(0x8A040A11))
+                
                 drawRect(
                     brush = Brush.horizontalGradient(
                         0f to BackgroundPrimary.copy(alpha = 1f),
-                        0.34f to BackgroundPrimary.copy(alpha = 0.88f),
-                        0.62f to BackgroundPrimary.copy(alpha = 0.18f),
-                        1f to BackgroundPrimary.copy(alpha = 0.28f),
+                        0.24f to BackgroundPrimary.copy(alpha = 0.96f),
+                        0.66f to Color.Transparent,
+                        1f to Color.Transparent,
                     ),
                 )
                 drawRect(
                     brush = Brush.verticalGradient(
-                        0f to Color(0x33040A11),
-                        0.38f to Color.Transparent,
+                        0f to Color.Transparent,
+                        0.50f to Color.Transparent,
                         1f to BackgroundPrimary.copy(alpha = 0.96f),
                     ),
                 )
                 drawRect(
                     brush = Brush.verticalGradient(
-                        0f to BackgroundPrimary.copy(alpha = 0.74f),
-                        0.18f to BackgroundPrimary.copy(alpha = 0.48f),
+                        0f to Color.Transparent,
+                        0.18f to Color.Transparent,
                         0.34f to Color.Transparent,
                     ),
                 )
