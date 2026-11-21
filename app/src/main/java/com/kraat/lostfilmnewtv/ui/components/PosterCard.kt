@@ -41,7 +41,7 @@ import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurface
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
 import kotlin.math.roundToInt
 
-private val POSTER_CARD_WIDTH = 118.dp
+private val POSTER_CARD_WIDTH = 116.dp
 private val POSTER_CARD_HEIGHT = 186.dp
 private const val POSTER_FOCUSED_SCALE = 1.015f
 
