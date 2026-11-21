@@ -4,6 +4,7 @@ import com.kraat.lostfilmnewtv.data.auth.AuthRepository
 import com.kraat.lostfilmnewtv.data.auth.AuthRepositoryContract
 import com.kraat.lostfilmnewtv.data.auth.EncryptedSessionStore
 import com.kraat.lostfilmnewtv.data.auth.DirectAuthRepository
+import com.kraat.lostfilmnewtv.data.auth.DirectAuthRepositoryContract
 import com.kraat.lostfilmnewtv.data.auth.DIRECT_LOGIN_BASE_URL
 import com.kraat.lostfilmnewtv.data.parser.LostFilmBaseUrl
 import com.kraat.lostfilmnewtv.playback.PlaybackPreferencesStore
@@ -46,7 +47,7 @@ object DataModule {
         sessionStore: EncryptedSessionStore,
         sessionVerifier: LostFilmSessionVerifier,
         preferencesStore: PlaybackPreferencesStore,
-    ): DirectAuthRepository = DirectAuthRepository(sessionStore, sessionVerifier) {
+    ): DirectAuthRepositoryContract = DirectAuthRepository(sessionStore, sessionVerifier) {
         preferencesStore.writeLostFilmBaseUrl(DIRECT_LOGIN_BASE_URL)
         LostFilmBaseUrl.set(DIRECT_LOGIN_BASE_URL)
     }
