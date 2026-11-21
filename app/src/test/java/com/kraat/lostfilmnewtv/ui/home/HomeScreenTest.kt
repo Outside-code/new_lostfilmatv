@@ -7,6 +7,10 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
@@ -139,10 +143,10 @@ class HomeScreenTest {
         }
 
         composeRule.onNodeWithTag("home-hero-stage").assertExists()
-        composeRule.onNodeWithText("S09E13").assertExists()
-        composeRule.onNodeWithText("9-1-1").assertExists()
+        heroText("S09E13").assertExists()
+        heroText("9-1-1").assertExists()
         composeRule.onNodeWithText("Маменькин сынок").assertExists()
-        composeRule.onNodeWithText("14.03.2026").assertExists()
+        composeRule.onNodeWithText("9 сезон").assertExists()
     }
 
     @Test
@@ -164,7 +168,7 @@ class HomeScreenTest {
     }
 
     @Test
-    fun homeScreen_heroStage_showsMachineTranslatedEpisodeOverviewSource() {
+    fun homeScreen_heroStage_keepsTranslatedDescriptionWithoutExtraSourcePill() {
         composeRule.setContent {
             LostFilmTheme {
                 HomeScreen(
@@ -176,7 +180,8 @@ class HomeScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Автоперевод").assertExists()
+        composeRule.onNodeWithText("Автоматически переведенное описание серии.").assertExists()
+        composeRule.onNodeWithText("Автоперевод").assertDoesNotExist()
     }
 
     @Test
@@ -417,12 +422,12 @@ class HomeScreenTest {
 
         assertEquals(0, modeSelections)
         composeRule.onNodeWithTag("home-mode-favorites").assertIsFocused()
-        composeRule.onNodeWithText("9-1-1").assertExists()
+        heroText("9-1-1").assertExists()
     }
 
     @Test
     @OptIn(ExperimentalTestApi::class)
-    fun homeScreen_settingsAction_downMovesFocusToMenuLabelsAction() {
+    fun homeScreen_settingsAction_downWrapsFocusToFirstMenuItem() {
         composeRule.setContent {
             LostFilmTheme {
                 HomeScreen(state = seededState())
@@ -437,11 +442,12 @@ class HomeScreenTest {
             .performKeyInput { pressKey(Key.DirectionDown) }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("home-action-menu-labels").assertIsFocused()
+        composeRule.onNodeWithTag("home-mode-toggle").assertIsFocused()
+        composeRule.onNodeWithTag("home-action-menu-labels").assertDoesNotExist()
     }
 
     @Test
-    fun homeScreen_expandsHiddenMenuOnlyWhileMenuHasFocus() {
+    fun homeScreen_keepsMenuExpandedWhileBrowsingPosters() {
         composeRule.setContent {
             LostFilmTheme {
                 HomeScreen(
@@ -460,7 +466,8 @@ class HomeScreenTest {
             .performSemanticsAction(SemanticsActions.RequestFocus)
         composeRule.waitForIdle()
 
-        assertEquals(0, composeRule.onAllNodesWithText("Расписание").fetchSemanticsNodes().size)
+        composeRule.onNodeWithText("Расписание").assertExists()
+        composeRule.onNodeWithText("Новинки").assertExists()
     }
 
     @Test
@@ -555,7 +562,7 @@ class HomeScreenTest {
                 ?: return@waitUntil false
             SemanticsProperties.Focused in node.config && node.config[SemanticsProperties.Focused]
         }
-        composeRule.onNodeWithText("Третий лишний").assertExists()
+        heroText("Третий лишний").assertExists()
         composeRule.onNodeWithTag("home-mode-toggle").assertIsNotFocused()
 
         composeRule.onNodeWithTag(favoritePosterTag)
@@ -568,7 +575,7 @@ class HomeScreenTest {
                 ?: return@waitUntil false
             SemanticsProperties.Focused in node.config && node.config[SemanticsProperties.Focused]
         }
-        composeRule.onNodeWithText("9-1-1").assertExists()
+        heroText("9-1-1").assertExists()
         composeRule.onNodeWithTag("home-mode-toggle").assertIsNotFocused()
     }
 
@@ -723,8 +730,8 @@ class HomeScreenTest {
             action(textLayouts)
         }
 
-        composeRule.onNodeWithText("S09E13").assertExists()
-        composeRule.onNodeWithText("14.03.2026").assertExists()
+        heroText("S09E13").assertExists()
+        composeRule.onNodeWithText("9 сезон").assertExists()
         assertEquals(1, textLayouts.first().lineCount)
     }
 
@@ -756,7 +763,7 @@ class HomeScreenTest {
     }
 
     @Test
-    fun homeScreen_rendersSeasonEpisodeOverlayOnlyOnFocusedSeriesCard() {
+    fun homeScreen_keepsPosterTitleAndEpisodeVisibleAfterFocusMovesToMenu() {
         composeRule.setContent {
             LostFilmTheme {
                 HomeScreen(state = seededState())
@@ -772,21 +779,37 @@ class HomeScreenTest {
         }
 
         composeRule.onNodeWithTag("poster-meta:$firstDetailsUrl", useUnmergedTree = true).assertExists()
-        assertEquals(
-            1,
-            composeRule.onAllNodesWithText("Сезон 9, серия 13").fetchSemanticsNodes().size,
-        )
+        composeRule.onNodeWithTag("home-mode-toggle")
+            .performSemanticsAction(SemanticsActions.RequestFocus)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("poster-meta:$firstDetailsUrl", useUnmergedTree = true).assertExists()
+        composeRule.onNode(
+            hasText("S09E13") and hasAnyAncestor(hasTestTag(posterTag(firstDetailsUrl))),
+            useUnmergedTree = true,
+        ).assertExists()
+        composeRule.onNode(
+            hasText("9-1-1") and hasAnyAncestor(hasTestTag(posterTag(firstDetailsUrl))),
+            useUnmergedTree = true,
+        ).assertExists()
     }
 
     @Test
-    fun homeScreen_doesNotRenderSeasonEpisodeOverlayForMovieCard() {
+    @Config(qualifiers = "w1366dp-h768dp-land")
+    fun homeScreen_movieCaptionShowsTitleWithoutSeriesEpisode() {
         composeRule.setContent {
             LostFilmTheme {
                 HomeScreen(state = seededState())
             }
         }
 
-        composeRule.onNodeWithTag("poster-meta:$secondDetailsUrl", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNode(
+            hasText("Необратимость") and hasAnyAncestor(hasTestTag(posterTag(secondDetailsUrl))),
+            useUnmergedTree = true,
+        ).assertExists()
+        composeRule.onNode(
+            hasText("S09E13") and hasAnyAncestor(hasTestTag(posterTag(secondDetailsUrl))),
+            useUnmergedTree = true,
+        ).assertDoesNotExist()
     }
 
     @Test
@@ -1520,6 +1543,43 @@ class HomeScreenTest {
 
         composeRule.onNodeWithTag(allNewFirstTag).assertIsFocused()
     }
+    @Test
+    @Config(qualifiers = "w960dp-h540dp-land")
+    fun homeScreen_mockupLayoutFitsSixPostersWithoutClipping() {
+        val template = seededState().items.first()
+        val items = List(6) { index ->
+            template.copy(
+                id = "release-$index",
+                detailsUrl = "https://www.lostfilm.tv/series/demo/episode_$index/",
+                titleRu = "Сериал $index",
+                positionInPage = index,
+            )
+        }
+        composeRule.setContent {
+            LostFilmTheme {
+                HomeScreen(state = HomeUiState(
+                    items = items,
+                    allNewModeState = HomeModeContentState.Content(items),
+                    selectedItem = items.first(),
+                    selectedItemKey = items.first().detailsUrl,
+                ))
+            }
+        }
+        composeRule.waitForIdle()
+        val root = composeRule.onRoot().fetchSemanticsNode().boundsInRoot
+        items.forEach { item ->
+            val card = composeRule.onNodeWithTag(posterTag(item.detailsUrl))
+                .fetchSemanticsNode().boundsInRoot
+            assertTrue("card=$card root=$root", card.left >= root.left)
+            assertTrue("card=$card root=$root", card.right <= root.right)
+            assertTrue("card=$card root=$root", card.bottom <= root.bottom)
+        }
+    }
+
+    private fun heroText(text: String): SemanticsNodeInteraction = composeRule.onNode(
+        hasText(text) and hasAnyAncestor(hasTestTag("home-hero-stage")),
+    )
+
 }
 
 private const val firstDetailsUrl = "https://www.lostfilm.today/series/9-1-1/season_9/episode_13/"
