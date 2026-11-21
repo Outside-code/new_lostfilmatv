@@ -8,8 +8,8 @@ class DirectAuthRepository(
     private val sessionStore: SessionStore,
     private val sessionVerifier: LostFilmSessionVerifier,
     private val selectOfficialHost: () -> Unit,
-) {
-    suspend fun completeLogin(cookieHeader: String?): AuthCompletionResult {
+) : DirectAuthRepositoryContract {
+    override suspend fun completeLogin(cookieHeader: String?): AuthCompletionResult {
         val session = directLoginSession(cookieHeader) ?: return AuthCompletionResult.VerificationFailed
         return try {
             if (!sessionVerifier.verify(session, baseUrl = DIRECT_LOGIN_BASE_URL)) {
