@@ -141,9 +141,9 @@ fun HomeHeader(
             )
             .background(
                 brush = Brush.verticalGradient(
-                    0f to Color(0xE60A1420),
+                    0f to Color(0xE620232A),
                     0.52f to HomePanelSurfaceStrong.copy(alpha = 0.90f),
-                    1f to Color(0xF2050B12),
+                    1f to Color(0xF2101114),
                 ),
                 shape = MenuShape,
             )
@@ -152,7 +152,7 @@ fun HomeHeader(
                 brush = Brush.verticalGradient(
                     0f to Color.White.copy(alpha = 0.12f),
                     0.58f to Color.White.copy(alpha = 0.04f),
-                    1f to HomeAccentGold.copy(alpha = 0.16f),
+                    1f to HomeAccentGold.copy(alpha = 0.06f),
                 ),
                 shape = MenuShape,
             )
@@ -1090,3 +1090,4 @@ private fun Key.isHeaderActivationKey(): Boolean {
         else -> false
     }
 }
+
