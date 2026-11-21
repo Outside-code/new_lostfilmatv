@@ -7,20 +7,23 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 class LostFilmSessionVerifier(
     private val okHttpClient: OkHttpClient,
     private val probeUrl: String = "",
 ) {
-    suspend fun verify(session: LostFilmSession): Boolean = withContext(Dispatchers.IO) {
-        val target = probeUrl.ifBlank { "$BASE_URL/" }
+    suspend fun verify(session: LostFilmSession, baseUrl: String = BASE_URL): Boolean = withContext(Dispatchers.IO) {
+        val target = probeUrl.ifBlank { "$baseUrl/" }
         val request = Request.Builder()
             .url(target)
             .header("User-Agent", USER_AGENT)
-            .header("Cookie", session.toCookieString())
+            .header("Cookie", session.toCookieStringForHost(baseUrl.toHttpUrlOrNull()?.host.orEmpty()))
             .build()
 
-        okHttpClient.newCall(request).execute().use { response ->
+        // A manually supplied Cookie header must never follow a redirect to another domain.
+        val client = okHttpClient.newBuilder().followRedirects(false).followSslRedirects(false).build()
+        client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 throw IOException("HTTP ${response.code} for $target")
             }
@@ -59,3 +62,4 @@ private const val PROFILE_LINK_MARKER = "href=\"/my\""
 private const val USER_PANE_MARKER = "class=\"user-pane\""
 private const val AVATAR_MARKER = "/static/users/"
 private const val DEFAULT_AVATAR_MARKER = "/vision/no-avatar-50.jpg"
+
