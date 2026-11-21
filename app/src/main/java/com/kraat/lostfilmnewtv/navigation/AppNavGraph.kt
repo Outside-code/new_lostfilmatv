@@ -18,7 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dagger.hilt.android.EntryPointAccessors
 import com.kraat.lostfilmnewtv.di.AppGraphEntryPoint
-import com.kraat.lostfilmnewtv.ui.auth.AuthScreen
+import com.kraat.lostfilmnewtv.ui.auth.DirectAuthScreen
 import com.kraat.lostfilmnewtv.ui.auth.AuthUiState
 import com.kraat.lostfilmnewtv.ui.auth.AuthViewModel
 import com.kraat.lostfilmnewtv.ui.details.DetailsRoute
@@ -341,13 +341,11 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 },
             ),
         ) { backStackEntry ->
-            val autoStart = backStackEntry.arguments?.getBoolean(AppDestination.Auth.autoStartArg) ?: false
-            AuthScreen(
-                viewModel = authViewModel,
-                autoStart = autoStart,
+            DirectAuthScreen(
                 onAuthComplete = { navController.popBackStack() },
                 onNavigateBack = { navController.popBackStack() },
             )
         }
     }
 }
+
