@@ -3,7 +3,7 @@ package com.kraat.lostfilmnewtv.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kraat.lostfilmnewtv.data.auth.AuthCompletionResult
-import com.kraat.lostfilmnewtv.data.auth.DirectAuthRepository
+import com.kraat.lostfilmnewtv.data.auth.DirectAuthRepositoryContract
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -19,7 +19,7 @@ data class DirectAuthUiState(
 
 @HiltViewModel
 class DirectAuthViewModel @Inject constructor(
-    private val repository: DirectAuthRepository,
+    private val repository: DirectAuthRepositoryContract,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(DirectAuthUiState())
     val uiState = mutableState.asStateFlow()
