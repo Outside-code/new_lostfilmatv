@@ -3,6 +3,8 @@ package com.kraat.lostfilmnewtv.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Card
@@ -31,7 +34,6 @@ import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
-import com.kraat.lostfilmnewtv.ui.theme.FocusBackground
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGold
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGoldGlow
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
@@ -39,9 +41,9 @@ import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurface
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
 import kotlin.math.roundToInt
 
-private val POSTER_CARD_WIDTH = 112.dp
-private val POSTER_CARD_HEIGHT = 172.dp
-private const val POSTER_FOCUSED_SCALE = 1.065f
+private val POSTER_CARD_WIDTH = 118.dp
+private val POSTER_CARD_HEIGHT = 186.dp
+private const val POSTER_FOCUSED_SCALE = 1.015f
 
 @Composable
 fun PosterCard(
@@ -50,9 +52,8 @@ fun PosterCard(
     isFocused: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(12.dp)
-    val borderColor = if (isFocused) FocusBorder.copy(alpha = 0.88f) else HomePanelBorder.copy(alpha = 0.14f)
-    val overlayColor = if (isFocused) FocusBackground.copy(alpha = 0.82f) else HomePanelSurface.copy(alpha = 0.62f)
+    val shape = RoundedCornerShape(8.dp)
+    val overlayColor = Color(0xF2101114)
     val watchedBadgeColor = if (isFocused) HomeAccentGoldGlow.copy(alpha = 0.86f) else HomePanelSurfaceStrong.copy(alpha = 0.86f)
     val posterRequest = item.posterUrl.takeIf { it.isNotBlank() }?.let { rememberPosterImageRequest(it) }
 
@@ -64,8 +65,8 @@ fun PosterCard(
         scale = CardDefaults.scale(focusedScale = POSTER_FOCUSED_SCALE),
         glow = CardDefaults.glow(
             focusedGlow = Glow(
-                elevationColor = HomeAccentGoldGlow.copy(alpha = 0.16f),
-                elevation = 20.dp
+                elevationColor = Color.Transparent,
+                elevation = 0.dp
             )
         ),
         border = CardDefaults.border(
@@ -103,8 +104,7 @@ fun PosterCard(
                     ),
             )
 
-            if (isFocused) seasonEpisodeLabel(item)?.let { label ->
-                Box(
+            Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
@@ -115,17 +115,28 @@ fun PosterCard(
                                 1f to overlayColor,
                             ),
                         )
-                        .padding(horizontal = 13.dp, vertical = 12.dp),
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
-                        text = label,
+                        text = item.titleRu,
                         color = Color.White,
-                        fontSize = 13.sp,
-                        lineHeight = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        lineHeight = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
+                    seasonEpisodeLabel(item)?.let { label ->
+                        Text(
+                            text = label,
+                            color = Color(0xFFD2D9E2),
+                            fontSize = 13.sp,
+                            lineHeight = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
                 }
-            }
 
             item.availabilityLabel?.takeIf { it.isNotBlank() }?.let { label ->
                 Box(
@@ -188,6 +199,6 @@ private fun seasonEpisodeLabel(item: ReleaseSummary): String? {
     if (item.kind != ReleaseKind.SERIES) return null
     val seasonNumber = item.seasonNumber ?: return null
     val episodeNumber = item.episodeNumber ?: return null
-    return "Сезон $seasonNumber, серия $episodeNumber"
+    return "S${seasonNumber.toString().padStart(2, '0')}E${episodeNumber.toString().padStart(2, '0')}"
 }
 
