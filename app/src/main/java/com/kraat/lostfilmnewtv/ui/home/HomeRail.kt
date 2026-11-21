@@ -42,7 +42,7 @@ import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
 
 private const val HOME_PAGING_SKELETON_COUNT = 4
-private val HOME_RAIL_CARD_SPACING = 8.dp
+private val HOME_RAIL_CARD_SPACING = 4.dp
 private val HOME_RAIL_HORIZONTAL_PADDING = 4.dp
 
 @Composable
@@ -223,7 +223,7 @@ private fun HomePagingPosterSkeleton(modifier: Modifier = Modifier) {
     ShimmerSkeletonBox(
         brush = shimmerBrush,
         modifier = modifier
-            .size(width = 118.dp, height = 186.dp),
+            .size(width = 116.dp, height = 186.dp),
         shape = shape,
         baseColor = HomePanelSurfaceStrong,
         borderColor = HomePanelBorder.copy(alpha = 0.20f),
