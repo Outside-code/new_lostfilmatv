@@ -18,6 +18,13 @@ data class LostFilmSession(
     fun toCookieString(): String {
         return cookies.joinToString("; ") { "${it.name}=${it.value}" }
     }
+
+    fun toCookieStringForHost(host: String): String = cookies
+        .filter { cookie ->
+            val domain = cookie.domain.trimStart('.').lowercase()
+            domain.isNotBlank() && (host.lowercase() == domain || host.lowercase().endsWith(".$domain"))
+        }
+        .joinToString("; ") { "${it.name}=${it.value}" }
 }
 
 enum class PairingStatus {
@@ -47,3 +54,4 @@ data class AuthState(
     val isAuthenticated: Boolean = false,
     val session: LostFilmSession? = null
 )
+

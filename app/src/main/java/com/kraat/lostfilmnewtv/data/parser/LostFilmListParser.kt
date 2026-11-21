@@ -5,6 +5,7 @@ import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 val BASE_URL: String get() = LostFilmBaseUrl.get()
 private val seasonEpisodeRegex = Regex("""(\d+)\s+сезон\s+(\d+)\s+серия""")
@@ -172,20 +173,29 @@ fun String.extractYear(): Int? =
 fun Element?.absoluteUrl(attributeName: String): String {
     val value = this?.attr("abs:$attributeName").orEmpty()
 
-    return value.ifBlank {
-        resolveUrl(this?.attr(attributeName).orEmpty())
-    }
+    return resolveUrl(value.ifBlank { this?.attr(attributeName).orEmpty() })
 }
 
 fun Element?.textOrEmpty(): String = this?.text()?.normalizeText().orEmpty()
 
 fun String.normalizeText(): String = trim().replace('\u00A0', ' ')
 
-fun resolveUrl(url: String): String =
-    when {
+fun resolveUrl(url: String): String {
+    val resolved = when {
         url.startsWith("http://") || url.startsWith("https://") -> url
         url.startsWith("//") -> "https:$url"
         url.startsWith("/") -> "$BASE_URL$url"
         url.isBlank() -> ""
         else -> "$BASE_URL/$url"
     }
+    // Cached release links may still point at the mirror used before direct TV login.
+    val parsed = resolved.toHttpUrlOrNull() ?: return resolved
+    if (BASE_URL == "https://www.lostfilm.tv" &&
+        parsed.scheme == "https" && parsed.host in setOf("lostfilm.today", "www.lostfilm.today") &&
+        parsed.port == 443 && parsed.username.isEmpty() && parsed.password.isEmpty()
+    ) {
+        return parsed.newBuilder().host("www.lostfilm.tv").build().toString()
+    }
+    return resolved
+}
+

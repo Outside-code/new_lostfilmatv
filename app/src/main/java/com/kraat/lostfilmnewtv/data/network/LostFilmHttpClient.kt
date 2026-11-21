@@ -5,6 +5,7 @@ import com.kraat.lostfilmnewtv.data.parser.BASE_URL
 import com.kraat.lostfilmnewtv.data.parser.resolveUrl
 import com.kraat.lostfilmnewtv.data.auth.SessionStore
 import com.kraat.lostfilmnewtv.data.model.FavoriteToggleNetworkResult
+import com.kraat.lostfilmnewtv.data.model.LostFilmSession
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -96,7 +97,7 @@ class OkHttpLostFilmHttpClient(
             okHttpClient = okHttpClient,
             refererUrl = resolveUrl(refererUrl),
             serialId = serialId,
-            cookieHeader = sessionStore?.read()?.toCookieString(),
+            cookieHeader = sessionStore?.read()?.cookieHeaderForConfiguredHost(),
         )
     }
 
@@ -120,7 +121,7 @@ class OkHttpLostFilmHttpClient(
             playEpisodeId = playEpisodeId,
             ajaxSessionToken = ajaxSessionToken,
             targetWatched = targetWatched,
-            cookieHeader = sessionStore?.read()?.toCookieString(),
+            cookieHeader = sessionStore?.read()?.cookieHeaderForConfiguredHost(),
         )
     }
 
@@ -134,13 +135,13 @@ class OkHttpLostFilmHttpClient(
             refererUrl = refererUrl,
             favoriteTargetId = favoriteTargetId,
             ajaxSessionToken = ajaxSessionToken,
-            cookieHeader = sessionStore?.read()?.toCookieString(),
+            cookieHeader = sessionStore?.read()?.cookieHeaderForConfiguredHost(),
         )
     }
 
     private suspend fun executeLostFilm(url: String): String {
         val parsedUrl = requireLostFilmUrl(url)
-        val cookieHeader = sessionStore?.read()?.toCookieString()?.takeIf { it.isNotBlank() }
+        val cookieHeader = sessionStore?.read()?.cookieHeaderForConfiguredHost()?.takeIf { it.isNotBlank() }
         val requestBuilder = Request.Builder()
             .url(parsedUrl)
             .header("User-Agent", USER_AGENT_PUBLIC)
@@ -179,7 +180,7 @@ class OkHttpLostFilmHttpClient(
     private suspend fun executeSeriesCatalogSearch(pageNumber: Int): String {
         val offset = ((pageNumber.coerceAtLeast(1) - 1) * SERIES_CATALOG_PAGE_SIZE).coerceAtLeast(0)
         val ajaxUrl = requireLostFilmUrl("$BASE_URL/ajaxik.php")
-        val cookieHeader = sessionStore?.read()?.toCookieString()?.takeIf { it.isNotBlank() }
+        val cookieHeader = sessionStore?.read()?.cookieHeaderForConfiguredHost()?.takeIf { it.isNotBlank() }
         val requestBuilder = Request.Builder()
             .url(ajaxUrl)
             .header("User-Agent", USER_AGENT_PUBLIC)
@@ -213,6 +214,9 @@ class OkHttpLostFilmHttpClient(
 }
 
 private const val SERIES_CATALOG_PAGE_SIZE = 20
+
+private fun LostFilmSession.cookieHeaderForConfiguredHost(): String =
+    toCookieStringForHost(BASE_URL.toHttpUrlOrNull()?.host.orEmpty())
 
 private fun moviesPageUrl(pageNumber: Int): String {
     val offset = ((pageNumber.coerceAtLeast(1) - 1) * 20).coerceAtLeast(0)
@@ -397,3 +401,4 @@ private fun lostFilmCookieHosts(): Set<String> {
 }
 
 private fun torrentPageHosts(): Set<String> = lostFilmCookieHosts() + TORRENT_PAGE_HOST
+

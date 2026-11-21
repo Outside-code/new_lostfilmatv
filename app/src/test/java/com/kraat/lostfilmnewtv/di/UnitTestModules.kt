@@ -2,6 +2,7 @@ package com.kraat.lostfilmnewtv.di
 
 import com.kraat.lostfilmnewtv.data.auth.AuthCompletionResult
 import com.kraat.lostfilmnewtv.data.auth.AuthRepositoryContract
+import com.kraat.lostfilmnewtv.data.auth.DirectAuthRepositoryContract
 import com.kraat.lostfilmnewtv.data.model.AuthState
 import com.kraat.lostfilmnewtv.data.model.FavoriteMutationResult
 import com.kraat.lostfilmnewtv.data.model.FavoriteReleasesResult
@@ -60,6 +61,11 @@ object UnitTestDataModule {
     @Provides
     @Singleton
     fun provideAuthRepository(): AuthRepositoryContract = UnitTestFakeAuthRepository()
+
+    @Provides
+    @Singleton
+    fun provideDirectAuthRepository(): DirectAuthRepositoryContract =
+        DirectAuthRepositoryContract { AuthCompletionResult.VerificationFailed }
 }
 
 /**

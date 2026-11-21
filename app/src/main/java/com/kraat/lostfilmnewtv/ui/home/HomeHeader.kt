@@ -64,7 +64,7 @@ import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
 import com.kraat.lostfilmnewtv.ui.theme.HomeTextMuted
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
 
-private val ExpandedMenuWidth = 204.dp
+private val ExpandedMenuWidth = 180.dp
 private val CollapsedMenuWidth = 68.dp
 private val MenuButtonHeight = 38.dp
 private val MenuShape = RoundedCornerShape(20.dp)
@@ -141,9 +141,9 @@ fun HomeHeader(
             )
             .background(
                 brush = Brush.verticalGradient(
-                    0f to Color(0xE60A1420),
+                    0f to Color(0xE620232A),
                     0.52f to HomePanelSurfaceStrong.copy(alpha = 0.90f),
-                    1f to Color(0xF2050B12),
+                    1f to Color(0xF2101114),
                 ),
                 shape = MenuShape,
             )
@@ -152,7 +152,7 @@ fun HomeHeader(
                 brush = Brush.verticalGradient(
                     0f to Color.White.copy(alpha = 0.12f),
                     0.58f to Color.White.copy(alpha = 0.04f),
-                    1f to HomeAccentGold.copy(alpha = 0.16f),
+                    1f to HomeAccentGold.copy(alpha = 0.06f),
                 ),
                 shape = MenuShape,
             )
@@ -172,7 +172,7 @@ fun HomeHeader(
                     leftEdgeRequester = null,
                     rightEdgeRequester = downTarget,
                     nextDownRequester = scheduleFocusRequester,
-                    upEdgeRequester = menuLabelsFocusRequester,
+                    upEdgeRequester = settingsFocusRequester,
                     onModeClick = { mode ->
                         onHeaderInteraction()
                         onNavItemSelected(NavItem.HOME)
@@ -189,6 +189,7 @@ fun HomeHeader(
                 Spacer(modifier = Modifier.width(1.dp))
             }
 
+            MenuDivider()
             HomeHeaderActionButton(
                 label = "Расписание",
                 subtitle = "Календарь",
@@ -216,7 +217,6 @@ fun HomeHeader(
                         left = FocusRequester.Cancel
                     },
             )
-            MenuDivider()
             HomeHeaderActionButton(
                 label = "Поиск",
                 subtitle = "Сериал или фильм",
@@ -274,8 +274,7 @@ fun HomeHeader(
                         },
                 )
             }
-            Spacer(modifier = Modifier.weight(1f))
-            MenuDivider()
+            Spacer(modifier = Modifier.height(2.dp))
             HomeHeaderActionButton(
                 label = "Настройки",
                 subtitle = "Приложение",
@@ -298,37 +297,12 @@ fun HomeHeader(
                     .focusRequester(settingsFocusRequester)
                     .focusProperties {
                         up = if (hasUpdate) updateFocusRequester else searchFocusRequester
-                        down = menuLabelsFocusRequester
-                        left = FocusRequester.Cancel
-                        right = downTarget ?: FocusRequester.Default
-                    },
-            )
-            HomeHeaderActionButton(
-                label = if (menuLabelsEnabled) "Скрыть меню" else "Показать меню",
-                subtitle = "",
-                leadingIcon = if (menuLabelsEnabled) HeaderActionIcon.MenuCollapse else HeaderActionIcon.MenuExpand,
-                onClick = {
-                    onHeaderInteraction()
-                    onHomeMenuLabelsVisibilitySelected(!menuLabelsEnabled)
-                },
-                onLongClick = {},
-                onInteraction = onHeaderInteraction,
-                onBackClick = onBackToContent,
-                isVisualFocusEnabled = isVisualFocusEnabled,
-                minWidth = if (showLabels) ExpandedMenuWidth - 36.dp else CollapsedMenuWidth - 20.dp,
-                hideSubtitle = true,
-                showLabel = showLabels,
-                modifier = Modifier
-                    .then(if (showLabels) Modifier.fillMaxWidth() else Modifier.width(CollapsedMenuWidth - 20.dp))
-                    .testTag("home-action-menu-labels")
-                    .focusRequester(menuLabelsFocusRequester)
-                    .focusProperties {
                         down = firstModeRequester ?: scheduleFocusRequester
-                        up = settingsFocusRequester
-                        right = downTarget ?: FocusRequester.Default
                         left = FocusRequester.Cancel
+                        right = downTarget ?: FocusRequester.Default
                     },
             )
+
         }
     }
 }
@@ -338,15 +312,15 @@ private fun HomeMenuLogo(showLabels: Boolean) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(58.dp)
             .padding(horizontal = if (showLabels) 12.dp else 0.dp),
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.CenterStart,
     ) {
         if (showLabels) {
             Text(
                 text = "LF.Tv",
-                color = HomeAccentGold,
-                fontSize = 22.sp,
+                color = Color.White,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
@@ -447,7 +421,7 @@ private fun HomeModeSegmentButton(
     var isFocused by remember { mutableStateOf(false) }
     val showFocusedStyle = isFocused && isVisualFocusEnabled
     val scale by animateFloatAsState(
-        targetValue = if (showFocusedStyle) 1.04f else 1f,
+        targetValue = if (showFocusedStyle) 1.015f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -456,7 +430,7 @@ private fun HomeModeSegmentButton(
     )
     val shape = MenuButtonShape
     val active = selected || showFocusedStyle
-    val contentColor = if (active) HomeAccentGoldGlow else HomeTextMuted
+    val contentColor = Color.White
     Box(
         modifier = modifier
             .height(MenuButtonHeight)
@@ -491,14 +465,14 @@ private fun HomeModeSegmentButton(
             }
             .background(
                 brush = Brush.verticalGradient(
-                    0f to FocusBackground.copy(alpha = if (active) 0.78f else 0.28f),
-                    1f to HomePanelSurfaceStrong.copy(alpha = if (active) 0.92f else 0.48f),
+                    0f to FocusBackground.copy(alpha = if (active) 0.78f else 0f),
+                    1f to HomePanelSurfaceStrong.copy(alpha = if (active) 0.92f else 0f),
                 ),
                 shape = shape,
             )
             .border(
                 width = 1.dp,
-                color = if (active) HomeAccentGold.copy(alpha = 0.84f) else HomePanelBorder.copy(alpha = 0.10f),
+                color = if (active) HomeAccentGold.copy(alpha = 0.84f) else Color.Transparent,
                 shape = shape,
             )
             .onFocusChanged {
@@ -566,7 +540,7 @@ private fun HomeHeaderActionButton(
     var isFocused by remember { mutableStateOf(false) }
     val showFocusedStyle = isFocused && isVisualFocusEnabled
     val scale by animateFloatAsState(
-        targetValue = if (showFocusedStyle) 1.04f else 1f,
+        targetValue = if (showFocusedStyle) 1.015f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -576,9 +550,9 @@ private fun HomeHeaderActionButton(
 
     val borderColor = when {
         isPrimary || showFocusedStyle -> HomeAccentGold.copy(alpha = 0.86f)
-        else -> HomePanelBorder.copy(alpha = 0.10f)
+        else -> Color.Transparent
     }
-    val textColor = if (isPrimary || showFocusedStyle) HomeAccentGoldGlow else HomeTextMuted
+    val textColor = Color.White
     val subtitleColor = if (isPrimary || showFocusedStyle) HomeAccentGold.copy(alpha = 0.80f) else HomeTextMuted
     val shape = MenuButtonShape
 
@@ -615,8 +589,8 @@ private fun HomeHeaderActionButton(
             }
             .background(
                 brush = Brush.verticalGradient(
-                    0f to FocusBackground.copy(alpha = if (isPrimary || showFocusedStyle) 0.76f else 0.24f),
-                    1f to HomePanelSurfaceStrong.copy(alpha = if (isPrimary || showFocusedStyle) 0.90f else 0.46f),
+                    0f to FocusBackground.copy(alpha = if (isPrimary || showFocusedStyle) 0.76f else 0f),
+                    1f to HomePanelSurfaceStrong.copy(alpha = if (isPrimary || showFocusedStyle) 0.90f else 0f),
                 ),
                 shape = shape,
             )
@@ -1057,7 +1031,7 @@ private fun SettingsLineIcon(color: Color) {
 
 private fun HomeFeedMode.segmentLabel(): String {
     return when (this) {
-        HomeFeedMode.AllNew -> "Новые"
+        HomeFeedMode.AllNew -> "Новинки"
         HomeFeedMode.Favorites -> "Избранное"
         HomeFeedMode.FavoriteSeries -> "Мои сериалы"
         HomeFeedMode.Movies -> "Фильмы"
@@ -1090,3 +1064,4 @@ private fun Key.isHeaderActivationKey(): Boolean {
         else -> false
     }
 }
+

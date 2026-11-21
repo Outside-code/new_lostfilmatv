@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Color
 
 private val LostFilmColorScheme = darkColorScheme(
     primary = HomeAccentGold,
-    onPrimary = Color(0xFF17110A),
+    onPrimary = Color(0xFF101A2A),
     secondary = HomeAccentBlue,
     onSecondary = Color(0xFF07111B),
     background = BackgroundPrimary,
@@ -25,3 +25,4 @@ fun LostFilmTheme(content: @Composable () -> Unit) {
         content = content,
     )
 }
+

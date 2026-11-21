@@ -3,6 +3,11 @@ package com.kraat.lostfilmnewtv.di
 import com.kraat.lostfilmnewtv.data.auth.AuthRepository
 import com.kraat.lostfilmnewtv.data.auth.AuthRepositoryContract
 import com.kraat.lostfilmnewtv.data.auth.EncryptedSessionStore
+import com.kraat.lostfilmnewtv.data.auth.DirectAuthRepository
+import com.kraat.lostfilmnewtv.data.auth.DirectAuthRepositoryContract
+import com.kraat.lostfilmnewtv.data.auth.DIRECT_LOGIN_BASE_URL
+import com.kraat.lostfilmnewtv.data.parser.LostFilmBaseUrl
+import com.kraat.lostfilmnewtv.playback.PlaybackPreferencesStore
 import com.kraat.lostfilmnewtv.data.db.ReleaseDao
 import com.kraat.lostfilmnewtv.data.db.TmdbPosterDao
 import com.kraat.lostfilmnewtv.data.network.AuthBridgeClient
@@ -35,6 +40,17 @@ import okhttp3.OkHttpClient
 @Module
 @InstallIn(SingletonComponent::class)
 object DataModule {
+
+    @Provides
+    @Singleton
+    fun provideDirectAuthRepository(
+        sessionStore: EncryptedSessionStore,
+        sessionVerifier: LostFilmSessionVerifier,
+        preferencesStore: PlaybackPreferencesStore,
+    ): DirectAuthRepositoryContract = DirectAuthRepository(sessionStore, sessionVerifier) {
+        preferencesStore.writeLostFilmBaseUrl(DIRECT_LOGIN_BASE_URL)
+        LostFilmBaseUrl.set(DIRECT_LOGIN_BASE_URL)
+    }
 
     @Provides
     @Singleton
@@ -112,3 +128,4 @@ object DataModule {
         },
     )
 }
+

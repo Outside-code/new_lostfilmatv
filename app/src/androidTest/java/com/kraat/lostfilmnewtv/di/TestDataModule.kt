@@ -1,6 +1,8 @@
 package com.kraat.lostfilmnewtv.di
 
 import com.kraat.lostfilmnewtv.data.auth.AuthRepositoryContract
+import com.kraat.lostfilmnewtv.data.auth.AuthCompletionResult
+import com.kraat.lostfilmnewtv.data.auth.DirectAuthRepositoryContract
 import com.kraat.lostfilmnewtv.data.model.AuthState
 import com.kraat.lostfilmnewtv.data.model.FavoriteMutationResult
 import com.kraat.lostfilmnewtv.data.model.FavoriteReleasesResult
@@ -40,6 +42,11 @@ object TestDataModule {
     @Provides
     @Singleton
     fun provideFakeAuthRepository(): AuthRepositoryContract = TestFakeAuthRepository()
+
+    @Provides
+    @Singleton
+    fun provideDirectAuthRepository(): DirectAuthRepositoryContract =
+        DirectAuthRepositoryContract { AuthCompletionResult.VerificationFailed }
 }
 
 /**
@@ -92,3 +99,4 @@ class TestFakeAuthRepository : AuthRepositoryContract {
     override suspend fun cancelPairing() { pairingSession = null }
     override suspend fun logout() { authState = AuthState(isAuthenticated = false, session = null) }
 }
+
