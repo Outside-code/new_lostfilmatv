@@ -56,7 +56,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
-import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
 import com.kraat.lostfilmnewtv.updates.SavedAppUpdate
 import com.kraat.lostfilmnewtv.ui.components.ShimmerSkeletonBox
 import com.kraat.lostfilmnewtv.ui.components.rememberShimmerSkeletonBrush
@@ -136,8 +135,7 @@ fun HomeScreen(
     var isSwitchingModeFromRail by remember { mutableStateOf(false) }
     var contentReturnFocusRequestVersion by remember { mutableStateOf(0) }
     var isContentRailFocused by remember(activeRailId) { mutableStateOf(false) }
-    var isHomeMenuFocused by rememberSaveable { mutableStateOf(true) }
-    val shouldShowHomeMenuLabels = state.isHomeMenuLabelsEnabled || isHomeMenuFocused
+    val shouldShowHomeMenuLabels = true
 
     LaunchedEffect(resolvedExternalSelectedItemKey, state.selectedItemKey, state.selectedMode, itemKeys) {
         val preferredKey = resolvedExternalSelectedItemKey ?: state.selectedItemKey ?: itemKeys.firstOrNull()
@@ -241,8 +239,8 @@ fun HomeScreen(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 22.dp, top = 22.dp, end = 10.dp, bottom = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(26.dp),
+                .padding(start = 8.dp, top = 10.dp, end = 12.dp, bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             val headerPrimaryRequester = modeFocusRequesters.getValue(state.selectedMode)
 
@@ -257,7 +255,6 @@ fun HomeScreen(
                 availableModes = state.availableModes,
                 onModeActivated = { mode ->
                     startupContentFocusPending = false
-                    isHomeMenuFocused = true
                     onModeSelected(mode)
                     focusScope.launch {
                         withFrameNanos { }
@@ -271,7 +268,6 @@ fun HomeScreen(
                         } else {
                             initialMenuFocusIgnored = true
                         }
-                        isHomeMenuFocused = true
                     }
                 },
                 onBackToContent = {
@@ -314,7 +310,7 @@ fun HomeScreen(
                 onHomeMenuLabelsVisibilitySelected = onHomeMenuLabelsVisibilitySelected,
                 isVisualFocusEnabled = !isSwitchingModeFromRail,
                 modifier = Modifier
-                    .width(if (shouldShowHomeMenuLabels) 204.dp else 68.dp)
+                    .width(if (shouldShowHomeMenuLabels) 180.dp else 68.dp)
                     .fillMaxHeight(),
             )
 
@@ -384,7 +380,6 @@ fun HomeScreen(
                                     isPaging = activeModeData.isPaging,
                                     onItemFocused = { detailsUrl ->
                                         startupContentFocusPending = false
-                                        isHomeMenuFocused = false
                                         isSwitchingModeFromRail = false
                                         focusedItemKey = detailsUrl
                                         onItemFocused(detailsUrl)
@@ -392,7 +387,6 @@ fun HomeScreen(
                                     onRailFocusChanged = { isFocused ->
                                         isContentRailFocused = isFocused
                                         if (isFocused) {
-                                            isHomeMenuFocused = false
                                         }
                                     },
                                     onOpenDetails = if (state.selectedMode == HomeFeedMode.Series ||
@@ -473,48 +467,45 @@ private fun HomeHeroStage(
     Crossfade(
         targetState = item,
         modifier = modifier
-            .height(252.dp)
+            .height(248.dp)
             .testTag("home-hero-stage"),
         label = "homeHeroStage",
     ) { targetItem ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        0f to BackgroundPrimary.copy(alpha = 0.68f),
-                        0.54f to BackgroundPrimary.copy(alpha = 0.22f),
-                        1f to Color.Transparent,
-                    ),
-                )
-                .padding(start = 2.dp, top = 4.dp, end = 280.dp, bottom = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp),
+                .padding(start = 12.dp, top = 44.dp, end = 260.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            ReleaseHeroMetaRow(targetItem)
-
             Text(
                 text = targetItem?.titleRu.orEmpty(),
                 color = TextPrimary,
-                fontSize = 36.sp,
-                lineHeight = 40.sp,
+                fontSize = 46.sp,
+                lineHeight = 52.sp,
                 fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Clip,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
 
-            targetItem?.episodeTitleRu?.takeIf { it.isNotBlank() }?.let { episodeTitle ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                seasonEpisodeHeroLabel(targetItem)?.let { HeroMetaPill(it, highlighted = true) }
+                targetItem?.episodeTitleRu?.takeIf { it.isNotBlank() }?.let { episodeTitle ->
                 Text(
                     text = episodeTitle,
                     style = TextStyle(
                         platformStyle = PlatformTextStyle(includeFontPadding = true),
                     ),
-                    color = HomeAccentGold,
-                    fontSize = 18.sp,
-                    lineHeight = 22.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary,
+                    fontSize = 17.sp,
+                    lineHeight = 21.sp,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                }
             }
 
             targetItem.heroDescription().takeIf { it.isNotBlank() }?.let { description ->
@@ -523,42 +514,21 @@ private fun HomeHeroStage(
                     color = HomeTextSecondary,
                     fontSize = 16.sp,
                     lineHeight = 22.sp,
-                    maxLines = 5,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.width(760.dp),
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun ReleaseHeroMetaRow(item: ReleaseSummary?) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        item?.availabilityLabel?.takeIf { it.isNotBlank() }?.let { label ->
-            HeroMetaPill(label = label, highlighted = true)
-        }
-        seasonEpisodeHeroLabel(item)?.let { label ->
-            HeroMetaPill(label = label, highlighted = true)
-        }
-        item?.tmdbRating?.takeIf { it.isNotBlank() }?.let { rating ->
-            HeroMetaPill(label = "TMDB $rating")
-        }
-        item.episodeOverviewSourceLabel()?.let { label ->
-            HeroMetaPill(label = label)
-        }
-        item?.releaseDateRu?.takeIf { it.isNotBlank() }?.let { date ->
-            HeroMetaPill(label = date)
-        }
-        item?.kind?.let { kind ->
-            HeroMetaPill(
-                label = when (kind) {
-                    ReleaseKind.SERIES -> "Сериал"
-                    ReleaseKind.MOVIE -> "Фильм"
-                },
+            Text(
+                text = listOfNotNull(
+                    targetItem?.originalReleaseYear?.toString(),
+                    targetItem?.seasonNumber?.let { "$it сезон" },
+                    targetItem?.tmdbRating?.takeIf { it.isNotBlank() }?.let { "TMDB $it" },
+                ).joinToString(" • "),
+                color = HomeTextSecondary,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -608,16 +578,6 @@ private fun ReleaseSummary?.heroDescription(): String {
         ReleaseKind.MOVIE -> item.movieOverviewRu
             ?.takeIf { it.isNotBlank() }
             ?: "Фильм доступен в релизах LostFilm."
-    }
-}
-
-private fun ReleaseSummary?.episodeOverviewSourceLabel(): String? {
-    val item = this ?: return null
-    if (item.kind != ReleaseKind.SERIES || item.episodeOverviewRu.isNullOrBlank()) return null
-    return when (item.episodeOverviewSource) {
-        TmdbEpisodeOverviewSource.MACHINE_TRANSLATED.name -> "Автоперевод"
-        TmdbEpisodeOverviewSource.TMDB_EN.name -> "English"
-        else -> null
     }
 }
 
@@ -724,7 +684,6 @@ private fun HomeBackdrop(item: ReleaseSummary?) {
         modifier = Modifier
             .fillMaxSize()
             .drawBehind {
-                
                 drawRect(
                     brush = Brush.horizontalGradient(
                         0f to BackgroundPrimary.copy(alpha = 1f),
@@ -738,13 +697,6 @@ private fun HomeBackdrop(item: ReleaseSummary?) {
                         0f to Color.Transparent,
                         0.50f to Color.Transparent,
                         1f to BackgroundPrimary.copy(alpha = 0.96f),
-                    ),
-                )
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        0.18f to Color.Transparent,
-                        0.34f to Color.Transparent,
                     ),
                 )
             },
@@ -971,3 +923,4 @@ internal suspend fun requestFocusWhenReady(requester: FocusRequester): Boolean {
     }
     return focusMoved
 }
+

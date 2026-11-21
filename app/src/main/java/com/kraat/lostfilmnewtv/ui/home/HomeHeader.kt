@@ -64,7 +64,7 @@ import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
 import com.kraat.lostfilmnewtv.ui.theme.HomeTextMuted
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
 
-private val ExpandedMenuWidth = 204.dp
+private val ExpandedMenuWidth = 180.dp
 private val CollapsedMenuWidth = 68.dp
 private val MenuButtonHeight = 38.dp
 private val MenuShape = RoundedCornerShape(20.dp)
@@ -172,7 +172,7 @@ fun HomeHeader(
                     leftEdgeRequester = null,
                     rightEdgeRequester = downTarget,
                     nextDownRequester = scheduleFocusRequester,
-                    upEdgeRequester = menuLabelsFocusRequester,
+                    upEdgeRequester = settingsFocusRequester,
                     onModeClick = { mode ->
                         onHeaderInteraction()
                         onNavItemSelected(NavItem.HOME)
@@ -189,6 +189,7 @@ fun HomeHeader(
                 Spacer(modifier = Modifier.width(1.dp))
             }
 
+            MenuDivider()
             HomeHeaderActionButton(
                 label = "Расписание",
                 subtitle = "Календарь",
@@ -216,7 +217,6 @@ fun HomeHeader(
                         left = FocusRequester.Cancel
                     },
             )
-            MenuDivider()
             HomeHeaderActionButton(
                 label = "Поиск",
                 subtitle = "Сериал или фильм",
@@ -274,8 +274,7 @@ fun HomeHeader(
                         },
                 )
             }
-            Spacer(modifier = Modifier.weight(1f))
-            MenuDivider()
+            Spacer(modifier = Modifier.height(2.dp))
             HomeHeaderActionButton(
                 label = "Настройки",
                 subtitle = "Приложение",
@@ -298,37 +297,12 @@ fun HomeHeader(
                     .focusRequester(settingsFocusRequester)
                     .focusProperties {
                         up = if (hasUpdate) updateFocusRequester else searchFocusRequester
-                        down = menuLabelsFocusRequester
-                        left = FocusRequester.Cancel
-                        right = downTarget ?: FocusRequester.Default
-                    },
-            )
-            HomeHeaderActionButton(
-                label = if (menuLabelsEnabled) "Скрыть меню" else "Показать меню",
-                subtitle = "",
-                leadingIcon = if (menuLabelsEnabled) HeaderActionIcon.MenuCollapse else HeaderActionIcon.MenuExpand,
-                onClick = {
-                    onHeaderInteraction()
-                    onHomeMenuLabelsVisibilitySelected(!menuLabelsEnabled)
-                },
-                onLongClick = {},
-                onInteraction = onHeaderInteraction,
-                onBackClick = onBackToContent,
-                isVisualFocusEnabled = isVisualFocusEnabled,
-                minWidth = if (showLabels) ExpandedMenuWidth - 36.dp else CollapsedMenuWidth - 20.dp,
-                hideSubtitle = true,
-                showLabel = showLabels,
-                modifier = Modifier
-                    .then(if (showLabels) Modifier.fillMaxWidth() else Modifier.width(CollapsedMenuWidth - 20.dp))
-                    .testTag("home-action-menu-labels")
-                    .focusRequester(menuLabelsFocusRequester)
-                    .focusProperties {
                         down = firstModeRequester ?: scheduleFocusRequester
-                        up = settingsFocusRequester
-                        right = downTarget ?: FocusRequester.Default
                         left = FocusRequester.Cancel
+                        right = downTarget ?: FocusRequester.Default
                     },
             )
+
         }
     }
 }
@@ -338,15 +312,15 @@ private fun HomeMenuLogo(showLabels: Boolean) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(58.dp)
             .padding(horizontal = if (showLabels) 12.dp else 0.dp),
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.CenterStart,
     ) {
         if (showLabels) {
             Text(
                 text = "LF.Tv",
-                color = HomeAccentGold,
-                fontSize = 22.sp,
+                color = Color.White,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
