@@ -421,7 +421,7 @@ private fun HomeModeSegmentButton(
     var isFocused by remember { mutableStateOf(false) }
     val showFocusedStyle = isFocused && isVisualFocusEnabled
     val scale by animateFloatAsState(
-        targetValue = if (showFocusedStyle) 1.04f else 1f,
+        targetValue = if (showFocusedStyle) 1.015f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -430,7 +430,7 @@ private fun HomeModeSegmentButton(
     )
     val shape = MenuButtonShape
     val active = selected || showFocusedStyle
-    val contentColor = if (active) HomeAccentGoldGlow else HomeTextMuted
+    val contentColor = Color.White
     Box(
         modifier = modifier
             .height(MenuButtonHeight)
@@ -465,14 +465,14 @@ private fun HomeModeSegmentButton(
             }
             .background(
                 brush = Brush.verticalGradient(
-                    0f to FocusBackground.copy(alpha = if (active) 0.78f else 0.28f),
-                    1f to HomePanelSurfaceStrong.copy(alpha = if (active) 0.92f else 0.48f),
+                    0f to FocusBackground.copy(alpha = if (active) 0.78f else 0f),
+                    1f to HomePanelSurfaceStrong.copy(alpha = if (active) 0.92f else 0f),
                 ),
                 shape = shape,
             )
             .border(
                 width = 1.dp,
-                color = if (active) HomeAccentGold.copy(alpha = 0.84f) else HomePanelBorder.copy(alpha = 0.10f),
+                color = if (active) HomeAccentGold.copy(alpha = 0.84f) else Color.Transparent,
                 shape = shape,
             )
             .onFocusChanged {
@@ -540,7 +540,7 @@ private fun HomeHeaderActionButton(
     var isFocused by remember { mutableStateOf(false) }
     val showFocusedStyle = isFocused && isVisualFocusEnabled
     val scale by animateFloatAsState(
-        targetValue = if (showFocusedStyle) 1.04f else 1f,
+        targetValue = if (showFocusedStyle) 1.015f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -589,8 +589,8 @@ private fun HomeHeaderActionButton(
             }
             .background(
                 brush = Brush.verticalGradient(
-                    0f to FocusBackground.copy(alpha = if (isPrimary || showFocusedStyle) 0.76f else 0.24f),
-                    1f to HomePanelSurfaceStrong.copy(alpha = if (isPrimary || showFocusedStyle) 0.90f else 0.46f),
+                    0f to FocusBackground.copy(alpha = if (isPrimary || showFocusedStyle) 0.76f else 0f),
+                    1f to HomePanelSurfaceStrong.copy(alpha = if (isPrimary || showFocusedStyle) 0.90f else 0f),
                 ),
                 shape = shape,
             )
@@ -1031,7 +1031,7 @@ private fun SettingsLineIcon(color: Color) {
 
 private fun HomeFeedMode.segmentLabel(): String {
     return when (this) {
-        HomeFeedMode.AllNew -> "Новые"
+        HomeFeedMode.AllNew -> "Новинки"
         HomeFeedMode.Favorites -> "Избранное"
         HomeFeedMode.FavoriteSeries -> "Мои сериалы"
         HomeFeedMode.Movies -> "Фильмы"
