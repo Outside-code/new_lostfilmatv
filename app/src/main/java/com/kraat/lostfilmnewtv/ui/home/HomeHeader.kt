@@ -550,9 +550,9 @@ private fun HomeHeaderActionButton(
 
     val borderColor = when {
         isPrimary || showFocusedStyle -> HomeAccentGold.copy(alpha = 0.86f)
-        else -> HomePanelBorder.copy(alpha = 0.10f)
+        else -> Color.Transparent
     }
-    val textColor = if (isPrimary || showFocusedStyle) HomeAccentGoldGlow else HomeTextMuted
+    val textColor = Color.White
     val subtitleColor = if (isPrimary || showFocusedStyle) HomeAccentGold.copy(alpha = 0.80f) else HomeTextMuted
     val shape = MenuButtonShape
 
