@@ -64,7 +64,7 @@ fun PosterCard(
         scale = CardDefaults.scale(focusedScale = POSTER_FOCUSED_SCALE),
         glow = CardDefaults.glow(
             focusedGlow = Glow(
-                elevationColor = HomeAccentGoldGlow.copy(alpha = 0.42f),
+                elevationColor = HomeAccentGoldGlow.copy(alpha = 0.16f),
                 elevation = 20.dp
             )
         ),
@@ -190,3 +190,4 @@ private fun seasonEpisodeLabel(item: ReleaseSummary): String? {
     val episodeNumber = item.episodeNumber ?: return null
     return "Сезон $seasonNumber, серия $episodeNumber"
 }
+
