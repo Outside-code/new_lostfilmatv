@@ -682,7 +682,7 @@ fun SettingsScreen(
                                 Column(modifier = Modifier.focusGroup(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     SettingsRowButton(
                                         title = "Аккаунт",
-                                        description = if (isAuthenticated) "Завершить текущую сессию." else "Войти через QR-код в браузере.",
+                                        description = if (isAuthenticated) "Завершить текущую сессию." else "Войти на lostfilm.tv прямо на телевизоре.",
                                         value = if (isAuthenticated) "Выйти" else "Войти",
                                         onClick = onAuthClick,
                                         tag = SettingsFocusTarget.AccountAuth.toTag(),
@@ -1125,3 +1125,4 @@ private fun AndroidTvChannelMode.label(): String {
 private fun AndroidTvChannelMode.buttonTag(): String {
     return SettingsFocusTarget.ChannelMode(this).toTag()
 }
+
