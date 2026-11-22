@@ -2527,6 +2527,23 @@ class LostFilmRepositoryTest {
         )
     }
 
+    @Test
+    fun observeSchedule_replacesSiteThumbnailsWithTmdbPostersWithoutFetchingDetails() = runTest {
+        val requestedUrls = mutableListOf<String>()
+        val repository = createRepository(
+            pageHandler = { error("Unexpected feed request") },
+            detailsHandler = { url -> requestedUrls += url; fixture("schedule-list.html") },
+            tmdbResolver = PosterTmdbResolver(),
+        )
+        val results = repository.observeSchedule().toList().filterIsInstance<ScheduleResult.Success>()
+        assertTrue(results.size > 1)
+        assertTrue(results.first().schedule.days.flatMap { it.items }.all { it.posterUrl == null })
+        assertTrue(results.last().schedule.days.flatMap { it.items }.all {
+            it.posterUrl?.startsWith("https://image.tmdb.org/t/p/w780/") == true
+        })
+        assertEquals(listOf("https://www.lostfilm.today/schedule/my_0/type_0"), requestedUrls)
+    }
+
     private suspend fun Job.joinWithin5s() {
         assertTrue(
             "Коллектор observePage не завершился за 5 секунд",
@@ -2791,6 +2808,7 @@ private fun seriesRootPageWithStatusHtml(): String = """
 """.trimIndent()
 
 private fun expectedTedGuide(): SeriesGuide = SeriesGuide(
+    seriesUrl = "https://www.lostfilm.today/series/Ted/",
     seriesTitleRu = "Третий лишний",
     posterUrl = "",
     selectedEpisodeDetailsUrl = "https://www.lostfilm.today/series/Ted/season_2/episode_8/",

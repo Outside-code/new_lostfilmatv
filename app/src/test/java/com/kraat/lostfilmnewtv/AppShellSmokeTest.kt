@@ -6,6 +6,6 @@ import org.junit.Test
 class AppShellSmokeTest {
     @Test
     fun applicationId_matchesPlan() {
-        assertEquals("com.kraat.lostfilmnewtv", BuildConfig.APPLICATION_ID)
+        assertEquals("com.outside.lostfilmnewtv", BuildConfig.APPLICATION_ID)
     }
 }

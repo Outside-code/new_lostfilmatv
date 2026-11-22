@@ -70,7 +70,7 @@ fun normalizeTorrServeBaseUrl(raw: String): String? {
     val parsed = withScheme.toHttpUrlOrNull() ?: return null
     if (parsed.host.isBlank()) return null
     return parsed.newBuilder()
-        .encodedPath("/")
+        .encodedPath(parsed.encodedPath.trimEnd('/') + "/")
         .query(null)
         .fragment(null)
         .build()

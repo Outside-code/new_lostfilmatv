@@ -203,7 +203,7 @@ class LostFilmSeasonEpisodesParser {
                 ?.groupValues
                 ?.getOrNull(1)
                 ?.normalizeText()
-                ?: return null
+                .orEmpty()
 
         val episodeTitleRu = gammaCell.extractEpisodeTitle()
 
@@ -223,6 +223,7 @@ class LostFilmSeasonEpisodesParser {
             episodeTitleRu = episodeTitleRu,
             releaseDateRu = releaseDateRu,
             isWatched = isWatched,
+            isAvailable = !row.hasClass("not-available") && row.selectFirst(".external-btn.inactive") == null,
         )
     }
 }

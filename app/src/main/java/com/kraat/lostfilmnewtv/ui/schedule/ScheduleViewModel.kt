@@ -40,7 +40,8 @@ class ScheduleViewModel @Inject constructor(
         loadJob?.cancel()
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         loadJob = viewModelScope.launch(ioDispatcher) {
-            when (val result = repository.loadSchedule()) {
+            repository.observeSchedule().collect { result ->
+            when (result) {
                 is ScheduleResult.Success -> {
                     _uiState.update {
                         it.copy(
@@ -58,6 +59,7 @@ class ScheduleViewModel @Inject constructor(
                         )
                     }
                 }
+            }
             }
         }
     }

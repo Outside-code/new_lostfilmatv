@@ -134,7 +134,7 @@ fun ScheduleScreen(
                                 .testTag("schedule-retry"),
                             colors = ButtonDefaults.buttonColors(containerColor = DetailsAccentGold),
                         ) {
-                            Text("Повторить", color = Color(0xFF17120D))
+                            Text("Повторить", color = Color(0xFF0D1930))
                         }
                     }
                 }
@@ -248,7 +248,7 @@ private fun ColumnScope.ScheduleLoadingSkeleton() {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth(if (rowIndex == 1) 0.96f else 1f)
-                            .height(82.dp)
+                            .height(98.dp)
                             .clip(ScheduleRowShape)
                             .background(DetailsSurfaceReadable)
                             .border(1.dp, HomePanelBorder, ScheduleRowShape)
@@ -259,8 +259,8 @@ private fun ColumnScope.ScheduleLoadingSkeleton() {
                         ShimmerSkeletonBox(
                             brush = brush,
                             modifier = Modifier
-                                .width(58.dp)
-                                .height(58.dp),
+                                .width(70.dp)
+                                .height(70.dp),
                             shape = RoundedCornerShape(6.dp),
                             baseColor = Color(0xFF172636),
                         )
@@ -424,7 +424,7 @@ private fun ScheduleItemRow(
         contentPadding = PaddingValues(0.dp),
         modifier = modifier
             .fillMaxWidth()
-            .height(82.dp)
+            .height(98.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -446,8 +446,8 @@ private fun ScheduleItemRow(
             ScheduleItemImage(
                 item = item,
                 modifier = Modifier
-                    .width(58.dp)
-                    .height(58.dp),
+                    .width(70.dp)
+                    .height(70.dp),
             )
             Column(
                 modifier = Modifier.width(178.dp),
@@ -569,6 +569,9 @@ private fun rememberScheduleImageRequest(posterUrl: String): ImageRequest {
     return remember(context, posterUrl) {
         ImageRequest.Builder(context)
             .data(posterUrl)
+            .size(320, 480)
+            .precision(coil.size.Precision.EXACT)
+            .allowRgb565(false)
             .crossfade(true)
             .build()
     }

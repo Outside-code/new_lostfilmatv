@@ -1,16 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Phone sign-in error</title>
-</head>
-<body>
-    <main>
-        <h1>Phone sign-in error</h1>
-        <p>{{ message }}</p>
-        {% if retry_url %}
-        <p><a href="{{ retry_url }}">Try again</a></p>
-        {% endif %}
-    </main>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Phone sign-in error — LostFilm{% endblock %}
+{% block content %}
+<h1>Не удалось завершить вход</h1>
+<p>{{ message }}</p>
+{% if retry_url %}<a href="{{ retry_url }}">Попробовать ещё раз</a>{% endif %}
+<p class="note">Если ошибка повторяется, получите новый QR-код на телевизоре.</p>
+{% endblock %}

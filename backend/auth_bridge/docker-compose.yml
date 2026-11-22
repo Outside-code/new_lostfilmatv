@@ -1,5 +1,7 @@
 services:
   auth-backend:
+    build:
+      context: ./backend
     image: ${AUTH_BACKEND_IMAGE:-lostfilm-auth-bridge:auth-bazuka-pp-ua-amd64}
     restart: unless-stopped
     stop_grace_period: 20s

@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, FastAPI
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from auth_bridge.api.health import build_health_router
 from auth_bridge.api.pairings import build_pairings_router
@@ -162,6 +164,7 @@ def create_app() -> FastAPI:
         retry_backoff_seconds=settings.upstream_retry_backoff_seconds,
     )
     translation_service = DeeplTranslationService(
+        local_model_dir=settings.local_translation_model_dir,
         api_key=settings.deepl_api_key,
         api_url=settings.deepl_api_url,
         timeout_seconds=settings.deepl_timeout_seconds,
@@ -223,6 +226,7 @@ def create_app() -> FastAPI:
     app.include_router(build_tmdb_router(), prefix="/api/tmdb")
     app.include_router(build_kinopoisk_router(), prefix="/api/kinopoisk")
     app.include_router(build_translation_router(), prefix="/api/translate")
+    app.mount("/branding", StaticFiles(directory=Path(__file__).parent / "static"), name="branding")
     attach_phone_flow_router(app, pairing_service)
     attach_wildcard_proxy_router(app, pairing_service)
 

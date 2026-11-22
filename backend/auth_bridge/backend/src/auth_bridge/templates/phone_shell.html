@@ -1,13 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-  <body>
-    {% if confirmed %}
-    <h1>Device connected. Return to your TV.</h1>
-    <p>Your LostFilm session is ready on the paired device.</p>
-    {% else %}
-    <h1>Connect your TV</h1>
-    <p>Use this phone to complete the LostFilm sign-in for code {{ user_code }}.</p>
-    <p><a href="/login">Continue in LostFilm</a></p>
-    {% endif %}
-  </body>
-</html>
+{% extends "base.html" %}
+{% block content %}
+{% if confirmed %}
+<h1>Телевизор подключён</h1>
+<p>Вход выполнен. Возвращайтесь к телевизору — приложение продолжит автоматически.</p>
+{% else %}
+<h1>Вход на телевизоре</h1>
+<p>Проверьте, что этот код совпадает с кодом на экране вашего телевизора.</p>
+<p class="code">{{ user_code }}</p>
+<a href="/login">Войти в LostFilm</a>
+<p class="note">Завершите вход в браузере телефона. Вводить пароль пультом не потребуется.</p>
+{% endif %}
+{% endblock %}

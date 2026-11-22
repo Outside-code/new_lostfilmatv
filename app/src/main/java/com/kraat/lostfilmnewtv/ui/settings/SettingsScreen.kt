@@ -66,6 +66,10 @@ fun SettingsScreen(
     selectedWatchedMarkingMode: WatchedMarkingMode = WatchedMarkingMode.AUTO,
     onWatchedMarkingModeSelected: (WatchedMarkingMode) -> Unit = {},
     torrServeBaseUrl: String = "",
+    torrServeUsername: String = "",
+    torrServePassword: String = "",
+    onTorrServeUsernameChanged: (String) -> Unit = {},
+    onTorrServePasswordChanged: (String) -> Unit = {},
     torrServeStatusText: String? = null,
     isCheckingTorrServe: Boolean = false,
     onTorrServeBaseUrlChanged: (String) -> Unit = {},
@@ -108,7 +112,7 @@ fun SettingsScreen(
     val qualityOptions = remember { listOf(PlaybackQualityPreference.Q1080, PlaybackQualityPreference.Q720, PlaybackQualityPreference.Q480) }
     val updateModes = remember { listOf(UpdateCheckMode.QUIET_CHECK, UpdateCheckMode.MANUAL) }
     val channelModes = remember { listOf(AndroidTvChannelMode.ALL_NEW, AndroidTvChannelMode.UNWATCHED, AndroidTvChannelMode.DISABLED) }
-    val contentScrollState = rememberScrollState()
+    val contentScrollState = remember(selectedSection) { androidx.compose.foundation.ScrollState(0) }
     val railRequesters = remember(visibleSections) {
         visibleSections.associateWith { FocusRequester() }
     }
@@ -118,7 +122,6 @@ fun SettingsScreen(
             updateModes.forEach { put(it.buttonTag(), FocusRequester()) }
             channelModes.forEach { put(it.buttonTag(), FocusRequester()) }
             put(SettingsFocusTarget.WatchedMarkingToggle.toTag(), FocusRequester())
-            put(SettingsFocusTarget.HomeFavoritesToggle.toTag(), FocusRequester())
             put(SettingsFocusTarget.HomeFavoriteSeriesToggle.toTag(), FocusRequester())
             put(SettingsFocusTarget.HomeMoviesToggle.toTag(), FocusRequester())
             put(SettingsFocusTarget.HomeSeriesToggle.toTag(), FocusRequester())
@@ -134,7 +137,6 @@ fun SettingsScreen(
             put(SettingsFocusTarget.InstallUpdate.toTag(), FocusRequester())
             put(SettingsFocusTarget.AccountAuth.toTag(), FocusRequester())
             put(SettingsFocusTarget.AboutGitHubLink.toTag(), FocusRequester())
-            put(SettingsFocusTarget.AboutTelegramLink.toTag(), FocusRequester())
         }
     }
     var contentHasFocus by remember { mutableStateOf(false) }
@@ -142,7 +144,7 @@ fun SettingsScreen(
         mutableStateOf(
             mapOf(
                 SettingsSection.PLAYBACK.name to SettingsFocusTarget.PlaybackQuality(selectedQuality),
-                SettingsSection.HOME_SCREEN.name to SettingsFocusTarget.HomeFavoritesToggle,
+                SettingsSection.HOME_SCREEN.name to SettingsFocusTarget.HomeFavoriteSeriesToggle,
                 SettingsSection.CHANNEL.name to SettingsFocusTarget.ChannelMode(selectedChannelMode),
                 SettingsSection.TORRSERVE.name to SettingsFocusTarget.TorrServeBaseUrl,
                 SettingsSection.SERVER.name to SettingsFocusTarget.LostFilmHost,
@@ -152,9 +154,6 @@ fun SettingsScreen(
         )
     }
 
-    LaunchedEffect(selectedSection) {
-        contentScrollState.scrollTo(0)
-    }
     LaunchedEffect(Unit) {
         requestFocusWhenReady(railRequesters.getValue(selectedSection))
     }
@@ -162,7 +161,6 @@ fun SettingsScreen(
         if (contentHasFocus) {
             railRequesters.getValue(selectedSection).requestFocus()
             contentHasFocus = false
-            onSectionBack()
         } else {
             onNavigateBack()
         }
@@ -181,8 +179,7 @@ fun SettingsScreen(
     )
     val channelSummary = selectedChannelMode.shortLabel()
     val homeScreenSummary = listOf(
-        "Избранное ${if (isHomeFavoritesRailEnabled) "вкл" else "выкл"}",
-        "мои сериалы ${if (isHomeFavoriteSeriesEnabled) "вкл" else "выкл"}",
+        "Избранное ${if (isHomeFavoriteSeriesEnabled) "вкл" else "выкл"}",
         "фильмы ${if (isHomeMoviesEnabled) "вкл" else "выкл"}",
         "сериалы ${if (isHomeSeriesEnabled) "вкл" else "выкл"}",
         "подписи ${if (isHomeMenuLabelsEnabled) "вкл" else "выкл"}",
@@ -197,6 +194,9 @@ fun SettingsScreen(
     val accountSummary = if (isAuthenticated) "Вход выполнен" else "Без входа"
     val aboutSummary = BuildConfig.VERSION_NAME
 
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides SettingsBringIntoView,
+    ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -349,31 +349,8 @@ fun SettingsScreen(
                                 }
                                 Column(modifier = Modifier.focusGroup(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     SettingsRowButton(
-                                        title = "Вкладка Избранное",
-                                        description = "Показывает отдельную вкладку с сохраненными релизами.",
-                                        value = if (isHomeFavoritesRailEnabled) "Вкл" else "Выкл",
-                                        onClick = {
-                                            onHomeFavoritesRailVisibilitySelected(!isHomeFavoritesRailEnabled)
-                                            contentRequesters.getValue(SettingsFocusTarget.HomeFavoritesToggle.toTag()).requestFocus()
-                                        },
-                                        isSelected = isHomeFavoritesRailEnabled,
-                                        tag = SettingsFocusTarget.HomeFavoritesToggle.toTag(),
-                                        onFocused = {
-                                            rememberedActionBySection = rememberedActionBySection + (
-                                                SettingsSection.HOME_SCREEN.name to SettingsFocusTarget.HomeFavoritesToggle
-                                            )
-                                        },
-                                        modifier = Modifier
-                                            .focusRequester(contentRequesters.getValue(SettingsFocusTarget.HomeFavoritesToggle.toTag()))
-                                            .focusProperties {
-                                                left = railRequesters.getValue(SettingsSection.HOME_SCREEN)
-                                                up = railRequesters.getValue(SettingsSection.HOME_SCREEN)
-                                                down = contentRequesters.getValue(SettingsFocusTarget.HomeFavoriteSeriesToggle.toTag())
-                                            },
-                                    )
-                                    SettingsRowButton(
-                                        title = "Мои сериалы",
-                                        description = "Показывает отдельную вкладку с сериалами из избранного.",
+                                        title = "Избранное",
+                                        description = "Одна карточка на сериал, без отдельных серий.",
                                         value = if (isHomeFavoriteSeriesEnabled) "Вкл" else "Выкл",
                                         onClick = {
                                             onHomeFavoriteSeriesVisibilitySelected(!isHomeFavoriteSeriesEnabled)
@@ -390,7 +367,7 @@ fun SettingsScreen(
                                             .focusRequester(contentRequesters.getValue(SettingsFocusTarget.HomeFavoriteSeriesToggle.toTag()))
                                             .focusProperties {
                                                 left = railRequesters.getValue(SettingsSection.HOME_SCREEN)
-                                                up = contentRequesters.getValue(SettingsFocusTarget.HomeFavoritesToggle.toTag())
+                                                up = railRequesters.getValue(SettingsSection.HOME_SCREEN)
                                                 down = contentRequesters.getValue(SettingsFocusTarget.HomeMoviesToggle.toTag())
                                             },
                                     )
@@ -535,6 +512,14 @@ fun SettingsScreen(
                                             )
                                         },
                                         modifier = Modifier.focusRequester(contentRequesters.getValue(SettingsFocusTarget.TorrServeBaseUrl.toTag())),
+                                    )
+                                    SettingsTextField(
+                                        value = torrServeUsername, onValueChange = onTorrServeUsernameChanged,
+                                        label = "Логин TorrServe (если требуется)", tag = "settings-torrserve-username",
+                                    )
+                                    SettingsTextField(
+                                        value = torrServePassword, onValueChange = onTorrServePasswordChanged,
+                                        label = "Пароль TorrServe", tag = "settings-torrserve-password", isPassword = true,
                                     )
                                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                         SettingsRowButton(
@@ -715,14 +700,13 @@ fun SettingsScreen(
                                 }
                                 Column(modifier = Modifier.focusGroup(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     val gitHubTag = SettingsFocusTarget.AboutGitHubLink.toTag()
-                                    val telegramTag = SettingsFocusTarget.AboutTelegramLink.toTag()
                                     SettingsRowButton(
                                         title = "Исходный код на GitHub",
-                                        description = "Репозиторий kraaton11/new_lostfilmatv",
+                                        description = "Репозиторий Outside-code/new_lostfilmatv",
                                         value = "Открыть",
                                         onClick = {
                                             context.startActivity(
-                                                Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/kraaton11/new_lostfilmatv")).apply {
+                                                Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Outside-code/new_lostfilmatv")).apply {
                                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                                 },
                                             )
@@ -738,34 +722,10 @@ fun SettingsScreen(
                                             .focusProperties {
                                                 left = railRequesters.getValue(SettingsSection.ABOUT)
                                                 up = railRequesters.getValue(SettingsSection.ABOUT)
-                                                down = contentRequesters.getValue(telegramTag)
+                                                down = FocusRequester.Cancel
                                             },
                                     )
-                                    SettingsRowButton(
-                                        title = "Telegram-канал",
-                                        description = "t.me/lostfilmatv_new",
-                                        value = "Открыть",
-                                        onClick = {
-                                            context.startActivity(
-                                                Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/lostfilmatv_new")).apply {
-                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                },
-                                            )
-                                        },
-                                        tag = telegramTag,
-                                        onFocused = {
-                                            rememberedActionBySection = rememberedActionBySection + (
-                                                SettingsSection.ABOUT.name to SettingsFocusTarget.AboutTelegramLink
-                                            )
-                                        },
-                                        modifier = Modifier
-                                            .focusRequester(contentRequesters.getValue(telegramTag))
-                                            .focusProperties {
-                                                left = railRequesters.getValue(SettingsSection.ABOUT)
-                                                up = contentRequesters.getValue(gitHubTag)
-                                                down = FocusRequester.Default
-                                            },
-                                    )
+
                                 }
                             }
                         }
@@ -773,6 +733,7 @@ fun SettingsScreen(
                 }
             }
         }
+    }
     }
 }
 
@@ -1014,7 +975,7 @@ private fun targetContentTag(
     return when {
         rememberedTarget != null && isActionAvailable(rememberedTarget, installUrl) -> rememberedTarget
         section == SettingsSection.PLAYBACK -> SettingsFocusTarget.PlaybackQuality(selectedQuality)
-        section == SettingsSection.HOME_SCREEN -> SettingsFocusTarget.HomeFavoritesToggle
+        section == SettingsSection.HOME_SCREEN -> SettingsFocusTarget.HomeFavoriteSeriesToggle
         section == SettingsSection.CHANNEL -> SettingsFocusTarget.ChannelMode(selectedChannelMode)
         section == SettingsSection.TORRSERVE -> SettingsFocusTarget.TorrServeBaseUrl
         section == SettingsSection.UPDATES -> SettingsFocusTarget.UpdateChannel(selectedUpdateMode)

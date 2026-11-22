@@ -48,7 +48,9 @@ fun PosterImage(
         alpha = alpha,
     ) {
         when (painter.state) {
-            is AsyncImagePainter.State.Error -> PosterPlaceholder(Modifier.fillMaxSize())
+            is AsyncImagePainter.State.Error,
+            is AsyncImagePainter.State.Loading,
+            is AsyncImagePainter.State.Empty -> PosterPlaceholder(Modifier.fillMaxSize())
             else -> SubcomposeAsyncImageContent()
         }
     }

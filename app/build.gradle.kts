@@ -1,4 +1,5 @@
 import java.util.Base64
+import java.net.URI
 
 plugins {
     alias(libs.plugins.android.application)
@@ -7,6 +8,17 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
+}
+
+val authBridgeBaseUrl = providers.gradleProperty("authBridgeBaseUrl")
+    .orElse(providers.environmentVariable("AUTH_BRIDGE_BASE_URL"))
+    .orElse("https://lost.hagenka.online")
+    .get().trim().trimEnd('/')
+val authBridgeUri = URI(authBridgeBaseUrl)
+require(authBridgeUri.scheme == "https" && !authBridgeUri.host.isNullOrBlank() &&
+    authBridgeUri.rawUserInfo == null && authBridgeUri.rawQuery == null &&
+    authBridgeUri.rawFragment == null && authBridgeUri.rawPath.orEmpty().isEmpty()) {
+    "authBridgeBaseUrl must be an HTTPS origin, for example https://auth.example.com"
 }
 
 val releaseVersionCodeProvider = providers.gradleProperty("releaseVersionCode").orElse("1")
@@ -44,11 +56,12 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.kraat.lostfilmnewtv"
+        applicationId = "com.outside.lostfilmnewtv"
         minSdk = 28
         targetSdk = 35
         versionCode = releaseVersionCodeProvider.get().toInt()
         versionName = releaseVersionNameProvider.get()
+        buildConfigField("String", "AUTH_BRIDGE_BASE_URL", "\"$authBridgeBaseUrl\"")
         testInstrumentationRunner = "com.kraat.lostfilmnewtv.HiltTestRunner"
     }
 
@@ -134,6 +147,8 @@ dependencies {
     implementation(libs.androidx.security.crypto)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.zxing.core)
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.media3:media3-ui:1.8.0")
     ksp(libs.androidx.room.compiler)
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
@@ -155,8 +170,23 @@ dependencies {
     testImplementation(libs.hilt.android.testing)
     kspTest(libs.hilt.android.compiler)
     testImplementation(libs.mockito.core)
+    androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.hilt.android.testing)
     kspAndroidTest(libs.hilt.android.compiler)
+}
+
+// Lint reads Hilt/KSP sources. Finish generating them before analysis, including parallel CI builds.
+tasks.configureEach {
+    when (name) {
+        "lintAnalyzeDebugUnitTest" -> dependsOn("hiltJavaCompileDebugUnitTest")
+        "lintAnalyzeDebugAndroidTest" -> dependsOn("hiltJavaCompileDebugAndroidTest")
+    }
+}
+
+// Robolectric uses Java2D pixel buffers on Linux; isolate batches and allow enough heap for TV screens.
+tasks.withType<Test>().configureEach {
+    maxHeapSize = "1g"
+    forkEvery = 20
 }

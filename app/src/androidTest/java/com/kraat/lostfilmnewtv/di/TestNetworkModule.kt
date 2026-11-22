@@ -22,11 +22,19 @@ object TestNetworkModule {
 
     @Provides
     @Singleton
+    fun provideDescriptionTranslator(): com.kraat.lostfilmnewtv.ui.components.DescriptionTranslator =
+        com.kraat.lostfilmnewtv.ui.components.DescriptionTranslator { null }
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): okhttp3.OkHttpClient = okhttp3.OkHttpClient()
+
+    @Provides
+    @Singleton
     fun provideNoOpTmdbPosterResolver(): TmdbPosterResolver = object : TmdbPosterResolver {
         override suspend fun resolve(
             detailsUrl: String,
             titleRu: String,
-            releaseDateRu: String,
             kind: ReleaseKind,
             originalReleaseYear: Int?,
         ): TmdbImageUrls? = null

@@ -149,7 +149,6 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 onSearchClick = { navController.navigate(AppDestination.Search.route) },
                 onScheduleClick = { navController.navigate(AppDestination.Schedule.route) },
                 onSettingsClick = { navController.navigate(AppDestination.Settings.createRoute()) },
-                onHomeMenuLabelsVisibilitySelected = homeViewModel::onHomeMenuLabelsVisibilityChanged,
                 onUpdateClick = {
                     val apkUrl = savedAppUpdate?.apkUrl
                     if (!apkUrl.isNullOrBlank() && updateInstallJob?.isActive != true) {
@@ -244,6 +243,11 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
             ),
         ) {
             SeriesGuideRoute(
+                onOpenAuth = { navController.navigate(AppDestination.Auth.createRoute(autoStart = true)) },
+                onFavoriteChanged = { url, isFav ->
+                    navController.previousBackStackEntry?.savedStateHandle?.set(HOME_FAVORITE_CHANGED_DETAILS_URL_KEY, url)
+                    navController.previousBackStackEntry?.savedStateHandle?.set(HOME_FAVORITE_CHANGED_STATE_KEY, isFav)
+                },
                 onOpenDetails = { url -> navController.navigate(AppDestination.Details.createRoute(url, isAuthenticated)) },
             )
         }
@@ -337,7 +341,7 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
             arguments = listOf(
                 navArgument(AppDestination.Auth.autoStartArg) {
                     type = NavType.BoolType
-                    defaultValue = false
+                    defaultValue = true
                 },
             ),
         ) { backStackEntry ->

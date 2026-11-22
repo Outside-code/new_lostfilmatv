@@ -108,4 +108,32 @@ class LostFilmSeasonEpisodesParserTest {
         assertTrue(guide.last().episodes.first { it.episodeNumber == 3 }.isWatched)
         assertFalse(guide.last().episodes.first { it.episodeNumber == 1 }.isWatched)
     }
+    @Test
+    fun parseGuide_keepsUnavailableEpisodesIncludingUnknownReleaseDate() {
+        val html = """
+            <div class="serie-block"><table class="movie-parts-list">
+              <tr class="not-available">
+                <td class="beta" onclick="goTo('/series/Test/season_1/episode_3/',false)">1 сезон 3 серия</td>
+                <td class="gamma">Третья серия</td><td class="delta">Дата не объявлена</td>
+                <td><div class="external-btn inactive"></div></td>
+              </tr>
+              <tr class="not-available">
+                <td class="beta" onclick="goTo('/series/Test/season_1/episode_2/',false)">1 сезон 2 серия</td>
+                <td class="gamma">Вторая серия</td><td class="delta">Ru: 27.11.2026</td>
+              </tr>
+              <tr>
+                <td class="beta" onclick="goTo('/series/Test/season_1/episode_1/',false)">1 сезон 1 серия</td>
+                <td class="gamma">Первая серия</td><td class="delta">Ru: <span data-released="21.11.2026">21.11.2026</span></td>
+              </tr>
+            </table></div>
+        """.trimIndent()
+        val episodes = parser.parseGuide(html).single().episodes
+        assertEquals(3, episodes.size)
+        assertFalse(episodes[0].isAvailable)
+        assertEquals("", episodes[0].releaseDateRu)
+        assertFalse(episodes[1].isAvailable)
+        assertEquals("27.11.2026", episodes[1].releaseDateRu)
+        assertTrue(episodes[2].isAvailable)
+    }
+
 }

@@ -73,6 +73,7 @@ import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurface
 import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 import kotlin.math.roundToInt
+import java.time.LocalDate
 
 @Composable
 fun SeriesGuideScreen(
@@ -80,6 +81,8 @@ fun SeriesGuideScreen(
     onRetry: () -> Unit,
     onSeasonSelected: (Int) -> Unit,
     onEpisodeClick: (String) -> Unit,
+    onPlaySeason: () -> Unit = {},
+    onFavoriteClick: () -> Unit = {},
 ) {
     Box(
         modifier = Modifier
@@ -104,6 +107,9 @@ fun SeriesGuideScreen(
 
             else -> {
                 GuideContent(
+                    actions = state,
+                    onPlaySeason = onPlaySeason,
+                    onFavoriteClick = onFavoriteClick,
                     title = state.title,
                     posterUrl = state.posterUrl,
                     seasons = state.seasons,
@@ -277,6 +283,9 @@ private fun GuideCenteredStatePanel(
 
 @Composable
 private fun GuideContent(
+    actions: SeriesGuideUiState,
+    onPlaySeason: () -> Unit,
+    onFavoriteClick: () -> Unit,
     title: String,
     posterUrl: String?,
     seasons: List<SeriesGuideSeason>,
@@ -312,6 +321,22 @@ private fun GuideContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         GuideHeroSection(title = title, posterUrl = posterUrl, seasons = seasons)
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(
+                onClick = onPlaySeason,
+                enabled = !actions.isPreparingSeason && activeSeason.episodes.any { it.isAvailable },
+                colors = ButtonDefaults.buttonColors(containerColor = DetailsAccentBlue, contentColor = Color(0xFF081222)),
+                modifier = Modifier.testTag("series-guide-play-season"),
+            ) { Text(if (actions.isPreparingSeason) "Готовим сезон…" else "Смотреть весь сезон", fontWeight = FontWeight.Bold) }
+            Button(
+                onClick = onFavoriteClick, enabled = !actions.isFavoriteBusy,
+                colors = ButtonDefaults.buttonColors(containerColor = DetailsSurfaceSoft, contentColor = TextPrimary),
+                modifier = Modifier.testTag("series-guide-favorite"),
+            ) { Text(when { actions.isFavoriteBusy -> "Сохраняем…"; actions.isFavorite == true -> "♥ В избранном"; else -> "♡ В избранное" }) }
+        }
+        actions.actionMessage?.let { Text(it, color = DetailsTextSecondary, fontSize = 13.sp) }
+
 
         Row(
             modifier = Modifier
@@ -629,6 +654,7 @@ private fun EpisodeRow(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
+    val availableColor = Color(0xFF69D99D)
     val shape = RoundedCornerShape(18.dp)
 
     val background = when {
@@ -640,6 +666,7 @@ private fun EpisodeRow(
         isSelected && isFocused -> DetailsAccentGoldFocus
         isSelected -> DetailsAccentGold
         isFocused -> DetailsAccentBlue
+        episode.isAvailable -> availableColor.copy(alpha = 0.50f)
         else -> HomePanelBorder
     }
 
@@ -680,19 +707,21 @@ private fun EpisodeRow(
                 modifier = Modifier
                     .size(width = 82.dp, height = 36.dp)
                     .background(
-                        if (isSelected) DetailsAccentGold.copy(alpha = 0.16f) else DetailsSurfaceSoft.copy(alpha = 0.64f),
+                        if (episode.isAvailable) availableColor.copy(alpha = 0.14f)
+                        else if (isSelected) DetailsAccentGold.copy(alpha = 0.16f) else DetailsSurfaceSoft.copy(alpha = 0.64f),
                         RoundedCornerShape(12.dp),
                     )
                     .border(
                         1.dp,
-                        if (isSelected) DetailsAccentGold.copy(alpha = 0.72f) else DetailsBorderDefault.copy(alpha = 0.52f),
+                        if (episode.isAvailable) availableColor.copy(alpha = 0.72f)
+                        else if (isSelected) DetailsAccentGold.copy(alpha = 0.72f) else DetailsBorderDefault.copy(alpha = 0.52f),
                         RoundedCornerShape(12.dp),
                     ),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = "S${episode.seasonNumber.toString().padStart(2, '0')}E${episode.episodeNumber.toString().padStart(2, '0')}",
-                    color = if (isSelected) DetailsAccentGold else DetailsTextSecondary,
+                    color = if (episode.isAvailable) availableColor else if (isSelected) DetailsAccentGold else DetailsTextSecondary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -704,15 +733,15 @@ private fun EpisodeRow(
                 Text(
                     text = episode.episodeTitleRu?.takeIf { it.isNotBlank() }
                         ?: "Сезон ${episode.seasonNumber} • Серия ${episode.episodeNumber}",
-                    color = TextPrimary,
+                    color = if (episode.isAvailable) availableColor else TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = episode.releaseDateRu,
-                    color = DetailsTextMuted,
+                    text = episode.availabilityLabel(LocalDate.now()),
+                    color = if (episode.isAvailable) availableColor else DetailsTextMuted,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -728,7 +757,7 @@ private fun EpisodeRow(
                 ) {
                     Text(
                         text = "✓",
-                        color = Color(0xFF17120D),
+                        color = Color(0xFF0D1930),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                     )
@@ -768,8 +797,8 @@ private fun GuideActionButton(
         isFocused -> DetailsAccentBlue
         else -> DetailsBorderDefault
     }
-    val textColor = if (isPrimary) Color(0xFF17120D) else TextPrimary
-    val subtitleColor = if (isPrimary) Color(0xFF473317) else DetailsTextMuted
+    val textColor = if (isPrimary) Color(0xFF0D1930) else TextPrimary
+    val subtitleColor = if (isPrimary) Color(0xFF243B63) else DetailsTextMuted
 
     Button(
         onClick = onClick,

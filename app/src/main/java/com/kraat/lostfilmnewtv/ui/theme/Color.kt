@@ -4,17 +4,17 @@ import androidx.compose.ui.graphics.Color
 
 val BackgroundPrimary = Color(0xFF040A11)
 val BackgroundSurface = Color(0xFF0B1521)
-val TextPrimary = Color(0xFFF7F1E8)
+val TextPrimary = Color(0xFFF3F6FC)
 val HomePanelSurface = Color(0xB308111A)
 val HomePanelSurfaceStrong = Color(0xE60D1825)
 val HomePanelBorder = Color(0x1FFFFFFF)
-val HomePanelBorderFocus = Color(0x80D9B46D)
+val HomePanelBorderFocus = Color(0x808CB4FF)
 
 // Strong focus tokens
-val FocusBorder     = Color(0xFFE8C982)   // bright gold, fully opaque
+val FocusBorder     = Color(0xFFB6D0FF)   // ice blue, fully opaque
 val FocusBackground = Color(0xFF172433)   // clearly lifted surface
-val HomeAccentGold = Color(0xFFD7AA5D)
-val HomeAccentGoldGlow = Color(0xFFFFDFA0)
+val HomeAccentGold = Color(0xFF82AAFF)
+val HomeAccentGoldGlow = Color(0xFFC7DDFF)
 val HomeAccentBlue = Color(0xFF8DB7D8)
 val HomeTextSecondary = Color(0xFFD2D9E2)
 val HomeTextMuted = Color(0xFF8793A3)

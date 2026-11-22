@@ -86,12 +86,12 @@ fun SettingsTvButton(
     }
     val textColor = when {
         !enabled -> HomeTextMuted
-        isSelected -> Color(0xFF17120D)
+        isSelected -> Color(0xFF0D1930)
         else -> TextPrimary
     }
     val summaryColor = when {
         !enabled -> HomeTextMuted
-        isSelected -> Color(0xFF5E4419)
+        isSelected -> Color(0xFF243B63)
         else -> HomeTextMuted
     }
     val shape = RoundedCornerShape(12.dp)
@@ -318,12 +318,15 @@ fun SettingsTextField(
     modifier: Modifier = Modifier,
     tag: String? = null,
     onFocused: (() -> Unit)? = null,
+    isPassword: Boolean = false,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         singleLine = true,
+        visualTransformation = if (isPassword) androidx.compose.ui.text.input.PasswordVisualTransformation()
+            else androidx.compose.ui.text.input.VisualTransformation.None,
         label = { Text(text = label) },
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = TextPrimary,

@@ -5,6 +5,9 @@ import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import com.kraat.lostfilmnewtv.ui.components.DescriptionTranslator
+import com.kraat.lostfilmnewtv.ui.components.LocalDescriptionTranslator
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -19,6 +22,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    @Inject lateinit var descriptionTranslator: DescriptionTranslator
     @Inject lateinit var homeChannelBackgroundScheduler: HomeChannelBackgroundScheduler
     @Inject lateinit var appUpdateBackgroundScheduler: AppUpdateBackgroundScheduler
 
@@ -29,8 +33,10 @@ class MainActivity : ComponentActivity() {
         hideLauncherBars()
         val initialDetailsUrl = AppLaunchTarget.parseDetailsUrl(intent)
         setContent {
-            LostFilmTheme {
-                LostFilmApp(initialDetailsUrl = initialDetailsUrl)
+            CompositionLocalProvider(LocalDescriptionTranslator provides descriptionTranslator) {
+                LostFilmTheme {
+                    LostFilmApp(initialDetailsUrl = initialDetailsUrl)
+                }
             }
         }
     }

@@ -110,6 +110,8 @@ interface LostFilmRepository {
     suspend fun search(query: String): SearchResultsResult =
         SearchResultsResult.Error(query, "Поиск недоступен")
 
+    fun observeSchedule(): Flow<ScheduleResult> = flow { emit(loadSchedule()) }
+
     suspend fun loadSchedule(): ScheduleResult =
         ScheduleResult.Error("Расписание недоступно")
 

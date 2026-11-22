@@ -27,7 +27,6 @@ sealed class SettingsFocusTarget {
     data object WatchedMarkingToggle : SettingsFocusTarget()
     data object AccountAuth : SettingsFocusTarget()
     data object AboutGitHubLink : SettingsFocusTarget()
-    data object AboutTelegramLink : SettingsFocusTarget()
 }
 
 fun SettingsFocusTarget.toTag(): String = when (this) {
@@ -62,5 +61,4 @@ fun SettingsFocusTarget.toTag(): String = when (this) {
     SettingsFocusTarget.WatchedMarkingToggle -> "settings-watched-marking-toggle"
     SettingsFocusTarget.AccountAuth -> "settings-account-auth-action"
     SettingsFocusTarget.AboutGitHubLink -> "settings-about-github-link"
-    SettingsFocusTarget.AboutTelegramLink -> "settings-about-telegram-link"
 }

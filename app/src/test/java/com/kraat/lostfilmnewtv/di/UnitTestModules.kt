@@ -72,6 +72,11 @@ object UnitTestDataModule {
     replaces = [NetworkModule::class],
 )
 object UnitTestNetworkModule {
+    @Provides
+    @Singleton
+    fun provideDescriptionTranslator(): com.kraat.lostfilmnewtv.ui.components.DescriptionTranslator =
+        com.kraat.lostfilmnewtv.ui.components.DescriptionTranslator { null }
+
 
     @Provides
     @Singleton

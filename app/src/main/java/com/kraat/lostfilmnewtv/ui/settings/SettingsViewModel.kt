@@ -69,6 +69,8 @@ class SettingsViewModel @Inject constructor(
             isHomeMenuLabelsEnabled = preferencesStore.readHomeMenuLabelsEnabled(),
             watchedMarkingMode = preferencesStore.readWatchedMarkingMode(),
             torrServeBaseUrl = preferencesStore.readTorrServeBaseUrl(),
+            torrServeUsername = preferencesStore.readTorrServeUsername(),
+            torrServePassword = preferencesStore.readTorrServePassword(),
             lostFilmHost = preferencesStore.readLostFilmBaseUrl(),
             installedVersionText = BuildConfig.VERSION_NAME,
             savedAppUpdate = initialSavedUpdate,
@@ -182,6 +184,9 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(watchedMarkingMode = mode) }
     }
 
+    fun onTorrServeUsernameChanged(value: String) { _uiState.update { it.copy(torrServeUsername = value) } }
+    fun onTorrServePasswordChanged(value: String) { _uiState.update { it.copy(torrServePassword = value) } }
+
     fun onTorrServeBaseUrlChanged(value: String) {
         _uiState.update { it.copy(torrServeBaseUrl = value, torrServeStatusText = null) }
     }
@@ -193,6 +198,7 @@ class SettingsViewModel @Inject constructor(
             return
         }
         preferencesStore.writeTorrServeBaseUrl(normalized)
+        preferencesStore.writeTorrServeCredentials(_uiState.value.torrServeUsername.trim(), _uiState.value.torrServePassword)
         _uiState.update {
             it.copy(
                 torrServeBaseUrl = normalized,
@@ -206,6 +212,8 @@ class SettingsViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 torrServeBaseUrl = preferencesStore.readTorrServeBaseUrl(),
+            torrServeUsername = preferencesStore.readTorrServeUsername(),
+            torrServePassword = preferencesStore.readTorrServePassword(),
                 torrServeStatusText = "Адрес сброшен",
             )
         }

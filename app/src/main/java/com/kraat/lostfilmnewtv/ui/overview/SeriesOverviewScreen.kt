@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import com.kraat.lostfilmnewtv.ui.components.rememberRussianDescription
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.kraat.lostfilmnewtv.ui.components.rememberBackdropImageRequest
 import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.data.model.SeriesOverview
 import com.kraat.lostfilmnewtv.ui.components.PosterImage
@@ -108,23 +110,17 @@ fun SeriesOverviewScreen(
 
 @Composable
 private fun OverviewBackgroundPoster(overview: SeriesOverview?) {
-    val context = LocalContext.current
     val imageUrl = overview?.backdropUrl?.takeIf { !it.isNullOrBlank() }
         ?: overview?.posterUrl
         ?: return
-    val request = remember(context, imageUrl) {
-        ImageRequest.Builder(context)
-            .data(imageUrl)
-            .size(1280, 720)
-            .build()
-    }
+    val request = rememberBackdropImageRequest(imageUrl)
 
     AsyncImage(
         model = request,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = Modifier.fillMaxSize(),
-        alpha = 0.14f,
+        alpha = 1f,
     )
 
     Box(
@@ -133,8 +129,8 @@ private fun OverviewBackgroundPoster(overview: SeriesOverview?) {
             .background(
                 Brush.verticalGradient(
                     0f to Color.Transparent,
-                    0.3f to DetailsBackgroundMid.copy(alpha = 0.74f),
-                    1f to BackgroundPrimary,
+                    0.3f to DetailsBackgroundMid.copy(alpha = 0.12f),
+                    1f to BackgroundPrimary.copy(alpha = 0.25f),
                 ),
             ),
     )
@@ -294,14 +290,15 @@ private fun OverviewContent(overview: SeriesOverview?) {
             "Официальный сайт" to safeOverview.officialSiteUrl,
         ).filter { !it.second.isNullOrBlank() }
     }
-    val sections = remember(safeOverview) {
+    val translatedDescription = rememberRussianDescription(safeOverview.descriptionRu.orEmpty())
+    val sections = remember(safeOverview, translatedDescription) {
         buildList {
             if (!safeOverview.descriptionRu.isNullOrBlank()) {
                 add(
                     OverviewSection(
                         key = "description",
                         title = "Описание",
-                        body = safeOverview.descriptionRu,
+                        body = translatedDescription,
                         tag = "series-overview-description",
                     ),
                 )

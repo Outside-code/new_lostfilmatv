@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import com.kraat.lostfilmnewtv.ui.components.rememberRussianDescription
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,6 +59,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.kraat.lostfilmnewtv.ui.components.rememberBackdropImageRequest
 import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.ui.components.PosterImage
 import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
@@ -379,49 +381,21 @@ private fun ContentState(
 
 @Composable
 private fun BackgroundPoster(details: ReleaseDetails?) {
-    val context = LocalContext.current
     Box(modifier = Modifier.fillMaxSize()) {
         if (details != null) {
             val backgroundImage = details.backdropUrl?.takeIf { it.isNotBlank() }
                 ?: details.posterUrl
-            val request = remember(context, backgroundImage) {
-                ImageRequest.Builder(context)
-                    .data(backgroundImage)
-                    .size(1280, 720)
-                    .build()
-            }
+            val request = rememberBackdropImageRequest(backgroundImage)
             AsyncImage(
                 model = request,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
-                alpha = 0.18f,
+                alpha = 1f,
             )
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        0.36f to DetailsBackgroundMid.copy(alpha = 0.7f),
-                        1f to BackgroundPrimary,
-                    ),
-                ),
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        0f to Color(0xB8040A10),
-                        0.45f to Color(0x66040A10),
-                        1f to Color(0xD8040A10),
-                    ),
-                ),
-        )
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.42f)))
     }
 }
 
@@ -736,7 +710,7 @@ private fun ReleaseDetails?.episodeOverviewSourceLabel(): String? {
     if (details.kind != ReleaseKind.SERIES || details.episodeOverviewRu.isNullOrBlank()) return null
     return when (details.episodeOverviewSource) {
         TmdbEpisodeOverviewSource.MACHINE_TRANSLATED.name -> "Автоперевод"
-        TmdbEpisodeOverviewSource.TMDB_EN.name -> "English"
+        TmdbEpisodeOverviewSource.TMDB_EN.name -> "Автоперевод"
         else -> null
     }
 }
@@ -887,14 +861,15 @@ private fun DetailsDivider() {
 
 @Composable
 private fun DetailsDescription(details: ReleaseDetails?) {
-    val description = buildDetailsDescription(details)
+    val description = rememberRussianDescription(buildDetailsDescription(details))
     if (description.isBlank()) return
 
     Text(
         text = description,
-        color = DetailsTextSecondary,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
+        color = TextPrimary,
+        fontSize = 16.sp,
+        lineHeight = 23.sp,
+        style = androidx.compose.ui.text.TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color.Black, androidx.compose.ui.geometry.Offset(0f, 2f), 8f)),
         maxLines = 5,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier
@@ -961,7 +936,7 @@ private fun PosterCard(details: ReleaseDetails?) {
                     Brush.verticalGradient(
                         0f to Color.Transparent,
                         0.54f to Color.Transparent,
-                        1f to Color(0xB8040A10),
+                        1f to Color(0x38040A10),
                     ),
                 ),
         )
@@ -1010,12 +985,12 @@ private fun StageButton(
         else -> DetailsBorderDefault
     }
     val textColor = when {
-        isPrimary -> Color(0xFF17120D)
+        isPrimary -> Color(0xFF0D1930)
         isHighlighted -> DetailsAccentGold
         else -> TextPrimary
     }
     val subtitleColor = when {
-        isPrimary -> Color(0xFF473317)
+        isPrimary -> Color(0xFF243B63)
         isHighlighted -> DetailsAccentGoldFocus
         else -> DetailsTextMuted
     }
@@ -1120,7 +1095,7 @@ private fun StageButtonIcon(
 private fun PrimaryPlayIcon(tint: Color, modifier: Modifier) {
     Canvas(modifier = modifier) {
         val radius = size.minDimension / 2f
-        drawCircle(color = Color(0xFF1B1710).copy(alpha = 0.92f), radius = radius)
+        drawCircle(color = Color(0xFF081222).copy(alpha = 0.92f), radius = radius)
         val triangle = Path().apply {
             moveTo(size.width * 0.43f, size.height * 0.33f)
             lineTo(size.width * 0.43f, size.height * 0.67f)

@@ -24,7 +24,7 @@ class TmdbImageFallbackInterceptorTest {
 
     @Test
     fun intercept_returnsOriginalResult_whenProxySucceeds() = runTest {
-        val interceptor = TmdbImageFallbackInterceptor()
+        val interceptor = TmdbImageFallbackInterceptor(primaryPrefix = "https://auth.bazuka.pp.ua/api/tmdb/t/p/")
         val originalRequest = ImageRequest.Builder(context)
             .data("https://auth.bazuka.pp.ua/api/tmdb/t/p/w780/poster.jpg")
             .build()
@@ -45,7 +45,7 @@ class TmdbImageFallbackInterceptorTest {
 
     @Test
     fun intercept_fallsBackToDirectTmdb_whenProxyFails() = runTest {
-        val interceptor = TmdbImageFallbackInterceptor()
+        val interceptor = TmdbImageFallbackInterceptor(primaryPrefix = "https://auth.bazuka.pp.ua/api/tmdb/t/p/")
         val originalRequest = ImageRequest.Builder(context)
             .data("https://auth.bazuka.pp.ua/api/tmdb/t/p/w780/poster.jpg")
             .build()
@@ -83,7 +83,7 @@ class TmdbImageFallbackInterceptorTest {
 
     @Test
     fun intercept_doesNotFallback_forNonProxyUrls() = runTest {
-        val interceptor = TmdbImageFallbackInterceptor()
+        val interceptor = TmdbImageFallbackInterceptor(primaryPrefix = "https://auth.bazuka.pp.ua/api/tmdb/t/p/")
         val otherRequest = ImageRequest.Builder(context)
             .data("https://kinopoiskapiunofficial.tech/images/poster.jpg")
             .build()
@@ -99,6 +99,51 @@ class TmdbImageFallbackInterceptorTest {
         val result = interceptor.intercept(chain)
         assertTrue(result is ErrorResult)
         assertEquals(1, chain.callCount)
+    }
+
+    @Test
+    fun intercept_routesCachedLegacyUrlsThroughOurProxyFirst() = runTest {
+        val primary = "https://lost.example.test/api/tmdb/t/p/"
+        val interceptor = TmdbImageFallbackInterceptor(primaryPrefix = primary)
+        val request = ImageRequest.Builder(context)
+            .data("https://auth.bazuka.pp.ua/api/tmdb/t/p/original/backdrop.jpg").build()
+        val urls = mutableListOf<String>()
+        val chain = FakeChain(request) { req ->
+            urls += req.data.toString()
+            SuccessResult(ColorDrawable(Color.BLUE), req, coil.decode.DataSource.NETWORK)
+        }
+        assertTrue(interceptor.intercept(chain) is SuccessResult)
+        assertEquals(listOf(primary + "original/backdrop.jpg"), urls)
+    }
+
+    @Test
+    fun intercept_triesLegacyAndDirectCdnWhenOurProxyIsUnavailable() = runTest {
+        val primary = "https://lost.example.test/api/tmdb/t/p/"
+        val interceptor = TmdbImageFallbackInterceptor(primaryPrefix = primary)
+        val request = ImageRequest.Builder(context).data(primary + "w780/poster.jpg").build()
+        val urls = mutableListOf<String>()
+        val chain = FakeChain(request) { req ->
+            val url = req.data.toString()
+            urls += url
+            if (url.startsWith("https://image.tmdb.org/")) {
+                SuccessResult(ColorDrawable(Color.BLUE), req, coil.decode.DataSource.NETWORK)
+            } else ErrorResult(null, req, java.io.IOException("Proxy unavailable"))
+        }
+        assertTrue(interceptor.intercept(chain) is SuccessResult)
+        assertEquals(listOf(
+            primary + "w780/poster.jpg",
+            "https://auth.bazuka.pp.ua/api/tmdb/t/p/w780/poster.jpg",
+            "https://image.tmdb.org/t/p/w780/poster.jpg",
+        ), urls)
+    }
+
+    @Test
+    fun intercept_stopsAfterThreeSourcesWhenAllFail() = runTest {
+        val primary = "https://lost.example.test/api/tmdb/t/p/"
+        val request = ImageRequest.Builder(context).data(primary + "w780/missing.jpg").build()
+        val chain = FakeChain(request) { req -> ErrorResult(null, req, java.io.IOException("Offline")) }
+        assertTrue(TmdbImageFallbackInterceptor(primaryPrefix = primary).intercept(chain) is ErrorResult)
+        assertEquals(3, chain.callCount)
     }
 
     @OptIn(coil.annotation.ExperimentalCoilApi::class)

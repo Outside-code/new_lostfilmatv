@@ -44,7 +44,9 @@ class HomeViewModel @Inject constructor(
     internal var clock: () -> Long = { System.currentTimeMillis() }
 
     private val initialSelectedMode: HomeFeedMode
-        get() = preferencesStore.readHomeSelectedFeedMode()
+        get() = preferencesStore.readHomeSelectedFeedMode().let {
+            if (it == HomeFeedMode.Favorites) HomeFeedMode.FavoriteSeries else it
+        }
 
     private val initialFavoritesRailVisible: Boolean
         get() = preferencesStore.readHomeFavoritesRailEnabled()
@@ -432,12 +434,12 @@ class HomeViewModel @Inject constructor(
                                         fullScreenErrorMessage = null,
                                     ).updateMode(HomeFeedMode.AllNew) { md ->
                                         md.copy(
-                                            items = result.items,
+                                            items = result.items.latestSeriesReleases(),
                                             isPaging = false,
                                             pagingErrorMessage = result.pagingErrorMessage,
                                             nextPage = result.pageNumber + 1,
                                             hasNextPage = result.hasNextPage,
-                                            contentState = HomeModeContentState.Content(result.items),
+                                            contentState = HomeModeContentState.Content(result.items.latestSeriesReleases()),
                                         )
                                     }.resolveSelection()
                                 }
@@ -521,7 +523,7 @@ class HomeViewModel @Inject constructor(
                             // иначе пользователь теряет сообщение и кнопку повтора.
                             if (result.isStale && result.pagingErrorMessage == null) return@collect
                             appliedEmission = true
-                            val updatedItems = result.items
+                            val updatedItems = result.items.latestSeriesReleases()
                             _uiState.update { state ->
                                 state.copy(
                                     isInitialLoading = false,
@@ -996,7 +998,7 @@ private fun availableModes(
     isSeriesVisible: Boolean,
 ): List<HomeFeedMode> = buildList {
     add(HomeFeedMode.AllNew)
-    if (isFavoritesVisible) add(HomeFeedMode.Favorites)
+    // The former episode favorites feed is retired; favorites contains series only.
     if (isFavoriteSeriesVisible) add(HomeFeedMode.FavoriteSeries)
     if (isMoviesVisible) add(HomeFeedMode.Movies)
     if (isSeriesVisible) add(HomeFeedMode.Series)

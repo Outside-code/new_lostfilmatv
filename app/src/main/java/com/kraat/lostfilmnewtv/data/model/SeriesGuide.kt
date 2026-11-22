@@ -5,6 +5,8 @@ data class SeriesGuide(
     val posterUrl: String?,
     val selectedEpisodeDetailsUrl: String?,
     val seasons: List<SeriesGuideSeason>,
+    val seriesUrl: String = "",
+    val isFavorite: Boolean? = null,
 )
 
 data class SeriesGuideSeason(
@@ -20,4 +22,5 @@ data class SeriesGuideEpisode(
     val episodeTitleRu: String?,
     val releaseDateRu: String,
     val isWatched: Boolean,
+    val isAvailable: Boolean = true,
 )

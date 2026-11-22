@@ -57,7 +57,7 @@ sealed interface AppDestination {
 
         override val route: String = "$baseRoute?$autoStartArg={$autoStartArg}"
 
-        fun createRoute(autoStart: Boolean = false): String = "$baseRoute?$autoStartArg=$autoStart"
+        fun createRoute(autoStart: Boolean = true): String = "$baseRoute?$autoStartArg=$autoStart"
     }
 
     data object Settings : AppDestination {

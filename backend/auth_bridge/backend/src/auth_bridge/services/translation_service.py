@@ -7,6 +7,8 @@ import time
 
 import httpx
 
+from auth_bridge.services.local_translation import ArgosTranslator
+
 logger = logging.getLogger(__name__)
 
 
@@ -53,7 +55,10 @@ class DeeplTranslationService:
         cache_max_entries: int = 1000,
         cache_ttl_seconds: int = 7 * 24 * 60 * 60,
         transport: httpx.BaseTransport | None = None,
+        local_model_dir: str = "",
     ) -> None:
+        self._local_model_dir = local_model_dir.strip()
+        self._local_translator: ArgosTranslator | None = None
         self._api_key = api_key.strip()
         self._api_url = api_url
         self._timeout = httpx.Timeout(timeout_seconds)
@@ -71,11 +76,11 @@ class DeeplTranslationService:
 
     @property
     def provider(self) -> str:
-        return "deepl"
+        return "argos" if self._local_model_dir and not self._api_key else "deepl"
 
     @property
     def configured(self) -> bool:
-        return bool(self._api_key)
+        return bool(self._api_key or self._local_model_dir)
 
     def snapshot(self) -> TranslationServiceSnapshot:
         with self._lock:
@@ -107,7 +112,7 @@ class DeeplTranslationService:
             with self._lock:
                 self._unsupported_errors += 1
             raise UnsupportedTranslationPairError("Only EN to RU translation is supported.")
-        if not self._api_key:
+        if not self.configured:
             with self._lock:
                 self._disabled_errors += 1
             raise TranslationDisabledError("DeepL API key is not configured.")
@@ -116,6 +121,24 @@ class DeeplTranslationService:
         cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
+
+        if self._local_model_dir and not self._api_key:
+            try:
+                with self._lock:
+                    if self._local_translator is None:
+                        self._local_translator = ArgosTranslator(self._local_model_dir)
+                translated = self._local_translator.translate(text).strip()
+                if not translated:
+                    raise ValueError("Empty translation")
+            except Exception as exc:
+                with self._lock:
+                    self._upstream_errors += 1
+                logger.warning("Local translation failed: %s", type(exc).__name__)
+                raise TranslationUpstreamError("Translation provider is unavailable.") from exc
+            self._put_cached(cache_key, translated)
+            with self._lock:
+                self._successes += 1
+            return translated
 
         try:
             with httpx.Client(transport=self._transport, timeout=self._timeout) as client:

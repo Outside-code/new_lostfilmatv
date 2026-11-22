@@ -21,7 +21,7 @@ open class GitHubReleaseClient(
     }
 
     open suspend fun fetchLatestRelease(): GitHubRelease = withContext(Dispatchers.IO) {
-        val url = "$baseUrl/repos/kraaton11/new_lostfilmatv/releases/latest"
+        val url = "$baseUrl/repos/Outside-code/new_lostfilmatv/releases/latest"
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", USER_AGENT)

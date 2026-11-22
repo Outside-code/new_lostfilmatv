@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import com.kraat.lostfilmnewtv.ui.components.rememberRussianDescription
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.kraat.lostfilmnewtv.ui.components.rememberBackdropImageRequest
 import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
 import com.kraat.lostfilmnewtv.ui.components.PosterImage
@@ -95,23 +97,17 @@ fun MovieOverviewScreen(
 
 @Composable
 private fun MovieOverviewBackgroundPoster(details: ReleaseDetails?) {
-    val context = LocalContext.current
     val imageUrl = details?.backdropUrl?.takeIf { !it.isNullOrBlank() }
         ?: details?.posterUrl
         ?: return
-    val request = remember(context, imageUrl) {
-        ImageRequest.Builder(context)
-            .data(imageUrl)
-            .size(1280, 720)
-            .build()
-    }
+    val request = rememberBackdropImageRequest(imageUrl)
 
     AsyncImage(
         model = request,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = Modifier.fillMaxSize(),
-        alpha = 0.14f,
+        alpha = 1f,
     )
 
     Box(
@@ -120,8 +116,8 @@ private fun MovieOverviewBackgroundPoster(details: ReleaseDetails?) {
             .background(
                 Brush.verticalGradient(
                     0f to Color.Transparent,
-                    0.3f to DetailsBackgroundMid.copy(alpha = 0.74f),
-                    1f to BackgroundPrimary,
+                    0.3f to DetailsBackgroundMid.copy(alpha = 0.12f),
+                    1f to BackgroundPrimary.copy(alpha = 0.25f),
                 ),
             ),
     )
@@ -272,10 +268,10 @@ private fun MovieOverviewContent(details: ReleaseDetails?) {
     val density = LocalDensity.current
     val posterWidthPx = with(density) { 175.dp.toPx().roundToInt().coerceAtLeast(1) }
     val posterHeightPx = with(density) { 252.dp.toPx().roundToInt().coerceAtLeast(1) }
-    val description = safeDetails.episodeOverviewRu
+    val description = rememberRussianDescription((safeDetails.movieOverviewRu ?: safeDetails.episodeOverviewRu)
         ?.replace(movieOverviewWhitespaceRegex, " ")
         ?.trim()
-        .orEmpty()
+        .orEmpty())
     val blocks = remember(description) {
         description.chunkForMovieReading(maxChars = 1200)
             .mapIndexed { index, chunk ->

@@ -34,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
@@ -92,11 +94,8 @@ fun HomeHeader(
     scheduleFocusRequester: FocusRequester,
     updateFocusRequester: FocusRequester,
     settingsFocusRequester: FocusRequester,
-    menuLabelsFocusRequester: FocusRequester,
     downTarget: FocusRequester?,
     showLabels: Boolean,
-    menuLabelsEnabled: Boolean = showLabels,
-    onHomeMenuLabelsVisibilitySelected: (Boolean) -> Unit,
     isVisualFocusEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
@@ -123,7 +122,8 @@ fun HomeHeader(
         isUpdateDownloading -> "Загрузка"
         else -> "Можно обновить"
     }
-    val initialFocusRequester = firstModeRequester ?: searchFocusRequester
+    val initialFocusRequester = modeFocusRequesters[selectedMode]?.takeIf { selectedMode in visibleModes }
+        ?: firstModeRequester ?: searchFocusRequester
 
     LaunchedEffect(Unit) {
         initialFocusRequester.requestFocus()
@@ -172,7 +172,7 @@ fun HomeHeader(
                     leftEdgeRequester = null,
                     rightEdgeRequester = downTarget,
                     nextDownRequester = scheduleFocusRequester,
-                    upEdgeRequester = menuLabelsFocusRequester,
+                    upEdgeRequester = settingsFocusRequester,
                     onModeClick = { mode ->
                         onHeaderInteraction()
                         onNavItemSelected(NavItem.HOME)
@@ -298,37 +298,12 @@ fun HomeHeader(
                     .focusRequester(settingsFocusRequester)
                     .focusProperties {
                         up = if (hasUpdate) updateFocusRequester else searchFocusRequester
-                        down = menuLabelsFocusRequester
-                        left = FocusRequester.Cancel
-                        right = downTarget ?: FocusRequester.Default
-                    },
-            )
-            HomeHeaderActionButton(
-                label = if (menuLabelsEnabled) "Скрыть меню" else "Показать меню",
-                subtitle = "",
-                leadingIcon = if (menuLabelsEnabled) HeaderActionIcon.MenuCollapse else HeaderActionIcon.MenuExpand,
-                onClick = {
-                    onHeaderInteraction()
-                    onHomeMenuLabelsVisibilitySelected(!menuLabelsEnabled)
-                },
-                onLongClick = {},
-                onInteraction = onHeaderInteraction,
-                onBackClick = onBackToContent,
-                isVisualFocusEnabled = isVisualFocusEnabled,
-                minWidth = if (showLabels) ExpandedMenuWidth - 36.dp else CollapsedMenuWidth - 20.dp,
-                hideSubtitle = true,
-                showLabel = showLabels,
-                modifier = Modifier
-                    .then(if (showLabels) Modifier.fillMaxWidth() else Modifier.width(CollapsedMenuWidth - 20.dp))
-                    .testTag("home-action-menu-labels")
-                    .focusRequester(menuLabelsFocusRequester)
-                    .focusProperties {
                         down = firstModeRequester ?: scheduleFocusRequester
-                        up = settingsFocusRequester
-                        right = downTarget ?: FocusRequester.Default
                         left = FocusRequester.Cancel
+                        right = downTarget ?: FocusRequester.Default
                     },
             )
+
         }
     }
 }
@@ -342,22 +317,15 @@ private fun HomeMenuLogo(showLabels: Boolean) {
             .padding(horizontal = if (showLabels) 12.dp else 0.dp),
         contentAlignment = Alignment.Center,
     ) {
-        if (showLabels) {
-            Text(
-                text = "LF.Tv",
-                color = HomeAccentGold,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-            )
-        } else {
-            Image(
-                painter = painterResource(id = R.drawable.ic_lf_logo),
-                contentDescription = null,
-                modifier = Modifier.size(34.dp),
-            )
-        }
+        Image(
+            painter = painterResource(
+                id = if (showLabels) R.drawable.lostfilm_wordmark else R.drawable.ic_lf_logo,
+            ),
+            contentDescription = "Логотип LostFilm",
+            contentScale = if (showLabels) ContentScale.Crop else ContentScale.Fit,
+            modifier = if (showLabels) Modifier.fillMaxWidth().height(44.dp).clipToBounds()
+                else Modifier.size(34.dp),
+        )
     }
 }
 
@@ -540,8 +508,6 @@ private enum class HeaderActionIcon {
     Calendar,
     Refresh,
     Settings,
-    MenuCollapse,
-    MenuExpand,
 }
 
 @Composable
@@ -698,8 +664,6 @@ private fun HeaderVectorIcon(icon: HeaderActionIcon, color: Color) {
         HeaderActionIcon.Calendar -> CalendarIcon(color = color)
         HeaderActionIcon.Refresh -> RefreshIcon(color = color)
         HeaderActionIcon.Settings -> SettingsLineIcon(color = color)
-        HeaderActionIcon.MenuCollapse -> MenuVisibilityIcon(color = color, collapsed = false)
-        HeaderActionIcon.MenuExpand -> MenuVisibilityIcon(color = color, collapsed = true)
     }
 }
 
@@ -708,7 +672,7 @@ private fun HeaderModeIcon(mode: HomeFeedMode, color: Color) {
     when (mode) {
         HomeFeedMode.AllNew -> SparklesIcon(color = color)
         HomeFeedMode.Favorites -> HeartIcon(color = color)
-        HomeFeedMode.FavoriteSeries -> FavoriteSeriesIcon(color = color)
+        HomeFeedMode.FavoriteSeries -> HeartIcon(color = color)
         HomeFeedMode.Movies -> ClapperIcon(color = color)
         HomeFeedMode.Series -> TvIcon(color = color)
     }
@@ -872,46 +836,7 @@ private fun SearchIcon(color: Color) {
     }
 }
 
-@Composable
-private fun MenuVisibilityIcon(color: Color, collapsed: Boolean) {
-    androidx.compose.foundation.Canvas(modifier = Modifier.size(24.dp)) {
-        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
-            width = 2.0f,
-            cap = androidx.compose.ui.graphics.StrokeCap.Round,
-            join = androidx.compose.ui.graphics.StrokeJoin.Round,
-        )
-        drawRoundRect(
-            color = color,
-            topLeft = Offset(size.width * 0.16f, size.height * 0.20f),
-            size = androidx.compose.ui.geometry.Size(size.width * 0.68f, size.height * 0.60f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f),
-            style = stroke,
-        )
-        drawLine(
-            color = color,
-            start = Offset(size.width * 0.36f, size.height * 0.20f),
-            end = Offset(size.width * 0.36f, size.height * 0.80f),
-            strokeWidth = 2.0f,
-            cap = androidx.compose.ui.graphics.StrokeCap.Round,
-        )
-        val arrowX = if (collapsed) size.width * 0.64f else size.width * 0.54f
-        val direction = if (collapsed) 1f else -1f
-        drawLine(
-            color = color,
-            start = Offset(arrowX - direction * size.width * 0.08f, size.height * 0.40f),
-            end = Offset(arrowX + direction * size.width * 0.04f, size.height * 0.50f),
-            strokeWidth = 2.0f,
-            cap = androidx.compose.ui.graphics.StrokeCap.Round,
-        )
-        drawLine(
-            color = color,
-            start = Offset(arrowX - direction * size.width * 0.08f, size.height * 0.60f),
-            end = Offset(arrowX + direction * size.width * 0.04f, size.height * 0.50f),
-            strokeWidth = 2.0f,
-            cap = androidx.compose.ui.graphics.StrokeCap.Round,
-        )
-    }
-}
+
 
 @Composable
 private fun CalendarIcon(color: Color) {
@@ -1059,7 +984,7 @@ private fun HomeFeedMode.segmentLabel(): String {
     return when (this) {
         HomeFeedMode.AllNew -> "Новые"
         HomeFeedMode.Favorites -> "Избранное"
-        HomeFeedMode.FavoriteSeries -> "Мои сериалы"
+        HomeFeedMode.FavoriteSeries -> "Избранное"
         HomeFeedMode.Movies -> "Фильмы"
         HomeFeedMode.Series -> "Сериалы"
     }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import com.kraat.lostfilmnewtv.ui.components.rememberRussianDescription
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.DisposableEffect
@@ -31,15 +32,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
@@ -53,7 +53,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.StateFlow
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import com.kraat.lostfilmnewtv.ui.components.rememberBackdropImageRequest
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
@@ -87,7 +87,6 @@ fun HomeScreen(
     onScheduleClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onUpdateClick: () -> Unit = {},
-    onHomeMenuLabelsVisibilitySelected: (Boolean) -> Unit = {},
     onAuthClick: () -> Unit = {},
     onRetry: () -> Unit = {},
     onPagingRetry: () -> Unit = {},
@@ -131,7 +130,8 @@ fun HomeScreen(
         )
     }
     var lastSyncedKey by remember { mutableStateOf<String?>(null) }
-    var startupContentFocusPending by rememberSaveable { mutableStateOf(true) }
+    var startupContentFocusPending by rememberSaveable { mutableStateOf(false) }
+    var menuReturnFocusRequestVersion by remember { mutableStateOf(0) }
     var initialMenuFocusIgnored by remember { mutableStateOf(false) }
     var isSwitchingModeFromRail by remember { mutableStateOf(false) }
     var contentReturnFocusRequestVersion by remember { mutableStateOf(0) }
@@ -150,7 +150,10 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                startupContentFocusPending = true
+                startupContentFocusPending = false
+                isContentRailFocused = false
+                isHomeMenuFocused = true
+                menuReturnFocusRequestVersion += 1
                 initialMenuFocusIgnored = false
                 isSwitchingModeFromRail = false
                 onResume()
@@ -165,11 +168,16 @@ fun HomeScreen(
     val modeFocusRequesters = remember {
         HomeFeedMode.entries.associateWith { FocusRequester() }
     }
+    LaunchedEffect(menuReturnFocusRequestVersion) {
+        if (menuReturnFocusRequestVersion > 0) {
+            androidx.compose.runtime.withFrameNanos { }
+            requestFocusWhenReady(modeFocusRequesters.getValue(state.selectedMode))
+        }
+    }
     val searchRequester = remember { FocusRequester() }
     val scheduleRequester = remember { FocusRequester() }
     val settingsRequester = remember { FocusRequester() }
     val updateRequester = remember { FocusRequester() }
-    val menuLabelsRequester = remember { FocusRequester() }
     val loginActionRequester = remember { FocusRequester() }
     val retryActionRequester = remember { FocusRequester() }
     val contentEntryRequester = remember { FocusRequester() }
@@ -307,11 +315,8 @@ fun HomeScreen(
                 scheduleFocusRequester = scheduleRequester,
                 updateFocusRequester = updateRequester,
                 settingsFocusRequester = settingsRequester,
-                menuLabelsFocusRequester = menuLabelsRequester,
                 downTarget = headerDownTarget,
                 showLabels = shouldShowHomeMenuLabels,
-                menuLabelsEnabled = state.isHomeMenuLabelsEnabled,
-                onHomeMenuLabelsVisibilitySelected = onHomeMenuLabelsVisibilitySelected,
                 isVisualFocusEnabled = !isSwitchingModeFromRail,
                 modifier = Modifier
                     .width(if (shouldShowHomeMenuLabels) 204.dp else 68.dp)
@@ -480,13 +485,6 @@ private fun HomeHeroStage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        0f to BackgroundPrimary.copy(alpha = 0.68f),
-                        0.54f to BackgroundPrimary.copy(alpha = 0.22f),
-                        1f to Color.Transparent,
-                    ),
-                )
                 .padding(start = 2.dp, top = 4.dp, end = 280.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
@@ -497,16 +495,18 @@ private fun HomeHeroStage(
                 color = TextPrimary,
                 fontSize = 36.sp,
                 lineHeight = 40.sp,
+                style = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.8f), Offset(0f, 2f), 8f)),
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Clip,
             )
 
-            targetItem?.episodeTitleRu?.takeIf { it.isNotBlank() }?.let { episodeTitle ->
+            targetItem?.episodeTitleRu?.takeIf { it.isNotBlank() && !it.equals(targetItem.titleRu, ignoreCase = true) }?.let { episodeTitle ->
                 Text(
                     text = episodeTitle,
                     style = TextStyle(
                         platformStyle = PlatformTextStyle(includeFontPadding = true),
+                        shadow = Shadow(Color.Black, Offset(0f, 2f), 8f),
                     ),
                     color = HomeAccentGold,
                     fontSize = 18.sp,
@@ -517,13 +517,17 @@ private fun HomeHeroStage(
                 )
             }
 
-            targetItem.heroDescription().takeIf { it.isNotBlank() }?.let { description ->
+            rememberRussianDescription(
+                targetItem.heroDescription(), targetItem?.seriesOverviewRu.orEmpty(),
+            ).takeIf { it.isNotBlank() }?.let { description ->
                 Text(
                     text = description,
-                    color = HomeTextSecondary,
-                    fontSize = 16.sp,
-                    lineHeight = 22.sp,
-                    maxLines = 5,
+                    color = TextPrimary,
+                    style = TextStyle(shadow = Shadow(Color.Black, Offset(0f, 2f), 8f)),
+                    fontSize = 17.sp,
+                    lineHeight = 24.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.width(760.dp),
                 )
@@ -616,7 +620,7 @@ private fun ReleaseSummary?.episodeOverviewSourceLabel(): String? {
     if (item.kind != ReleaseKind.SERIES || item.episodeOverviewRu.isNullOrBlank()) return null
     return when (item.episodeOverviewSource) {
         TmdbEpisodeOverviewSource.MACHINE_TRANSLATED.name -> "Автоперевод"
-        TmdbEpisodeOverviewSource.TMDB_EN.name -> "English"
+        TmdbEpisodeOverviewSource.TMDB_EN.name -> "Автоперевод"
         else -> null
     }
 }
@@ -629,7 +633,7 @@ private fun HomeRailSectionHeader(
     val title = when (selectedMode) {
         HomeFeedMode.AllNew -> "Свежие релизы"
         HomeFeedMode.Favorites -> "Избранное"
-        HomeFeedMode.FavoriteSeries -> "Мои сериалы"
+        HomeFeedMode.FavoriteSeries -> "Избранное"
         HomeFeedMode.Movies -> "Фильмы"
         HomeFeedMode.Series -> "Сериалы"
     }
@@ -677,84 +681,22 @@ private fun Int.formatFavoriteSeriesCount(): String {
 
 @Composable
 private fun HomeBackdrop(item: ReleaseSummary?) {
-    val context = LocalContext.current
     val backdropUrl = item?.backdropUrl?.takeIf { it.isNotBlank() }
-    val posterUrl = item?.posterUrl?.takeIf { it.isNotBlank() }
-    val backdropImage = HomeBackdropImage(
-        url = backdropUrl ?: posterUrl,
-        isWide = backdropUrl != null,
-    )
-
-    Crossfade(
-        targetState = backdropImage,
-        label = "homeBackdrop",
-    ) { targetImage ->
-        val targetImageUrl = targetImage.url
-        if (targetImageUrl != null) {
-            val request = remember(context, targetImageUrl) {
-                ImageRequest.Builder(context)
-                    .data(targetImageUrl)
-                    .size(1280, 720)
-                    .crossfade(true)
-                    .build()
-            }
-            Box(modifier = Modifier.fillMaxSize()) {
-                AsyncImage(
-                    model = request,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .then(
-                            if (targetImage.isWide) {
-                                Modifier.fillMaxSize()
-                            } else {
-                                Modifier
-                                    .fillMaxHeight()
-                                    .width(1_120.dp)
-                                    .blur(8.dp)
-                            },
-                        ),
-                )
-            }
+    Crossfade(targetState = backdropUrl, label = "homeBackdrop") { url ->
+        if (url != null) {
+            AsyncImage(
+                model = rememberBackdropImageRequest(url),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .drawBehind {
-                drawRect(Color(0x8A040A11))
-                drawRect(
-                    brush = Brush.horizontalGradient(
-                        0f to BackgroundPrimary.copy(alpha = 1f),
-                        0.34f to BackgroundPrimary.copy(alpha = 0.88f),
-                        0.62f to BackgroundPrimary.copy(alpha = 0.18f),
-                        1f to BackgroundPrimary.copy(alpha = 0.28f),
-                    ),
-                )
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        0f to Color(0x33040A11),
-                        0.38f to Color.Transparent,
-                        1f to BackgroundPrimary.copy(alpha = 0.96f),
-                    ),
-                )
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        0f to BackgroundPrimary.copy(alpha = 0.74f),
-                        0.18f to BackgroundPrimary.copy(alpha = 0.48f),
-                        0.34f to Color.Transparent,
-                    ),
-                )
-            },
+        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.42f)),
     )
 }
-
-private data class HomeBackdropImage(
-    val url: String?,
-    val isWide: Boolean,
-)
 
 @Composable
 private fun HomeLoadingSkeleton(modifier: Modifier = Modifier) {
@@ -887,7 +829,7 @@ private fun HomeStatusPanel(
             ) {
                 Text(
                     text = actionLabel,
-                    color = if (isError) Color(0xFF17120D) else TextPrimary,
+                    color = if (isError) Color(0xFF0D1930) else TextPrimary,
                 )
             }
         }
@@ -929,7 +871,7 @@ private fun HomeActionPanel(
                         .then(if (actionTestTag != null) Modifier.testTag(actionTestTag) else Modifier),
                     colors = ButtonDefaults.buttonColors(containerColor = HomeAccentGold),
                 ) {
-                    Text(actionLabel, color = Color(0xFF17120D))
+                    Text(actionLabel, color = Color(0xFF0D1930))
                 }
             }
         }
