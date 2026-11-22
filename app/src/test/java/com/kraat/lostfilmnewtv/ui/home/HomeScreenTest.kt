@@ -422,7 +422,7 @@ class HomeScreenTest {
 
     @Test
     @OptIn(ExperimentalTestApi::class)
-    fun homeScreen_settingsAction_downMovesFocusToMenuLabelsAction() {
+    fun homeScreen_settingsAction_downWrapsToFirstMode() {
         composeRule.setContent {
             LostFilmTheme {
                 HomeScreen(state = seededState())
@@ -437,7 +437,7 @@ class HomeScreenTest {
             .performKeyInput { pressKey(Key.DirectionDown) }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("home-action-menu-labels").assertIsFocused()
+        composeRule.onNodeWithTag("home-mode-toggle").assertIsFocused()
     }
 
     @Test

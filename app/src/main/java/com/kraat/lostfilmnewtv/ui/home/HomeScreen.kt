@@ -86,7 +86,6 @@ fun HomeScreen(
     onScheduleClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onUpdateClick: () -> Unit = {},
-    onHomeMenuLabelsVisibilitySelected: (Boolean) -> Unit = {},
     onAuthClick: () -> Unit = {},
     onRetry: () -> Unit = {},
     onPagingRetry: () -> Unit = {},
@@ -168,7 +167,6 @@ fun HomeScreen(
     val scheduleRequester = remember { FocusRequester() }
     val settingsRequester = remember { FocusRequester() }
     val updateRequester = remember { FocusRequester() }
-    val menuLabelsRequester = remember { FocusRequester() }
     val loginActionRequester = remember { FocusRequester() }
     val retryActionRequester = remember { FocusRequester() }
     val contentEntryRequester = remember { FocusRequester() }
@@ -306,11 +304,8 @@ fun HomeScreen(
                 scheduleFocusRequester = scheduleRequester,
                 updateFocusRequester = updateRequester,
                 settingsFocusRequester = settingsRequester,
-                menuLabelsFocusRequester = menuLabelsRequester,
                 downTarget = headerDownTarget,
                 showLabels = shouldShowHomeMenuLabels,
-                menuLabelsEnabled = state.isHomeMenuLabelsEnabled,
-                onHomeMenuLabelsVisibilitySelected = onHomeMenuLabelsVisibilitySelected,
                 isVisualFocusEnabled = !isSwitchingModeFromRail,
                 modifier = Modifier
                     .width(if (shouldShowHomeMenuLabels) 204.dp else 68.dp)

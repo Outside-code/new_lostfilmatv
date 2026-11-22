@@ -149,7 +149,6 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 onSearchClick = { navController.navigate(AppDestination.Search.route) },
                 onScheduleClick = { navController.navigate(AppDestination.Schedule.route) },
                 onSettingsClick = { navController.navigate(AppDestination.Settings.createRoute()) },
-                onHomeMenuLabelsVisibilitySelected = homeViewModel::onHomeMenuLabelsVisibilityChanged,
                 onUpdateClick = {
                     val apkUrl = savedAppUpdate?.apkUrl
                     if (!apkUrl.isNullOrBlank() && updateInstallJob?.isActive != true) {
