@@ -8,6 +8,8 @@ import com.kraat.lostfilmnewtv.data.model.LostFilmSearchItem
 import com.kraat.lostfilmnewtv.data.model.PageState
 import com.kraat.lostfilmnewtv.data.model.PairingSession
 import com.kraat.lostfilmnewtv.data.repository.DetailsResult
+import com.kraat.lostfilmnewtv.data.repository.FavoritesRepository
+import com.kraat.lostfilmnewtv.data.model.FavoriteSeriesResult
 import com.kraat.lostfilmnewtv.data.repository.LostFilmRepository
 import com.kraat.lostfilmnewtv.data.repository.SearchResultsResult
 import com.kraat.lostfilmnewtv.data.repository.SeriesGuideResult
@@ -39,6 +41,10 @@ object TestDataModule {
 
     @Provides
     @Singleton
+    fun provideFavoritesRepository(repository: LostFilmRepository): FavoritesRepository = repository as FavoritesRepository
+
+    @Provides
+    @Singleton
     fun provideFakeAuthRepository(): AuthRepositoryContract = TestFakeAuthRepository()
 }
 
@@ -46,7 +52,7 @@ object TestDataModule {
  * Изменяемый фейк репозитория для тестов.
  * Свойства можно переопределять прямо в тесте через [TestFakeRepository.pageState] и т.д.
  */
-class TestFakeRepository : LostFilmRepository {
+class TestFakeRepository : LostFilmRepository, FavoritesRepository {
     var pageState: PageState = PageState.Content(pageNumber = 1, items = emptyList(), hasNextPage = false, isStale = false)
     var detailsResult: DetailsResult = DetailsResult.Error("detailsUrl", "Not configured")
     var seriesGuideResult: SeriesGuideResult = SeriesGuideResult.Error("Not configured")
@@ -54,6 +60,9 @@ class TestFakeRepository : LostFilmRepository {
     var setEpisodeWatchedResult: Boolean? = false
     var setFavoriteResult: FavoriteMutationResult = FavoriteMutationResult.RequiresLogin()
     var favoriteReleasesResult: FavoriteReleasesResult = FavoriteReleasesResult.Unavailable()
+
+    override suspend fun loadFavoriteSeries(): FavoriteSeriesResult = FavoriteSeriesResult.Unavailable()
+    override suspend fun invalidateCache() = Unit
 
     override suspend fun loadPage(pageNumber: Int): PageState = pageState
     override suspend fun loadDetails(detailsUrl: String): DetailsResult = detailsResult
@@ -68,8 +77,8 @@ class TestFakeRepository : LostFilmRepository {
         playEpisodeId: String,
         targetWatched: Boolean,
     ): Boolean? = setEpisodeWatchedResult
-    suspend fun setFavorite(detailsUrl: String, targetFavorite: Boolean): FavoriteMutationResult = setFavoriteResult
-    fun observeFavoriteReleases(pageNumber: Int): Flow<FavoriteReleasesResult> =
+    override suspend fun setFavorite(detailsUrl: String, targetFavorite: Boolean): FavoriteMutationResult = setFavoriteResult
+    override fun observeFavoriteReleases(pageNumber: Int): Flow<FavoriteReleasesResult> =
         flowOf(favoriteReleasesResult)
 }
 

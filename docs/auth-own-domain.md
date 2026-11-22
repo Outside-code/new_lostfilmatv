@@ -6,9 +6,9 @@ Android TV создаёт одноразовый QR-код. Телефон от�
 
 В примерах используется `auth.example.com`. Замените его на свой поддомен.
 
-1. Создайте DNS-записи `auth.example.com` и `*.auth.example.com`, указывающие на ваш сервер. Wildcard нужен для изоляции браузерных сессий.
-2. Выпустите TLS-сертификат на оба имени. Для wildcard нужен DNS challenge у вашего DNS-провайдера.
-3. Установите Docker и Compose. Настройте reverse proxy для обоих имён на `127.0.0.1:18015`. Передавайте исходный `Host` и `X-Forwarded-Proto: https`.
+1. Создайте DNS-запись `auth.example.com`, указывающую на ваш сервер. Текущий QR-flow использует путь `/pair/<verifier>` и защищённый cookie на постоянном домене; wildcard не требуется.
+2. Выпустите обычный TLS-сертификат на этот домен через HTTP challenge.
+3. Установите Docker и Compose. Настройте reverse proxy для этого домена на `127.0.0.1:18015`. Передавайте исходный `Host` и `X-Forwarded-Proto: https`.
 4. Из каталога `backend/auth_bridge` скопируйте `.env.example` в `.env` и задайте:
 
 ```dotenv
@@ -48,4 +48,18 @@ curl --fail https://auth.example.com/health/ready
 - Завершите вход: приложение на телевизоре должно закрыть экран авторизации, избранное — загрузиться.
 - Проверьте истёкший код, повторное получение кода, отмену кнопкой «Назад» и выход из аккаунта.
 
-Для проверки реального входа нужны доступный сервер, рабочий HTTPS на обоих доменах и аккаунт LostFilm. Локальные тесты проверяют протокол с подменённым upstream.
+Для проверки реального входа нужны доступный сервер, рабочий HTTPS на домене авторизации и аккаунт LostFilm. Локальные тесты проверяют протокол с подменённым upstream.
+
+## Установленный сервер lost.hagenka.online
+
+Сервис работает на `94.249.239.205` (Ubuntu 24.04) под отдельным пользователем `lostfilm` через systemd. Python-окружение: `/opt/lostfilm-auth/venv`, исходники: `/opt/lostfilm-auth/app`, конфигурация с секретом: `/etc/lostfilm-auth.env` (root:lostfilm, 0640), постоянные данные: `/var/lib/lostfilm-auth`.
+
+Файлы развёртывания: [systemd unit](../backend/auth_bridge/deploy/lostfilm-auth.service), [Nginx](../backend/auth_bridge/deploy/nginx.conf). Сервис слушает только `127.0.0.1:18015`. Nginx обслуживает HTTPS; Certbot автоматически продлевает сертификат и перезагружает Nginx через deploy hook.
+
+```bash
+systemctl status lostfilm-auth nginx
+journalctl -u lostfilm-auth --since '10 minutes ago'
+curl --fail https://lost.hagenka.online/health/ready
+```
+
+Uvicorn запущен с одним worker: незавершённые QR-сессии хранятся в памяти. При перезапуске сервиса нужно получить новый QR-код. Сохранённые доверенные устройства находятся в SQLite. HTTP access logs отключены, чтобы ссылки с одноразовыми кодами не попадали в журналы веб-сервера.
