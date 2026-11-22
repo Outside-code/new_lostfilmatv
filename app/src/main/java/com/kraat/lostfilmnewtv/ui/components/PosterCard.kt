@@ -137,7 +137,7 @@ fun PosterCard(
                 ) {
                     Text(
                         text = label,
-                        color = Color(0xFF1B1408),
+                        color = Color(0xFF0D1930),
                         fontSize = 11.sp,
                         lineHeight = 13.sp,
                         fontWeight = FontWeight.Bold,
@@ -156,7 +156,7 @@ fun PosterCard(
                 ) {
                     Text(
                         text = "✓",
-                        color = if (isFocused) Color(0xFF1B1408) else HomeAccentGoldGlow,
+                        color = if (isFocused) Color(0xFF0D1930) else HomeAccentGoldGlow,
                         fontSize = 11.sp,
                         lineHeight = 11.sp,
                         fontWeight = FontWeight.Bold,

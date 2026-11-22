@@ -163,7 +163,7 @@ fun SearchScreen(
                 ) {
                     Text(
                         text = "Найти",
-                        color = Color(0xFF17120D),
+                        color = Color(0xFF0D1930),
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
@@ -193,7 +193,7 @@ fun SearchScreen(
                                 .testTag("search-retry"),
                             colors = ButtonDefaults.buttonColors(containerColor = DetailsAccentGold),
                         ) {
-                            Text("Повторить", color = Color(0xFF17120D))
+                            Text("Повторить", color = Color(0xFF0D1930))
                         }
                     }
                 }

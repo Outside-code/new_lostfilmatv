@@ -728,7 +728,7 @@ private fun EpisodeRow(
                 ) {
                     Text(
                         text = "✓",
-                        color = Color(0xFF17120D),
+                        color = Color(0xFF0D1930),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                     )
@@ -768,7 +768,7 @@ private fun GuideActionButton(
         isFocused -> DetailsAccentBlue
         else -> DetailsBorderDefault
     }
-    val textColor = if (isPrimary) Color(0xFF17120D) else TextPrimary
+    val textColor = if (isPrimary) Color(0xFF0D1930) else TextPrimary
     val subtitleColor = if (isPrimary) Color(0xFF473317) else DetailsTextMuted
 
     Button(

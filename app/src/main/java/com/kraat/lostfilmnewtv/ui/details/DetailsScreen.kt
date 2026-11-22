@@ -1005,7 +1005,7 @@ private fun StageButton(
         else -> DetailsBorderDefault
     }
     val textColor = when {
-        isPrimary -> Color(0xFF17120D)
+        isPrimary -> Color(0xFF0D1930)
         isHighlighted -> DetailsAccentGold
         else -> TextPrimary
     }

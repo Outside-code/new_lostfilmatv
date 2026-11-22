@@ -86,7 +86,7 @@ fun SettingsTvButton(
     }
     val textColor = when {
         !enabled -> HomeTextMuted
-        isSelected -> Color(0xFF17120D)
+        isSelected -> Color(0xFF0D1930)
         else -> TextPrimary
     }
     val summaryColor = when {

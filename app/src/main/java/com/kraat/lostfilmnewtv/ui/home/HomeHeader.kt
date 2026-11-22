@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kraat.lostfilmnewtv.R
+import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 import com.kraat.lostfilmnewtv.ui.theme.FocusBackground
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGold
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGoldGlow
@@ -342,21 +343,25 @@ private fun HomeMenuLogo(showLabels: Boolean) {
             .padding(horizontal = if (showLabels) 12.dp else 0.dp),
         contentAlignment = Alignment.Center,
     ) {
-        if (showLabels) {
-            Text(
-                text = "LF.Tv",
-                color = HomeAccentGold,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-            )
-        } else {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Image(
                 painter = painterResource(id = R.drawable.ic_lf_logo),
-                contentDescription = null,
+                contentDescription = "Логотип LostFilm",
                 modifier = Modifier.size(34.dp),
             )
+            if (showLabels) {
+                Text(
+                    text = "LostFilm",
+                    color = TextPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip,
+                )
+            }
         }
     }
 }

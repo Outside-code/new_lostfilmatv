@@ -61,7 +61,7 @@ internal fun DetailsStatusPanel(
             ) {
                 Text(
                     text = actionLabel,
-                    color = Color(0xFF17120D),
+                    color = Color(0xFF0D1930),
                     fontWeight = FontWeight.SemiBold,
                 )
             }

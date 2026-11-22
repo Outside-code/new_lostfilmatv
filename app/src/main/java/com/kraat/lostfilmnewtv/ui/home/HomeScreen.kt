@@ -877,7 +877,7 @@ private fun HomeStatusPanel(
             ) {
                 Text(
                     text = actionLabel,
-                    color = if (isError) Color(0xFF17120D) else TextPrimary,
+                    color = if (isError) Color(0xFF0D1930) else TextPrimary,
                 )
             }
         }
@@ -919,7 +919,7 @@ private fun HomeActionPanel(
                         .then(if (actionTestTag != null) Modifier.testTag(actionTestTag) else Modifier),
                     colors = ButtonDefaults.buttonColors(containerColor = HomeAccentGold),
                 ) {
-                    Text(actionLabel, color = Color(0xFF17120D))
+                    Text(actionLabel, color = Color(0xFF0D1930))
                 }
             }
         }

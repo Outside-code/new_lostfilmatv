@@ -134,7 +134,7 @@ fun ScheduleScreen(
                                 .testTag("schedule-retry"),
                             colors = ButtonDefaults.buttonColors(containerColor = DetailsAccentGold),
                         ) {
-                            Text("Повторить", color = Color(0xFF17120D))
+                            Text("Повторить", color = Color(0xFF0D1930))
                         }
                     }
                 }
