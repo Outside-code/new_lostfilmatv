@@ -30,6 +30,7 @@ import androidx.tv.material3.Border
 import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
+import com.kraat.lostfilmnewtv.data.network.TmdbImageFallbackInterceptor
 import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
 import com.kraat.lostfilmnewtv.ui.theme.FocusBackground
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGold
@@ -177,7 +178,7 @@ private fun rememberPosterImageRequest(posterUrl: String): ImageRequest {
 
     return remember(context, posterUrl, targetWidthPx, targetHeightPx) {
         ImageRequest.Builder(context)
-            .data(posterUrl)
+            .data(TmdbImageFallbackInterceptor.thumbnailUrl(posterUrl, targetWidthPx))
             // Decode near the rendered card size instead of the full remote poster.
             .size(targetWidthPx, targetHeightPx)
             .build()

@@ -415,7 +415,7 @@ fun HomeScreen(
                                     onMoveToNextMode = { switchModeFromRail(offset = 1) },
                                     onEndReached = onEndReached,
                                     pageWarmupDistance = when (state.selectedMode) {
-                                        HomeFeedMode.Movies, HomeFeedMode.Series -> 4
+                                        HomeFeedMode.Movies, HomeFeedMode.Series -> 6
                                         else -> 0
                                     },
                                 )

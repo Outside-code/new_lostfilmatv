@@ -100,8 +100,12 @@ fun PlaybackHistoryScreen(
                             .then(if (entry.key == focusKey) Modifier.focusRequester(focusRequester) else Modifier),
                         colors = ButtonDefaults.colors(
                             containerColor = DetailsSurfaceReadable,
+                            contentColor = TextPrimary,
                             focusedContainerColor = HomePanelBorderFocus,
+                            focusedContentColor = TextPrimary,
                         ),
+                        scale = ButtonDefaults.scale(focusedScale = 1f),
+                        shape = ButtonDefaults.shape(shape = RoundedCornerShape(14.dp)),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),

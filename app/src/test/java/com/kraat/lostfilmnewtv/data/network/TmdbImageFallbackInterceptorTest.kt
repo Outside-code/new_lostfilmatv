@@ -23,6 +23,18 @@ class TmdbImageFallbackInterceptorTest {
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
     @Test
+    fun thumbnailUrl_usesSmallerTmdbPosterOnlyWhenItCoversTheCardWidth() {
+        val poster = "https://image.tmdb.org/t/p/w780/poster.jpg"
+        val backdrop = "https://image.tmdb.org/t/p/original/backdrop.jpg"
+        val other = "https://example.org/t/p/w780/poster.jpg"
+
+        assertEquals("https://image.tmdb.org/t/p/w500/poster.jpg", TmdbImageFallbackInterceptor.thumbnailUrl(poster, 239))
+        assertEquals(poster, TmdbImageFallbackInterceptor.thumbnailUrl(poster, 640))
+        assertEquals(backdrop, TmdbImageFallbackInterceptor.thumbnailUrl(backdrop, 239))
+        assertEquals(other, TmdbImageFallbackInterceptor.thumbnailUrl(other, 239))
+    }
+
+    @Test
     fun intercept_returnsOriginalResult_whenProxySucceeds() = runTest {
         val interceptor = TmdbImageFallbackInterceptor(primaryPrefix = "https://auth.bazuka.pp.ua/api/tmdb/t/p/")
         val originalRequest = ImageRequest.Builder(context)

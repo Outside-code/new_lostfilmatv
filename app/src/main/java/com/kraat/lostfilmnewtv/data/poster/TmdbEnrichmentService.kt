@@ -11,6 +11,7 @@ import com.kraat.lostfilmnewtv.data.model.TmdbImageUrls
 import com.kraat.lostfilmnewtv.data.parser.extractYear
 import com.kraat.lostfilmnewtv.data.parser.toSummaryEntities
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -153,7 +154,8 @@ class TmdbEnrichmentServiceImpl @Inject constructor(
 
         val artworkSlots = Semaphore(SUMMARY_ENRICHMENT_CONCURRENCY)
         for (item in pending) {
-            launch {
+            // Enter the queue in display order even when the collector runs on IO.
+            launch(start = CoroutineStart.UNDISPATCHED) {
                 var current = item
                 suspend fun publish(enriched: ReleaseSummary) {
                     if (enriched.hasSameArtworkAs(current)) return
