@@ -81,3 +81,19 @@ class DeeplTranslationServiceTest(unittest.TestCase):
             service.translate("Text", source_language="DE", target_language="RU")
 
         self.assertEqual(service.snapshot().unsupported_errors, 1)
+
+class LocalTranslationServiceTest(unittest.TestCase):
+    def test_local_model_needs_no_deepl_key_and_reuses_cache(self) -> None:
+        from unittest.mock import patch
+        with patch("auth_bridge.services.translation_service.ArgosTranslator") as factory:
+            factory.return_value.translate.return_value = "Русское описание сериала."
+            service = DeeplTranslationService(
+                api_key="", api_url="https://unused.test", timeout_seconds=3,
+                local_model_dir="/models/en-ru",
+            )
+            self.assertTrue(service.configured)
+            self.assertEqual(service.provider, "argos")
+            self.assertEqual(service.translate("English overview."), "Русское описание сериала.")
+            self.assertEqual(service.translate("English overview."), "Русское описание сериала.")
+            factory.return_value.translate.assert_called_once_with("English overview.")
+            self.assertEqual(service.snapshot().cache_hits, 1)

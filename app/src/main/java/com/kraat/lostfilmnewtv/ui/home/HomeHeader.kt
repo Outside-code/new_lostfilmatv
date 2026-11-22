@@ -671,7 +671,7 @@ private fun HeaderModeIcon(mode: HomeFeedMode, color: Color) {
     when (mode) {
         HomeFeedMode.AllNew -> SparklesIcon(color = color)
         HomeFeedMode.Favorites -> HeartIcon(color = color)
-        HomeFeedMode.FavoriteSeries -> FavoriteSeriesIcon(color = color)
+        HomeFeedMode.FavoriteSeries -> HeartIcon(color = color)
         HomeFeedMode.Movies -> ClapperIcon(color = color)
         HomeFeedMode.Series -> TvIcon(color = color)
     }
@@ -983,7 +983,7 @@ private fun HomeFeedMode.segmentLabel(): String {
     return when (this) {
         HomeFeedMode.AllNew -> "Новые"
         HomeFeedMode.Favorites -> "Избранное"
-        HomeFeedMode.FavoriteSeries -> "Мои сериалы"
+        HomeFeedMode.FavoriteSeries -> "Избранное"
         HomeFeedMode.Movies -> "Фильмы"
         HomeFeedMode.Series -> "Сериалы"
     }

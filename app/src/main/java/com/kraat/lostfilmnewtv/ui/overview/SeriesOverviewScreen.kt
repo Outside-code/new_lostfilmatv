@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import com.kraat.lostfilmnewtv.ui.components.rememberRussianDescription
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -289,14 +290,15 @@ private fun OverviewContent(overview: SeriesOverview?) {
             "Официальный сайт" to safeOverview.officialSiteUrl,
         ).filter { !it.second.isNullOrBlank() }
     }
-    val sections = remember(safeOverview) {
+    val translatedDescription = rememberRussianDescription(safeOverview.descriptionRu.orEmpty())
+    val sections = remember(safeOverview, translatedDescription) {
         buildList {
             if (!safeOverview.descriptionRu.isNullOrBlank()) {
                 add(
                     OverviewSection(
                         key = "description",
                         title = "Описание",
-                        body = safeOverview.descriptionRu,
+                        body = translatedDescription,
                         tag = "series-overview-description",
                     ),
                 )

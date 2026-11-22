@@ -164,6 +164,7 @@ def create_app() -> FastAPI:
         retry_backoff_seconds=settings.upstream_retry_backoff_seconds,
     )
     translation_service = DeeplTranslationService(
+        local_model_dir=settings.local_translation_model_dir,
         api_key=settings.deepl_api_key,
         api_url=settings.deepl_api_url,
         timeout_seconds=settings.deepl_timeout_seconds,

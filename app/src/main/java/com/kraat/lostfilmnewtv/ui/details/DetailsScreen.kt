@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import com.kraat.lostfilmnewtv.ui.components.rememberRussianDescription
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -394,29 +395,7 @@ private fun BackgroundPoster(details: ReleaseDetails?) {
             )
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        0.36f to DetailsBackgroundMid.copy(alpha = 0.12f),
-                        1f to BackgroundPrimary.copy(alpha = 0.25f),
-                    ),
-                ),
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        0f to Color(0x38040A10),
-                        0.45f to Color(0x14040A10),
-                        1f to Color(0x26040A10),
-                    ),
-                ),
-        )
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.42f)))
     }
 }
 
@@ -731,7 +710,7 @@ private fun ReleaseDetails?.episodeOverviewSourceLabel(): String? {
     if (details.kind != ReleaseKind.SERIES || details.episodeOverviewRu.isNullOrBlank()) return null
     return when (details.episodeOverviewSource) {
         TmdbEpisodeOverviewSource.MACHINE_TRANSLATED.name -> "Автоперевод"
-        TmdbEpisodeOverviewSource.TMDB_EN.name -> "English"
+        TmdbEpisodeOverviewSource.TMDB_EN.name -> "Автоперевод"
         else -> null
     }
 }
@@ -882,14 +861,15 @@ private fun DetailsDivider() {
 
 @Composable
 private fun DetailsDescription(details: ReleaseDetails?) {
-    val description = buildDetailsDescription(details)
+    val description = rememberRussianDescription(buildDetailsDescription(details))
     if (description.isBlank()) return
 
     Text(
         text = description,
-        color = DetailsTextSecondary,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
+        color = TextPrimary,
+        fontSize = 16.sp,
+        lineHeight = 23.sp,
+        style = androidx.compose.ui.text.TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color.Black, androidx.compose.ui.geometry.Offset(0f, 2f), 8f)),
         maxLines = 5,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier

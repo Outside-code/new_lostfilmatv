@@ -354,46 +354,21 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun onEndReached_inFavoritesMode_loadsNextFavoritePage() = runTest(dispatcher) {
-        val firstFavorite = summary(detailsUrl = "https://www.lostfilm.today/series/favorite/season_1/episode_1/")
-        val secondFavorite = summary(
-            detailsUrl = "https://www.lostfilm.today/series/favorite/season_1/episode_2/",
-            titleRu = "Favorite 2",
-        )
+    fun favoritesContainsSeriesCardsAndDoesNotPageThroughEpisodes() = runTest(dispatcher) {
+        val series = summary(detailsUrl = "https://www.lostfilm.today/series/favorite/")
         val repository = FakeLostFilmRepository(
-            pageResults = mapOf(
-                1 to PageState.Content(pageNumber = 1, items = emptyList(), hasNextPage = false, isStale = false),
-            ),
-            favoriteReleaseResults = mutableListOf(
-                FavoriteReleasesResult.Success(
-                    items = listOf(firstFavorite),
-                    pageNumber = 1,
-                    hasNextPage = true,
-                ),
-                FavoriteReleasesResult.Success(
-                    items = listOf(secondFavorite),
-                    pageNumber = 2,
-                    hasNextPage = false,
-                ),
-            ),
+            pageResults = mapOf(1 to PageState.Content(1, emptyList(), false, false)),
+            favoriteSeriesResults = mutableListOf(FavoriteSeriesResult.Success(listOf(series))),
         )
-        val viewModel = createViewModel(
-            repository = repository,
-            savedStateHandle = SavedStateHandle(),
-            initialSelectedMode = HomeFeedMode.Favorites,
-            initialFavoritesRailVisible = true,
-            ioDispatcher = dispatcher,
-        )
-
+        val viewModel = createViewModel(repository, SavedStateHandle(), initialSelectedMode = HomeFeedMode.Favorites, ioDispatcher = dispatcher)
         viewModel.onStart()
         advanceUntilIdle()
         viewModel.onEndReached()
         advanceUntilIdle()
-
-        assertEquals(listOf(1, 2), repository.favoriteReleaseRequests)
-        assertEquals(listOf(firstFavorite, secondFavorite), viewModel.uiState.value.favoriteItems)
-        assertFalse(viewModel.uiState.value.isFavoritesPaging)
-        assertFalse(viewModel.uiState.value.favoritesHasNextPage)
+        assertEquals(HomeFeedMode.FavoriteSeries, viewModel.uiState.value.selectedMode)
+        assertEquals(listOf(series), viewModel.uiState.value.favoriteSeriesItems)
+        assertFalse(HomeFeedMode.Favorites in viewModel.uiState.value.availableModes)
+        assertEquals(1, viewModel.uiState.value.availableModes.count { it == HomeFeedMode.FavoriteSeries })
     }
 
     @Test
@@ -809,8 +784,8 @@ class HomeViewModelTest {
                     isStale = false,
                 ),
             ),
-            favoriteReleaseResults = mutableListOf(
-                FavoriteReleasesResult.Success(listOf(favoriteItem)),
+            favoriteSeriesResults = mutableListOf(
+                FavoriteSeriesResult.Success(listOf(favoriteItem)),
             ),
         )
         val viewModel = createViewModel(
@@ -824,9 +799,9 @@ class HomeViewModelTest {
         viewModel.onStart()
         advanceUntilIdle()
 
-        assertEquals(1, repository.favoriteReleaseCalls)
-        assertEquals(HomeFeedMode.Favorites, viewModel.uiState.value.selectedMode)
-        assertTrue(viewModel.uiState.value.favoritesModeState is HomeModeContentState.Content)
+        assertFalse(HomeFeedMode.Favorites in viewModel.uiState.value.availableModes)
+        assertEquals(HomeFeedMode.FavoriteSeries, viewModel.uiState.value.selectedMode)
+        assertTrue(viewModel.uiState.value.favoriteSeriesModeState is HomeModeContentState.Content)
     }
 
     @Test
@@ -840,8 +815,8 @@ class HomeViewModelTest {
                     isStale = false,
                 ),
             ),
-            favoriteReleaseResults = mutableListOf(
-                FavoriteReleasesResult.Unavailable("Войдите в LostFilm"),
+            favoriteSeriesResults = mutableListOf(
+                FavoriteSeriesResult.Unavailable("Войдите в LostFilm"),
             ),
         )
         val viewModel = createViewModel(
@@ -855,10 +830,10 @@ class HomeViewModelTest {
         viewModel.onStart()
         advanceUntilIdle()
 
-        assertEquals(HomeFeedMode.Favorites, viewModel.uiState.value.selectedMode)
+        assertEquals(HomeFeedMode.FavoriteSeries, viewModel.uiState.value.selectedMode)
         assertEquals(
             HomeModeContentState.LoginRequired("Войдите в LostFilm"),
-            viewModel.uiState.value.favoritesModeState,
+            viewModel.uiState.value.favoriteSeriesModeState,
         )
     }
 
@@ -866,7 +841,7 @@ class HomeViewModelTest {
     fun onModeSelected_restoresRememberedCardPerMode() = runTest(dispatcher) {
         val allNewFirst = summary(detailsUrl = "https://www.lostfilm.today/series/main/season_1/episode_1/")
         val allNewSecond = summary(
-            detailsUrl = "https://www.lostfilm.today/series/main/season_1/episode_2/",
+            detailsUrl = "https://www.lostfilm.today/series/main-second/season_1/episode_2/",
             titleRu = "Второй релиз",
         )
         val favoriteFirst = summary(
@@ -886,8 +861,8 @@ class HomeViewModelTest {
                     isStale = false,
                 ),
             ),
-            favoriteReleaseResults = mutableListOf(
-                FavoriteReleasesResult.Success(listOf(favoriteFirst, favoriteSecond)),
+            favoriteSeriesResults = mutableListOf(
+                FavoriteSeriesResult.Success(listOf(favoriteFirst, favoriteSecond)),
             ),
         )
         val viewModel = createViewModel(
@@ -901,7 +876,7 @@ class HomeViewModelTest {
         viewModel.onStart()
         advanceUntilIdle()
         viewModel.onItemFocused(allNewSecond.detailsUrl)
-        viewModel.onModeSelected(HomeFeedMode.Favorites)
+        viewModel.onModeSelected(HomeFeedMode.FavoriteSeries)
         viewModel.onItemFocused(favoriteSecond.detailsUrl)
         viewModel.onModeSelected(HomeFeedMode.AllNew)
 
@@ -980,7 +955,7 @@ class HomeViewModelTest {
 
         viewModel.onStart()
         advanceUntilIdle()
-        viewModel.onFavoritesRailVisibilityChanged(false)
+        viewModel.onHomeModeVisibilityChanged(HomeFeedMode.FavoriteSeries, false)
 
         assertEquals(HomeFeedMode.AllNew, viewModel.uiState.value.selectedMode)
         assertEquals(HomeFeedMode.AllNew, checkNotNull(lastHomePreferencesStore).readHomeSelectedFeedMode())

@@ -151,6 +151,14 @@ class PlaybackPreferencesStore(
             .apply()
     }
 
+    fun readTorrServeUsername(): String = prefs.getString("torrserve_username", "").orEmpty()
+    fun readTorrServePassword(): String = prefs.getString("torrserve_password", "").orEmpty()
+    fun writeTorrServeCredentials(username: String, password: String) {
+        prefs.edit().putString("torrserve_username", username).putString("torrserve_password", password).apply()
+    }
+    fun torrServeHeaders(): Map<String, String> = if (readTorrServeUsername().isBlank()) emptyMap() else
+        mapOf("Authorization" to okhttp3.Credentials.basic(readTorrServeUsername(), readTorrServePassword()))
+
     fun readTorrServeBaseUrl(): String {
         return prefs.getString(KEY_TORRSERVE_BASE_URL, null)
             ?.takeIf { it.isNotBlank() }

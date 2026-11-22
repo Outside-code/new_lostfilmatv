@@ -7,6 +7,16 @@ import org.junit.Test
 
 class DetailsPlaybackPreferenceResolverTest {
     @Test
+    fun fullHdPreferenceSelectsFullHdTorrentUrlFromRealPageStructure() {
+        val html = javaClass.classLoader!!.getResource("fixtures/torrent-options-page.html")!!.readText()
+        val links = com.kraat.lostfilmnewtv.data.parser.LostFilmDetailsParser().parseTorrentLinks(html)
+        val rows = links.mapIndexed { index, link -> DetailsTorrentRowUiModel("row-$index", link.label, link.url) }
+        val selected = resolvePreferredTorrentRow(PlaybackQualityPreference.Q1080, rows)
+        assertEquals("1080p", selected?.label)
+        assertEquals("https://n.tracktor.site/td.php?s=fullhd-token", selected?.url)
+    }
+
+    @Test
     fun resolvePreferredTorrentRow_prefersExactMatch_beforeFallback() {
         val rows = listOf(
             row("r0", "1080p", "https://example.com/1080.torrent"),

@@ -25,3 +25,6 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 auth_bridge = ["templates/*.html", "static/*.png"]
+
+[project.optional-dependencies]
+local-translation = ["ctranslate2>=4.6,<5", "sentencepiece>=0.2,<0.3"]

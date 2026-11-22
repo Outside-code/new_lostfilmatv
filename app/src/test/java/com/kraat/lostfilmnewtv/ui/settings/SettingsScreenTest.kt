@@ -317,7 +317,7 @@ class SettingsScreenTest {
 
         assertEquals(
             0,
-            composeRule.onAllNodesWithTag("settings-home-favorites-toggle").fetchSemanticsNodes().size,
+            composeRule.onAllNodesWithTag("settings-home-favorite-series-toggle").fetchSemanticsNodes().size,
         )
         assertEquals(
             0,
@@ -344,7 +344,7 @@ class SettingsScreenTest {
                     installUrl = null,
                     onUpdateModeSelected = {},
                     onChannelModeSelected = {},
-                    onHomeFavoritesRailVisibilitySelected = { selectedValues += it },
+                    onHomeFavoriteSeriesVisibilitySelected = { selectedValues += it },
                     onCheckForUpdatesClick = {},
                     onInstallUpdateClick = {},
                 )
@@ -353,15 +353,15 @@ class SettingsScreenTest {
 
         composeRule.onNodeWithTag("settings-section-home-screen").assertExists()
         composeRule.onNodeWithTag("settings-section-home-screen-summary", useUnmergedTree = true)
-            .assertTextEquals("Избранное выкл · мои сериалы вкл · фильмы вкл · сериалы вкл · подписи вкл")
+            .assertTextEquals("Избранное вкл · фильмы вкл · сериалы вкл · подписи вкл")
 
         composeRule.onNodeWithTag("settings-section-home-screen")
             .performSemanticsAction(SemanticsActions.OnClick)
 
-        composeRule.onNodeWithTag("settings-home-favorites-toggle")
+        composeRule.onNodeWithTag("settings-home-favorite-series-toggle")
             .performSemanticsAction(SemanticsActions.OnClick)
 
-        assertEquals(listOf(true), selectedValues)
+        assertEquals(listOf(false), selectedValues)
     }
 
     @Test
@@ -389,13 +389,13 @@ class SettingsScreenTest {
         }
 
         composeRule.onNodeWithTag("settings-section-home-screen-summary", useUnmergedTree = true)
-            .assertTextEquals("Избранное вкл · мои сериалы вкл · фильмы вкл · сериалы вкл · подписи вкл")
+            .assertTextEquals("Избранное вкл · фильмы вкл · сериалы вкл · подписи вкл")
 
         composeRule.onNodeWithTag("settings-section-home-screen")
             .performSemanticsAction(SemanticsActions.OnClick)
 
-        composeRule.onNodeWithTag("settings-home-favorites-toggle").assertIsSelected()
-        composeRule.onNodeWithTag("settings-home-favorites-toggle").assertExists()
+        composeRule.onNodeWithTag("settings-home-favorite-series-toggle").assertIsSelected()
+        composeRule.onNodeWithTag("settings-home-favorite-series-toggle").assertExists()
     }
 
     @Test

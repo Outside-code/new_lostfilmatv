@@ -45,6 +45,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
@@ -530,6 +531,8 @@ class LostFilmRepositoryImpl(
             SeriesGuideResult.Success(
                 guide = SeriesGuide(
                     seriesTitleRu = seriesTitleRu,
+                    seriesUrl = seriesRootUrl,
+                    isFavorite = detailsParser.parseFavoriteMetadata(seriesRootHtml)?.isFavorite,
                     posterUrl = posterUrl,
                     selectedEpisodeDetailsUrl = normalizedDetailsUrl,
                     seasons = seasonEpisodesParser.parseGuide(
@@ -612,6 +615,40 @@ class LostFilmRepositoryImpl(
             } else {
                 throw exception
             }
+        }
+    }
+
+    override fun observeSchedule(): Flow<ScheduleResult> = channelFlow {
+        val loaded = loadSchedule()
+        if (loaded !is ScheduleResult.Success) { send(loaded); return@channelFlow }
+        // Site schedule icons are thumbnails. Never enlarge them while waiting for TMDB.
+        var schedule = loaded.schedule.copy(days = loaded.schedule.days.map { day ->
+            day.copy(items = day.items.map { it.copy(posterUrl = null) })
+        })
+        send(ScheduleResult.Success(schedule))
+        fun root(item: com.kraat.lostfilmnewtv.data.model.ScheduleItem) =
+            if (item.kind == ReleaseKind.SERIES) item.targetUrl.substringBefore("/season_").trimEnd('/')
+            else item.targetUrl.trimEnd('/')
+        val unique = schedule.days.flatMap { it.items }.distinctBy(::root)
+        val semaphore = Semaphore(4)
+        val mutex = Mutex()
+        coroutineScope {
+            unique.map { item -> async {
+                val poster = semaphore.withPermit {
+                    try {
+                        tmdbResolver.resolve(root(item), item.title, item.kind, null)?.posterUrl?.takeIf { it.isNotBlank() }
+                    } catch (error: CancellationException) { throw error }
+                    catch (_: Exception) { null }
+                } ?: return@async
+                mutex.withLock {
+                    schedule = schedule.copy(days = schedule.days.map { day ->
+                        day.copy(items = day.items.map { current ->
+                            if (root(current) == root(item)) current.copy(posterUrl = poster) else current
+                        })
+                    })
+                    send(ScheduleResult.Success(schedule))
+                }
+            } }.awaitAll()
         }
     }
 

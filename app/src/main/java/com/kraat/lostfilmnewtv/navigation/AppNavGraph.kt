@@ -243,6 +243,11 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
             ),
         ) {
             SeriesGuideRoute(
+                onOpenAuth = { navController.navigate(AppDestination.Auth.createRoute(autoStart = true)) },
+                onFavoriteChanged = { url, isFav ->
+                    navController.previousBackStackEntry?.savedStateHandle?.set(HOME_FAVORITE_CHANGED_DETAILS_URL_KEY, url)
+                    navController.previousBackStackEntry?.savedStateHandle?.set(HOME_FAVORITE_CHANGED_STATE_KEY, isFav)
+                },
                 onOpenDetails = { url -> navController.navigate(AppDestination.Details.createRoute(url, isAuthenticated)) },
             )
         }

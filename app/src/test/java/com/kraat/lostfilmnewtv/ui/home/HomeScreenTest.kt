@@ -39,6 +39,41 @@ class HomeScreenTest {
     val composeRule = createComposeRule()
 
     @Test
+    @OptIn(ExperimentalTestApi::class)
+    fun returningFromSeries_focusesMenuAndOpensScheduleWithoutExtraBack() {
+        val owner = object : androidx.lifecycle.LifecycleOwner {
+            val registry = androidx.lifecycle.LifecycleRegistry(this)
+            override val lifecycle: androidx.lifecycle.Lifecycle get() = registry
+        }
+        var scheduleClicks = 0
+        composeRule.runOnIdle {
+            owner.registry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_CREATE)
+            owner.registry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_START)
+            owner.registry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_RESUME)
+        }
+        composeRule.setContent {
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.lifecycle.compose.LocalLifecycleOwner provides owner,
+            ) {
+                LostFilmTheme {
+                    HomeScreen(state = seededState(), onScheduleClick = { scheduleClicks++ })
+                }
+            }
+        }
+        composeRule.onNodeWithTag(posterTag(firstDetailsUrl)).assertIsFocused()
+        composeRule.runOnIdle {
+            owner.registry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_PAUSE)
+            owner.registry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_STOP)
+            owner.registry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_START)
+            owner.registry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_RESUME)
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("home-mode-toggle").assertIsFocused()
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionDown); pressKey(Key.DirectionCenter) }
+        composeRule.runOnIdle { assertEquals(1, scheduleClicks) }
+    }
+
+    @Test
     fun homeScreen_rendersUtilityActionsInTopHeader_withoutDetachedBottomFooter() {
         var updateClicks = 0
 

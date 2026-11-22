@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import com.kraat.lostfilmnewtv.ui.components.rememberRussianDescription
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.DisposableEffect
@@ -130,6 +131,8 @@ fun HomeScreen(
     }
     var lastSyncedKey by remember { mutableStateOf<String?>(null) }
     var startupContentFocusPending by rememberSaveable { mutableStateOf(true) }
+    var hasResumedBefore by rememberSaveable { mutableStateOf(false) }
+    var menuReturnFocusRequestVersion by remember { mutableStateOf(0) }
     var initialMenuFocusIgnored by remember { mutableStateOf(false) }
     var isSwitchingModeFromRail by remember { mutableStateOf(false) }
     var contentReturnFocusRequestVersion by remember { mutableStateOf(0) }
@@ -148,7 +151,13 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                startupContentFocusPending = true
+                startupContentFocusPending = !hasResumedBefore
+                if (hasResumedBefore) {
+                    isContentRailFocused = false
+                    isHomeMenuFocused = true
+                    menuReturnFocusRequestVersion += 1
+                }
+                hasResumedBefore = true
                 initialMenuFocusIgnored = false
                 isSwitchingModeFromRail = false
                 onResume()
@@ -162,6 +171,12 @@ fun HomeScreen(
 
     val modeFocusRequesters = remember {
         HomeFeedMode.entries.associateWith { FocusRequester() }
+    }
+    LaunchedEffect(menuReturnFocusRequestVersion) {
+        if (menuReturnFocusRequestVersion > 0) {
+            androidx.compose.runtime.withFrameNanos { }
+            requestFocusWhenReady(modeFocusRequesters.getValue(state.selectedMode))
+        }
     }
     val searchRequester = remember { FocusRequester() }
     val scheduleRequester = remember { FocusRequester() }
@@ -495,6 +510,7 @@ private fun HomeHeroStage(
                     text = episodeTitle,
                     style = TextStyle(
                         platformStyle = PlatformTextStyle(includeFontPadding = true),
+                        shadow = Shadow(Color.Black, Offset(0f, 2f), 8f),
                     ),
                     color = HomeAccentGold,
                     fontSize = 18.sp,
@@ -505,14 +521,17 @@ private fun HomeHeroStage(
                 )
             }
 
-            targetItem.heroDescription().takeIf { it.isNotBlank() }?.let { description ->
+            rememberRussianDescription(
+                targetItem.heroDescription(), targetItem?.seriesOverviewRu.orEmpty(),
+            ).takeIf { it.isNotBlank() }?.let { description ->
                 Text(
                     text = description,
                     color = TextPrimary,
-                    style = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.85f), Offset(0f, 2f), 7f)),
-                    fontSize = 16.sp,
-                    lineHeight = 22.sp,
-                    maxLines = 5,
+                    style = TextStyle(shadow = Shadow(Color.Black, Offset(0f, 2f), 8f)),
+                    fontSize = 17.sp,
+                    lineHeight = 24.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.width(760.dp),
                 )
@@ -605,7 +624,7 @@ private fun ReleaseSummary?.episodeOverviewSourceLabel(): String? {
     if (item.kind != ReleaseKind.SERIES || item.episodeOverviewRu.isNullOrBlank()) return null
     return when (item.episodeOverviewSource) {
         TmdbEpisodeOverviewSource.MACHINE_TRANSLATED.name -> "Автоперевод"
-        TmdbEpisodeOverviewSource.TMDB_EN.name -> "English"
+        TmdbEpisodeOverviewSource.TMDB_EN.name -> "Автоперевод"
         else -> null
     }
 }
@@ -618,7 +637,7 @@ private fun HomeRailSectionHeader(
     val title = when (selectedMode) {
         HomeFeedMode.AllNew -> "Свежие релизы"
         HomeFeedMode.Favorites -> "Избранное"
-        HomeFeedMode.FavoriteSeries -> "Мои сериалы"
+        HomeFeedMode.FavoriteSeries -> "Избранное"
         HomeFeedMode.Movies -> "Фильмы"
         HomeFeedMode.Series -> "Сериалы"
     }
@@ -679,7 +698,7 @@ private fun HomeBackdrop(item: ReleaseSummary?) {
     }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.15f)),
+        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.42f)),
     )
 }
 

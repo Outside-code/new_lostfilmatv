@@ -318,12 +318,15 @@ fun SettingsTextField(
     modifier: Modifier = Modifier,
     tag: String? = null,
     onFocused: (() -> Unit)? = null,
+    isPassword: Boolean = false,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         singleLine = true,
+        visualTransformation = if (isPassword) androidx.compose.ui.text.input.PasswordVisualTransformation()
+            else androidx.compose.ui.text.input.VisualTransformation.None,
         label = { Text(text = label) },
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = TextPrimary,

@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -41,6 +42,21 @@ import org.robolectric.annotation.Config
 class SeriesGuideRouteTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun route_favoriteButtonAddsSeriesAndReflectsSavedState() {
+        val url = "https://www.lostfilm.today/series/Ted/season_2/episode_8/"
+        val repository = FakeSeriesGuideRepository.success(url).apply { favoriteResult = FavoriteMutationResult.Updated }
+        var changed = false
+        composeRule.setContent {
+            SeriesGuideRoute(onOpenDetails = {}, onFavoriteChanged = { _, favorite -> changed = favorite },
+                viewModel = routeViewModel(url, repository))
+        }
+        composeRule.waitForText("Третий лишний")
+        composeRule.onNodeWithTag("series-guide-favorite").performClick()
+        composeRule.waitForText("♥ В избранном")
+        composeRule.waitUntil(5000) { changed }
+    }
 
     @Test
     fun route_showsGuideContent_andMarksCurrentEpisodeSelected() {
@@ -144,6 +160,8 @@ private fun routeViewModel(
     repository: LostFilmRepository,
 ): SeriesGuideViewModel = SeriesGuideViewModel(
     repository = repository,
+    favoritesRepository = repository as FavoritesRepository,
+    seasonPlaybackPreparer = com.kraat.lostfilmnewtv.playback.season.SeasonPlaybackPreparer { _, _, _, _ -> error("Unused") },
     savedStateHandle = SavedStateHandle(
         mapOf(AppDestination.SeriesGuide.detailsUrlArg to detailsUrl),
     ),
@@ -156,6 +174,7 @@ private class FakeSeriesGuideRepository(
     override fun observeFavoriteReleases(pageNumber: Int): Flow<FavoriteReleasesResult> = flow { emit(FavoriteReleasesResult.Unavailable()) }
     override suspend fun loadFavoriteSeries(): FavoriteSeriesResult = FavoriteSeriesResult.Unavailable()
     override suspend fun invalidateCache() {}
+    var favoriteResult: FavoriteMutationResult = FavoriteMutationResult.RequiresLogin()
     val loadedGuideUrls = CopyOnWriteArrayList<String>()
 
     override suspend fun loadPage(pageNumber: Int): PageState {
@@ -177,7 +196,7 @@ private class FakeSeriesGuideRepository(
     override suspend fun setEpisodeWatched(detailsUrl: String, playEpisodeId: String, targetWatched: Boolean): Boolean? = targetWatched
 
     override suspend fun setFavorite(detailsUrl: String, targetFavorite: Boolean): FavoriteMutationResult {
-        return FavoriteMutationResult.RequiresLogin()
+        return favoriteResult
     }
 
     companion object {

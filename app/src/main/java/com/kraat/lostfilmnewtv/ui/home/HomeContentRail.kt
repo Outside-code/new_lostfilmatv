@@ -60,7 +60,7 @@ internal fun buildHomeRails(
     if (isFavoriteSeriesVisible && favoriteSeriesItems.isNotEmpty()) {
         rails += HomeContentRail(
             id = HOME_RAIL_FAVORITE_SERIES,
-            title = "Мои сериалы",
+            title = "Избранное",
             items = favoriteSeriesItems,
         )
     }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import com.kraat.lostfilmnewtv.ui.components.rememberRussianDescription
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -267,10 +268,10 @@ private fun MovieOverviewContent(details: ReleaseDetails?) {
     val density = LocalDensity.current
     val posterWidthPx = with(density) { 175.dp.toPx().roundToInt().coerceAtLeast(1) }
     val posterHeightPx = with(density) { 252.dp.toPx().roundToInt().coerceAtLeast(1) }
-    val description = safeDetails.episodeOverviewRu
+    val description = rememberRussianDescription((safeDetails.movieOverviewRu ?: safeDetails.episodeOverviewRu)
         ?.replace(movieOverviewWhitespaceRegex, " ")
         ?.trim()
-        .orEmpty()
+        .orEmpty())
     val blocks = remember(description) {
         description.chunkForMovieReading(maxChars = 1200)
             .mapIndexed { index, chunk ->

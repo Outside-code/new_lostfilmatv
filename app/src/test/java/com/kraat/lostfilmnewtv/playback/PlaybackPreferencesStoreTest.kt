@@ -14,6 +14,18 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class PlaybackPreferencesStoreTest {
     @Test
+    fun protectedTorrServeKeepsCredentialsAcrossRestartAndProducesBasicHeader() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val name = "torrserve-basic-auth"
+        context.deleteSharedPreferences(name)
+        val store = PlaybackPreferencesStore(context, name)
+        assertEquals(emptyMap<String, String>(), store.torrServeHeaders())
+        store.writeTorrServeCredentials("viewer", "test-password")
+        assertEquals(mapOf("Authorization" to okhttp3.Credentials.basic("viewer", "test-password")), PlaybackPreferencesStore(context, name).torrServeHeaders())
+        assertEquals("https://example.com/torrserve", com.kraat.lostfilmnewtv.ui.settings.normalizeTorrServeBaseUrl("https://example.com/torrserve/"))
+    }
+
+    @Test
     fun readDefaultQuality_returns1080_whenNothingWasSaved() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefsName = "playback-store-default"

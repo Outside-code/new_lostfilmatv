@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     kinopoisk_cache_ttl_negative_seconds: int = 24 * 60 * 60
     kinopoisk_rate_limit_max_requests: int = 240
     kinopoisk_rate_limit_window_seconds: int = 60
+    local_translation_model_dir: str = ""
     deepl_api_key: str = ""
     deepl_api_url: str = "https://api-free.deepl.com/v2/translate"
     deepl_timeout_seconds: float = 10.0

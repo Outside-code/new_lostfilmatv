@@ -133,6 +133,12 @@ object NetworkModule {
         )
     }
 
+    @Provides
+    @Singleton
+    fun provideDescriptionTranslator(client: com.kraat.lostfilmnewtv.data.network.AuthBridgeClient):
+        com.kraat.lostfilmnewtv.ui.components.DescriptionTranslator =
+        com.kraat.lostfilmnewtv.ui.components.DescriptionTranslator(client::translateEnglishToRussian)
+
     private const val AUTH_BRIDGE_BASE_URL = "https://auth.bazuka.pp.ua"
 
     @Provides

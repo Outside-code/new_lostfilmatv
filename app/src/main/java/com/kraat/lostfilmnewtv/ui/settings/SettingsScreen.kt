@@ -66,6 +66,10 @@ fun SettingsScreen(
     selectedWatchedMarkingMode: WatchedMarkingMode = WatchedMarkingMode.AUTO,
     onWatchedMarkingModeSelected: (WatchedMarkingMode) -> Unit = {},
     torrServeBaseUrl: String = "",
+    torrServeUsername: String = "",
+    torrServePassword: String = "",
+    onTorrServeUsernameChanged: (String) -> Unit = {},
+    onTorrServePasswordChanged: (String) -> Unit = {},
     torrServeStatusText: String? = null,
     isCheckingTorrServe: Boolean = false,
     onTorrServeBaseUrlChanged: (String) -> Unit = {},
@@ -118,7 +122,7 @@ fun SettingsScreen(
             updateModes.forEach { put(it.buttonTag(), FocusRequester()) }
             channelModes.forEach { put(it.buttonTag(), FocusRequester()) }
             put(SettingsFocusTarget.WatchedMarkingToggle.toTag(), FocusRequester())
-            put(SettingsFocusTarget.HomeFavoritesToggle.toTag(), FocusRequester())
+            put(SettingsFocusTarget.HomeFavoriteSeriesToggle.toTag(), FocusRequester())
             put(SettingsFocusTarget.HomeFavoriteSeriesToggle.toTag(), FocusRequester())
             put(SettingsFocusTarget.HomeMoviesToggle.toTag(), FocusRequester())
             put(SettingsFocusTarget.HomeSeriesToggle.toTag(), FocusRequester())
@@ -141,7 +145,7 @@ fun SettingsScreen(
         mutableStateOf(
             mapOf(
                 SettingsSection.PLAYBACK.name to SettingsFocusTarget.PlaybackQuality(selectedQuality),
-                SettingsSection.HOME_SCREEN.name to SettingsFocusTarget.HomeFavoritesToggle,
+                SettingsSection.HOME_SCREEN.name to SettingsFocusTarget.HomeFavoriteSeriesToggle,
                 SettingsSection.CHANNEL.name to SettingsFocusTarget.ChannelMode(selectedChannelMode),
                 SettingsSection.TORRSERVE.name to SettingsFocusTarget.TorrServeBaseUrl,
                 SettingsSection.SERVER.name to SettingsFocusTarget.LostFilmHost,
@@ -180,8 +184,7 @@ fun SettingsScreen(
     )
     val channelSummary = selectedChannelMode.shortLabel()
     val homeScreenSummary = listOf(
-        "Избранное ${if (isHomeFavoritesRailEnabled) "вкл" else "выкл"}",
-        "мои сериалы ${if (isHomeFavoriteSeriesEnabled) "вкл" else "выкл"}",
+        "Избранное ${if (isHomeFavoriteSeriesEnabled) "вкл" else "выкл"}",
         "фильмы ${if (isHomeMoviesEnabled) "вкл" else "выкл"}",
         "сериалы ${if (isHomeSeriesEnabled) "вкл" else "выкл"}",
         "подписи ${if (isHomeMenuLabelsEnabled) "вкл" else "выкл"}",
@@ -348,31 +351,8 @@ fun SettingsScreen(
                                 }
                                 Column(modifier = Modifier.focusGroup(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     SettingsRowButton(
-                                        title = "Вкладка Избранное",
-                                        description = "Показывает отдельную вкладку с сохраненными релизами.",
-                                        value = if (isHomeFavoritesRailEnabled) "Вкл" else "Выкл",
-                                        onClick = {
-                                            onHomeFavoritesRailVisibilitySelected(!isHomeFavoritesRailEnabled)
-                                            contentRequesters.getValue(SettingsFocusTarget.HomeFavoritesToggle.toTag()).requestFocus()
-                                        },
-                                        isSelected = isHomeFavoritesRailEnabled,
-                                        tag = SettingsFocusTarget.HomeFavoritesToggle.toTag(),
-                                        onFocused = {
-                                            rememberedActionBySection = rememberedActionBySection + (
-                                                SettingsSection.HOME_SCREEN.name to SettingsFocusTarget.HomeFavoritesToggle
-                                            )
-                                        },
-                                        modifier = Modifier
-                                            .focusRequester(contentRequesters.getValue(SettingsFocusTarget.HomeFavoritesToggle.toTag()))
-                                            .focusProperties {
-                                                left = railRequesters.getValue(SettingsSection.HOME_SCREEN)
-                                                up = railRequesters.getValue(SettingsSection.HOME_SCREEN)
-                                                down = contentRequesters.getValue(SettingsFocusTarget.HomeFavoriteSeriesToggle.toTag())
-                                            },
-                                    )
-                                    SettingsRowButton(
-                                        title = "Мои сериалы",
-                                        description = "Показывает отдельную вкладку с сериалами из избранного.",
+                                        title = "Избранное",
+                                        description = "Одна карточка на сериал, без отдельных серий.",
                                         value = if (isHomeFavoriteSeriesEnabled) "Вкл" else "Выкл",
                                         onClick = {
                                             onHomeFavoriteSeriesVisibilitySelected(!isHomeFavoriteSeriesEnabled)
@@ -389,7 +369,7 @@ fun SettingsScreen(
                                             .focusRequester(contentRequesters.getValue(SettingsFocusTarget.HomeFavoriteSeriesToggle.toTag()))
                                             .focusProperties {
                                                 left = railRequesters.getValue(SettingsSection.HOME_SCREEN)
-                                                up = contentRequesters.getValue(SettingsFocusTarget.HomeFavoritesToggle.toTag())
+                                                up = railRequesters.getValue(SettingsSection.HOME_SCREEN)
                                                 down = contentRequesters.getValue(SettingsFocusTarget.HomeMoviesToggle.toTag())
                                             },
                                     )
@@ -535,6 +515,14 @@ fun SettingsScreen(
                                         },
                                         modifier = Modifier.focusRequester(contentRequesters.getValue(SettingsFocusTarget.TorrServeBaseUrl.toTag())),
                                     )
+                                    SettingsTextField(
+                                        value = torrServeUsername, onValueChange = onTorrServeUsernameChanged,
+                                        label = "Логин TorrServe (если требуется)", tag = "settings-torrserve-username",
+                                    )
+                                    SettingsTextField(
+                                        value = torrServePassword, onValueChange = onTorrServePasswordChanged,
+                                        label = "Пароль TorrServe", tag = "settings-torrserve-password", isPassword = true,
+                                    )
                                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                         SettingsRowButton(
                                             title = "Сохранить",
@@ -606,6 +594,14 @@ fun SettingsScreen(
                                             )
                                         },
                                         modifier = Modifier.focusRequester(contentRequesters.getValue(SettingsFocusTarget.LostFilmHost.toTag())),
+                                    )
+                                    SettingsTextField(
+                                        value = torrServeUsername, onValueChange = onTorrServeUsernameChanged,
+                                        label = "Логин TorrServe (если требуется)", tag = "settings-torrserve-username",
+                                    )
+                                    SettingsTextField(
+                                        value = torrServePassword, onValueChange = onTorrServePasswordChanged,
+                                        label = "Пароль TorrServe", tag = "settings-torrserve-password", isPassword = true,
                                     )
                                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                         SettingsRowButton(
@@ -988,7 +984,7 @@ private fun targetContentTag(
     return when {
         rememberedTarget != null && isActionAvailable(rememberedTarget, installUrl) -> rememberedTarget
         section == SettingsSection.PLAYBACK -> SettingsFocusTarget.PlaybackQuality(selectedQuality)
-        section == SettingsSection.HOME_SCREEN -> SettingsFocusTarget.HomeFavoritesToggle
+        section == SettingsSection.HOME_SCREEN -> SettingsFocusTarget.HomeFavoriteSeriesToggle
         section == SettingsSection.CHANNEL -> SettingsFocusTarget.ChannelMode(selectedChannelMode)
         section == SettingsSection.TORRSERVE -> SettingsFocusTarget.TorrServeBaseUrl
         section == SettingsSection.UPDATES -> SettingsFocusTarget.UpdateChannel(selectedUpdateMode)

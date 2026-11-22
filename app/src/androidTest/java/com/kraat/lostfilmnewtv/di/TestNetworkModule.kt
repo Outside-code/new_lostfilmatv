@@ -22,6 +22,11 @@ object TestNetworkModule {
 
     @Provides
     @Singleton
+    fun provideDescriptionTranslator(): com.kraat.lostfilmnewtv.ui.components.DescriptionTranslator =
+        com.kraat.lostfilmnewtv.ui.components.DescriptionTranslator { null }
+
+    @Provides
+    @Singleton
     fun provideOkHttpClient(): okhttp3.OkHttpClient = okhttp3.OkHttpClient()
 
     @Provides

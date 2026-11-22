@@ -156,6 +156,13 @@ annotation class AppUpdateWorkManager
     replaces = [AppModule::class],
 )
 object MainActivityTestAppModule {
+    @Provides
+    @Singleton
+    fun provideSeasonPlaybackPreparer(): com.kraat.lostfilmnewtv.playback.season.SeasonPlaybackPreparer =
+        com.kraat.lostfilmnewtv.playback.season.SeasonPlaybackPreparer { _, _, _, _ ->
+            error("Season playback is not used by app shell tests")
+        }
+
 
     private val homeWM: WorkManager = mock(WorkManager::class.java)
     private val appUpdateWM: WorkManager = mock(WorkManager::class.java)

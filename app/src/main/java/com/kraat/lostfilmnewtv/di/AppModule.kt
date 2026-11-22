@@ -77,6 +77,12 @@ object AppModule {
 
     // endregion
 
+    @Provides
+    @Singleton
+    fun provideSeasonPlaybackPreparer(
+        coordinator: com.kraat.lostfilmnewtv.playback.season.SeasonPlaybackCoordinator,
+    ): com.kraat.lostfilmnewtv.playback.season.SeasonPlaybackPreparer = coordinator
+
     // region TorrServe
 
     @Provides
