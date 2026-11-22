@@ -112,7 +112,7 @@ fun SettingsScreen(
     val qualityOptions = remember { listOf(PlaybackQualityPreference.Q1080, PlaybackQualityPreference.Q720, PlaybackQualityPreference.Q480) }
     val updateModes = remember { listOf(UpdateCheckMode.QUIET_CHECK, UpdateCheckMode.MANUAL) }
     val channelModes = remember { listOf(AndroidTvChannelMode.ALL_NEW, AndroidTvChannelMode.UNWATCHED, AndroidTvChannelMode.DISABLED) }
-    val contentScrollState = rememberScrollState()
+    val contentScrollState = remember(selectedSection) { androidx.compose.foundation.ScrollState(0) }
     val railRequesters = remember(visibleSections) {
         visibleSections.associateWith { FocusRequester() }
     }
@@ -122,7 +122,6 @@ fun SettingsScreen(
             updateModes.forEach { put(it.buttonTag(), FocusRequester()) }
             channelModes.forEach { put(it.buttonTag(), FocusRequester()) }
             put(SettingsFocusTarget.WatchedMarkingToggle.toTag(), FocusRequester())
-            put(SettingsFocusTarget.HomeFavoriteSeriesToggle.toTag(), FocusRequester())
             put(SettingsFocusTarget.HomeFavoriteSeriesToggle.toTag(), FocusRequester())
             put(SettingsFocusTarget.HomeMoviesToggle.toTag(), FocusRequester())
             put(SettingsFocusTarget.HomeSeriesToggle.toTag(), FocusRequester())
@@ -155,9 +154,6 @@ fun SettingsScreen(
         )
     }
 
-    LaunchedEffect(selectedSection) {
-        contentScrollState.scrollTo(0)
-    }
     LaunchedEffect(Unit) {
         requestFocusWhenReady(railRequesters.getValue(selectedSection))
     }
@@ -165,7 +161,6 @@ fun SettingsScreen(
         if (contentHasFocus) {
             railRequesters.getValue(selectedSection).requestFocus()
             contentHasFocus = false
-            onSectionBack()
         } else {
             onNavigateBack()
         }
@@ -199,6 +194,9 @@ fun SettingsScreen(
     val accountSummary = if (isAuthenticated) "Вход выполнен" else "Без входа"
     val aboutSummary = BuildConfig.VERSION_NAME
 
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides SettingsBringIntoView,
+    ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -595,14 +593,6 @@ fun SettingsScreen(
                                         },
                                         modifier = Modifier.focusRequester(contentRequesters.getValue(SettingsFocusTarget.LostFilmHost.toTag())),
                                     )
-                                    SettingsTextField(
-                                        value = torrServeUsername, onValueChange = onTorrServeUsernameChanged,
-                                        label = "Логин TorrServe (если требуется)", tag = "settings-torrserve-username",
-                                    )
-                                    SettingsTextField(
-                                        value = torrServePassword, onValueChange = onTorrServePasswordChanged,
-                                        label = "Пароль TorrServe", tag = "settings-torrserve-password", isPassword = true,
-                                    )
                                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                         SettingsRowButton(
                                             title = "Сохранить",
@@ -743,6 +733,7 @@ fun SettingsScreen(
                 }
             }
         }
+    }
     }
 }
 

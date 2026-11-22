@@ -64,6 +64,8 @@ class SettingsServerSectionTest {
         composeRule.onNodeWithTag("settings-lostfilm-host", useUnmergedTree = true).assertExists()
         composeRule.onNodeWithTag("settings-lostfilm-host-save").assertExists()
         composeRule.onNodeWithTag("settings-lostfilm-host-reset").assertExists()
+        composeRule.onNodeWithTag("settings-torrserve-username").assertDoesNotExist()
+        composeRule.onNodeWithTag("settings-torrserve-password").assertDoesNotExist()
     }
 
     @Test
