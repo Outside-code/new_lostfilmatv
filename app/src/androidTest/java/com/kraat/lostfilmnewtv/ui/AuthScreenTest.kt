@@ -89,6 +89,12 @@ class AuthScreenTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithContentDescription("QR-код для входа в LostFilm").assertIsDisplayed()
         composeRule.onNodeWithText("ABC123").assertIsDisplayed()
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val screenshot = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        java.io.File(context.getExternalFilesDir(null), "auth-public-preview.png").outputStream().use {
+            screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }
+        screenshot.recycle()
     }
 
     private fun createViewModel(repository: FakeAuthRepository): AuthViewModel {

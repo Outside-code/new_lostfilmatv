@@ -37,7 +37,7 @@ curl --fail https://auth.example.com/health/ready
 ./gradlew -PauthBridgeBaseUrl=https://auth.example.com testDebugUnitTest lint assembleDebug
 ```
 
-Либо задайте `AUTH_BRIDGE_BASE_URL` в окружении сборки. Gradle-параметр имеет приоритет. Допускается только HTTPS origin без пути, query и логина/пароля. По умолчанию используется `https://lost.hagenka.online`.
+Либо задайте `AUTH_BRIDGE_BASE_URL` в окружении сборки. Gradle-параметр имеет приоритет. Допускается только HTTPS origin без пути, query и логина/пароля. По умолчанию используется `https://auth.example.com`.
 
 В этой настройке на свой сервер переносится авторизация. Адреса существующих прокси изображений и метаданных TMDB/КиноПоиска сохраняются. Если потребуется перенести и их, настройте API-ключи и адреса отдельно по основному руководству [установки](auth-bridge-server-install.md).
 
@@ -50,16 +50,16 @@ curl --fail https://auth.example.com/health/ready
 
 Для проверки реального входа нужны доступный сервер, рабочий HTTPS на домене авторизации и аккаунт LostFilm. Локальные тесты проверяют протокол с подменённым upstream.
 
-## Установленный сервер lost.hagenka.online
+## Установленный сервер auth.example.com
 
-Сервис работает на `94.249.239.205` (Ubuntu 24.04) под отдельным пользователем `lostfilm` через systemd. Python-окружение: `/opt/lostfilm-auth/venv`, исходники: `/opt/lostfilm-auth/app`, конфигурация с секретом: `/etc/lostfilm-auth.env` (root:lostfilm, 0640), постоянные данные: `/var/lib/lostfilm-auth`.
+Сервис работает на `203.0.113.10` (Ubuntu 24.04) под отдельным пользователем `lostfilm` через systemd. Python-окружение: `/opt/lostfilm-auth/venv`, исходники: `/opt/lostfilm-auth/app`, конфигурация с секретом: `/etc/lostfilm-auth.env` (root:lostfilm, 0640), постоянные данные: `/var/lib/lostfilm-auth`.
 
 Файлы развёртывания: [systemd unit](../backend/auth_bridge/deploy/lostfilm-auth.service), [Nginx](../backend/auth_bridge/deploy/nginx.conf). Сервис слушает только `127.0.0.1:18015`. Nginx обслуживает HTTPS; Certbot автоматически продлевает сертификат и перезагружает Nginx через deploy hook.
 
 ```bash
 systemctl status lostfilm-auth nginx
 journalctl -u lostfilm-auth --since '10 minutes ago'
-curl --fail https://lost.hagenka.online/health/ready
+curl --fail https://auth.example.com/health/ready
 ```
 
 Uvicorn запущен с одним worker: незавершённые QR-сессии хранятся в памяти. При перезапуске сервиса нужно получить новый QR-код. Сохранённые доверенные устройства находятся в SQLite. HTTP access logs отключены, чтобы ссылки с одноразовыми кодами не попадали в журналы веб-сервера.

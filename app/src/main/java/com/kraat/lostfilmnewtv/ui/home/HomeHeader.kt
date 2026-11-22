@@ -122,7 +122,8 @@ fun HomeHeader(
         isUpdateDownloading -> "Загрузка"
         else -> "Можно обновить"
     }
-    val initialFocusRequester = firstModeRequester ?: searchFocusRequester
+    val initialFocusRequester = modeFocusRequesters[selectedMode]?.takeIf { selectedMode in visibleModes }
+        ?: firstModeRequester ?: searchFocusRequester
 
     LaunchedEffect(Unit) {
         initialFocusRequester.requestFocus()

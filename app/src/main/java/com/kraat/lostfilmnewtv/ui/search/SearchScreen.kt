@@ -31,6 +31,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.tv.material3.Button as TvButton
+import androidx.tv.material3.ButtonDefaults as TvButtonDefaults
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -75,9 +82,11 @@ fun SearchScreen(
     onSearchTriggered: () -> Unit,
     onRetry: () -> Unit,
     onOpenItem: (LostFilmSearchItem) -> Unit,
+    onVoiceSearch: () -> Unit = {},
+    voiceMessage: String? = null,
 ) {
     val queryRequester = remember { FocusRequester() }
-    val searchButtonRequester = remember { FocusRequester() }
+    val voiceRequester = remember { FocusRequester() }
     val firstResultRequester = remember { FocusRequester() }
     val retryRequester = remember { FocusRequester() }
     val downTarget = when {
@@ -88,7 +97,7 @@ fun SearchScreen(
 
     LaunchedEffect(Unit) {
         withFrameNanos { }
-        queryRequester.requestFocus()
+        voiceRequester.requestFocus()
     }
 
     Box(
@@ -130,10 +139,16 @@ fun SearchScreen(
                         .weight(1f)
                         .focusRequester(queryRequester)
                         .focusProperties {
-                            right = searchButtonRequester
+                            right = voiceRequester
                             if (downTarget != null) {
                                 down = downTarget
                             }
+                        }
+                        .onPreviewKeyEvent { event ->
+                            if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
+                                voiceRequester.requestFocus()
+                                true
+                            } else false
                         }
                         .testTag("search-query-input"),
                     singleLine = true,
@@ -147,27 +162,29 @@ fun SearchScreen(
                         onSearch = { onSearchTriggered() },
                     ),
                 )
-                Button(
-                    onClick = onSearchTriggered,
-                    modifier = Modifier
-                        .height(56.dp)
-                        .focusRequester(searchButtonRequester)
-                        .focusProperties {
-                            left = queryRequester
-                            if (downTarget != null) {
-                                down = downTarget
-                            }
-                        }
-                        .testTag("search-submit"),
-                    colors = ButtonDefaults.buttonColors(containerColor = DetailsAccentGold),
+                TvButton(
+                    onClick = onVoiceSearch,
+                    modifier = Modifier.height(56.dp).focusRequester(voiceRequester)
+                        .focusProperties { left = queryRequester; right = FocusRequester.Cancel; if (downTarget != null) down = downTarget }
+                        .testTag("search-voice"),
+                    colors = TvButtonDefaults.colors(containerColor = DetailsSurfaceReadable, contentColor = TextPrimary,
+                        focusedContainerColor = DetailsAccentGoldFocus, focusedContentColor = Color(0xFF0D1930)),
                 ) {
-                    Text(
-                        text = "Найти",
-                        color = Color(0xFF0D1930),
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    val voiceColor = androidx.tv.material3.LocalContentColor.current
+                    androidx.compose.foundation.Canvas(modifier = Modifier.size(22.dp)) {
+                        val ink = voiceColor
+                        val w = size.width; val h = size.height
+                        drawRoundRect(ink, androidx.compose.ui.geometry.Offset(w * .35f, h * .08f),
+                            androidx.compose.ui.geometry.Size(w * .30f, h * .56f),
+                            androidx.compose.ui.geometry.CornerRadius(w * .15f))
+                        drawArc(ink, 0f, 180f, false, androidx.compose.ui.geometry.Offset(w * .2f, h * .25f),
+                            androidx.compose.ui.geometry.Size(w * .6f, h * .55f), style = androidx.compose.ui.graphics.drawscope.Stroke(w * .08f))
+                        drawLine(ink, androidx.compose.ui.geometry.Offset(w * .5f, h * .8f), androidx.compose.ui.geometry.Offset(w * .5f, h * .98f), w * .08f)
+                    }
+                    Text("Голосом", color = voiceColor, modifier = Modifier.padding(start = 8.dp))
                 }
             }
+            voiceMessage?.let { Text(it, color = DetailsTextSecondary, fontSize = 14.sp) }
 
             when {
                 state.isLoading && state.items.isEmpty() -> {

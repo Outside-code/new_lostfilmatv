@@ -184,3 +184,9 @@ tasks.configureEach {
         "lintAnalyzeDebugAndroidTest" -> dependsOn("hiltJavaCompileDebugAndroidTest")
     }
 }
+
+// Robolectric uses Java2D pixel buffers on Linux; isolate batches and allow enough heap for TV screens.
+tasks.withType<Test>().configureEach {
+    maxHeapSize = "1g"
+    forkEvery = 20
+}

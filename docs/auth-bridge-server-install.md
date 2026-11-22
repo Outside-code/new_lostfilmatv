@@ -1,6 +1,6 @@
 # Установка LostFilm Auth Bridge на сервер
 
-> Актуальная установка на `lost.hagenka.online` описана в [инструкции своего сервера](auth-own-domain.md). Текущий QR-flow работает на одном домене через `/pair/<verifier>`; wildcard-настройка ниже относится к прежней схеме.
+> Актуальная установка на `auth.example.com` описана в [инструкции своего сервера](auth-own-domain.md). Текущий QR-flow работает на одном домене через `/pair/<verifier>`; wildcard-настройка ниже относится к прежней схеме.
 
 Документ описывает актуальную установку `backend/auth_bridge`: FastAPI-сервис для QR-авторизации Android TV приложения. Сервис запускается в Docker, принимает pairing-запросы от телевизора на `auth.bazuka.pp.ua` и ведет телефонный браузер через wildcard-домены вида `https://<phone_verifier>.auth.bazuka.pp.ua/`.
 

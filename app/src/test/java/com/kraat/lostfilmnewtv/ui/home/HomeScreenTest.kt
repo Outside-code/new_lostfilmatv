@@ -33,10 +33,29 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
+@OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
 class HomeScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    @OptIn(ExperimentalTestApi::class)
+    fun firstLaunchKeepsMenuFocusWhenPostersArriveAndScheduleOpensImmediately() {
+        var state by mutableStateOf(HomeUiState(isInitialLoading = true))
+        var scheduleClicks = 0
+        composeRule.setContent {
+            LostFilmTheme { HomeScreen(state = state, onScheduleClick = { scheduleClicks++ }) }
+        }
+        composeRule.onNodeWithTag("home-mode-toggle").assertIsFocused()
+        composeRule.runOnIdle { state = seededState() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("home-mode-toggle").assertIsFocused()
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        composeRule.onNodeWithTag("home-action-schedule").assertIsFocused()
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
+        composeRule.runOnIdle { assertEquals(1, scheduleClicks) }
+    }
 
     @Test
     @OptIn(ExperimentalTestApi::class)
@@ -60,6 +79,7 @@ class HomeScreenTest {
                 }
             }
         }
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
         composeRule.onNodeWithTag(posterTag(firstDetailsUrl)).assertIsFocused()
         composeRule.runOnIdle {
             owner.registry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_PAUSE)
@@ -270,12 +290,14 @@ class HomeScreenTest {
     }
 
     @Test
-    fun homeScreen_firstOpen_focusesFirstPoster() {
+    fun homeScreen_rightFromInitialMenu_focusesFirstPoster() {
         composeRule.setContent {
             LostFilmTheme {
                 HomeScreen(state = seededState())
             }
         }
+
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val node = composeRule.onAllNodesWithTag(posterTag(firstDetailsUrl))
@@ -296,6 +318,8 @@ class HomeScreenTest {
                 HomeScreen(state = seededState())
             }
         }
+
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val node = composeRule.onAllNodesWithTag(posterTag(firstDetailsUrl))
@@ -340,6 +364,8 @@ class HomeScreenTest {
             }
         }
 
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val node = composeRule.onAllNodesWithTag(posterTag(firstDetailsUrl))
                 .fetchSemanticsNodes()
@@ -362,6 +388,8 @@ class HomeScreenTest {
                 HomeScreen(state = seededState())
             }
         }
+
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val node = composeRule.onAllNodesWithTag(posterTag(firstDetailsUrl))
@@ -388,6 +416,8 @@ class HomeScreenTest {
                 HomeScreen(state = seededState())
             }
         }
+
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val node = composeRule.onAllNodesWithTag(posterTag(firstDetailsUrl))
@@ -572,6 +602,8 @@ class HomeScreenTest {
         val allNewPosterTag = posterTag(HOME_RAIL_ALL_NEW, allNewItems.first().detailsUrl)
         val favoritePosterTag = posterTag(HOME_RAIL_FAVORITES, favoriteItems.first().detailsUrl)
 
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val node = composeRule.onAllNodesWithTag(allNewPosterTag)
                 .fetchSemanticsNodes()
@@ -642,6 +674,8 @@ class HomeScreenTest {
             }
         }
 
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val node = composeRule.onAllNodesWithTag("home-mode-retry-action")
                 .fetchSemanticsNodes()
@@ -680,7 +714,7 @@ class HomeScreenTest {
         }
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            val node = composeRule.onAllNodesWithTag(posterTag(secondDetailsUrl))
+            val node = composeRule.onAllNodesWithTag("home-mode-toggle")
                 .fetchSemanticsNodes()
                 .singleOrNull()
                 ?: return@waitUntil false
@@ -692,7 +726,7 @@ class HomeScreenTest {
         }
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithTag(posterTag(secondDetailsUrl)).fetchSemanticsNodes().isEmpty()
+            composeRule.onAllNodesWithTag("home-mode-toggle").fetchSemanticsNodes().isEmpty()
         }
 
         composeRule.runOnIdle {
@@ -700,14 +734,14 @@ class HomeScreenTest {
         }
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            val node = composeRule.onAllNodesWithTag(posterTag(secondDetailsUrl))
+            val node = composeRule.onAllNodesWithTag("home-mode-toggle")
                 .fetchSemanticsNodes()
                 .singleOrNull()
                 ?: return@waitUntil false
             SemanticsProperties.Focused in node.config && node.config[SemanticsProperties.Focused]
         }
 
-        composeRule.onNodeWithTag(posterTag(secondDetailsUrl)).assertIsFocused()
+        composeRule.onNodeWithTag("home-mode-toggle").assertIsFocused()
     }
 
     @Test
@@ -797,6 +831,8 @@ class HomeScreenTest {
                 HomeScreen(state = seededState())
             }
         }
+
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val node = composeRule.onAllNodesWithTag(posterTag(firstDetailsUrl))
@@ -1036,6 +1072,8 @@ class HomeScreenTest {
             }
         }
 
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val node = composeRule.onAllNodesWithTag(favoritePosterTag)
                 .fetchSemanticsNodes()
@@ -1121,6 +1159,8 @@ class HomeScreenTest {
             }
         }
 
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val node = composeRule.onAllNodesWithTag(favoritePosterTag)
                 .fetchSemanticsNodes()
@@ -1202,6 +1242,8 @@ class HomeScreenTest {
                 )
             }
         }
+
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val node = composeRule.onAllNodesWithTag(favoritePosterTag)
@@ -1472,6 +1514,8 @@ class HomeScreenTest {
                 )
             }
         }
+
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             val node = composeRule.onAllNodesWithTag(allNewFirstTag)

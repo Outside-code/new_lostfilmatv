@@ -130,8 +130,7 @@ fun HomeScreen(
         )
     }
     var lastSyncedKey by remember { mutableStateOf<String?>(null) }
-    var startupContentFocusPending by rememberSaveable { mutableStateOf(true) }
-    var hasResumedBefore by rememberSaveable { mutableStateOf(false) }
+    var startupContentFocusPending by rememberSaveable { mutableStateOf(false) }
     var menuReturnFocusRequestVersion by remember { mutableStateOf(0) }
     var initialMenuFocusIgnored by remember { mutableStateOf(false) }
     var isSwitchingModeFromRail by remember { mutableStateOf(false) }
@@ -151,13 +150,10 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                startupContentFocusPending = !hasResumedBefore
-                if (hasResumedBefore) {
-                    isContentRailFocused = false
-                    isHomeMenuFocused = true
-                    menuReturnFocusRequestVersion += 1
-                }
-                hasResumedBefore = true
+                startupContentFocusPending = false
+                isContentRailFocused = false
+                isHomeMenuFocused = true
+                menuReturnFocusRequestVersion += 1
                 initialMenuFocusIgnored = false
                 isSwitchingModeFromRail = false
                 onResume()
