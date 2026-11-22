@@ -110,6 +110,9 @@ open class TmdbPosterClient(
                     originalName = originalName.ifBlank { name },
                     releaseYear = releaseYear,
                     rating = item.optTmdbRating(),
+                    posterUrl = item.optString("poster_path")
+                        .takeIf { it.startsWith("/") }
+                        ?.let { "$normalizedImageBaseUrl$POSTER_SIZE$it" },
                 )
             }.sortedByDescending { it.popularity }
         }

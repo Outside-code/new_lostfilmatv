@@ -88,11 +88,13 @@ interface LostFilmRepository {
         emit(loadPage(pageNumber))
     }
 
-    suspend fun loadMovies(pageNumber: Int = 1): PageState =
-        PageState.Error(pageNumber = pageNumber, message = "Фильмы недоступны")
+    fun observeMovies(pageNumber: Int): Flow<PageState> = flow {
+        emit(PageState.Error(pageNumber = pageNumber, message = "Фильмы недоступны"))
+    }
 
-    suspend fun loadSeriesCatalog(pageNumber: Int = 1): PageState =
-        PageState.Error(pageNumber = pageNumber, message = "Каталог сериалов недоступен")
+    fun observeSeriesCatalog(pageNumber: Int): Flow<PageState> = flow {
+        emit(PageState.Error(pageNumber = pageNumber, message = "Каталог сериалов недоступен"))
+    }
 
     suspend fun loadDetails(detailsUrl: String): DetailsResult
 

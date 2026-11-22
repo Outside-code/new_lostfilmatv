@@ -29,6 +29,7 @@ class TmdbPosterResolverTest {
         // промахивался, и сериал уезжал в Кинопоиск без описаний эпизодов.
         var slugQuery: String? = null
         val requestedIds = mutableListOf<Int>()
+        var earlyArtwork: TmdbImageUrls? = null
         val client = object : TmdbPosterClient(OkHttpClient(), "fake") {
             override suspend fun searchByTitle(
                 query: String,
@@ -61,17 +62,23 @@ class TmdbPosterResolverTest {
                 tmdbId: Int,
                 seasonNumber: Int,
                 episodeNumber: Int,
-            ): TmdbEpisodeOverview = TmdbEpisodeOverview(
-                text = "Спокойная жизнь.",
-                source = TmdbEpisodeOverviewSource.TMDB_RU,
-            )
+            ): TmdbEpisodeOverview {
+                assertEquals("p", earlyArtwork?.posterUrl)
+                assertNull(earlyArtwork?.episodeOverviewRu)
+                return TmdbEpisodeOverview(
+                    text = "Спокойная жизнь.",
+                    source = TmdbEpisodeOverviewSource.TMDB_RU,
+                )
+            }
         }
         val resolver = TmdbPosterResolverImpl(client, FakeTmdbPosterDao())
 
-        val result = resolver.resolve(
+        val result = resolver.resolveWithArtwork(
             detailsUrl = "https://www.lostfilm.today/series/Dark_Matter_2024 /season_2/episode_1/",
             titleRu = "Тёмная материя",
             kind = ReleaseKind.SERIES,
+            originalReleaseYear = null,
+            onArtwork = { earlyArtwork = it },
         )
 
         assertEquals("Год в конце slug'а должен отбрасываться, а пробел — не мешать", "Dark Matter", slugQuery)

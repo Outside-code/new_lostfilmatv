@@ -1266,7 +1266,7 @@ class HomeScreenTest {
 
         composeRule.onNodeWithTag("home-mode-toggle")
             .performKeyInput {
-                repeat(3) {
+                repeat(4) {
                     pressKey(Key.DirectionDown)
                 }
             }

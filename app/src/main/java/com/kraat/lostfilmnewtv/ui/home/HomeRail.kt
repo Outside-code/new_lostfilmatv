@@ -65,6 +65,7 @@ fun HomeRail(
     onMoveToNextMode: (() -> Unit)? = null,
     onEndReached: () -> Unit,
     modifier: Modifier = Modifier,
+    pageWarmupDistance: Int = 0,
 ) {
     val itemKeys = remember(items) { items.map { it.detailsUrl } }
     val targetKey = if (focusedItemKey in itemKeys) {
@@ -153,7 +154,7 @@ fun HomeRail(
                                 onRailFocusChanged(true)
                                 focusedCardKey = item.detailsUrl
                                 onItemFocused(item.detailsUrl)
-                                if (index == items.lastIndex) {
+                                if (index >= items.lastIndex - pageWarmupDistance) {
                                     onEndReached()
                                 }
                             } else if (focusedCardKey == item.detailsUrl) {

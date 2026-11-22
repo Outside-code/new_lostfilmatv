@@ -45,6 +45,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
@@ -224,7 +225,28 @@ class LostFilmRepositoryImpl(
         }
     }
 
-    override suspend fun loadMovies(pageNumber: Int): PageState {
+    override fun observeMovies(pageNumber: Int): Flow<PageState> =
+        observeCatalogPage { loadMoviesPage(pageNumber) }
+
+    override fun observeSeriesCatalog(pageNumber: Int): Flow<PageState> =
+        observeCatalogPage { loadSeriesPage(pageNumber) }
+
+    private fun observeCatalogPage(load: suspend () -> PageState): Flow<PageState> = flow {
+        val page = load()
+        emit(page)
+        if (page !is PageState.Content) return@flow
+
+        var items = page.items
+        // The initial catalog is already visible, so artwork failures leave its cards usable.
+        tmdbEnrichmentService.enrichProgressively(page.items, persistToCache = false)
+            .catch { error -> Log.w(TAG, "TMDB enrichment failed for catalog page ${page.pageNumber}", error) }
+            .collect { enriched ->
+                items = items.map { if (it.detailsUrl == enriched.detailsUrl) enriched else it }
+                emit(page.copy(items = items))
+            }
+    }
+
+    private suspend fun loadMoviesPage(pageNumber: Int): PageState {
         cleanupExpiredDataIfNeeded()
 
         return try {
@@ -237,14 +259,9 @@ class LostFilmRepositoryImpl(
                     fetchedAt = fetchedAt,
                 )
             }
-            val enrichedItems = tmdbEnrichmentService.enrichSummaries(
-                items = parsedItems,
-                persistToCache = false,
-            )
-
             PageState.Content(
                 pageNumber = pageNumber,
-                items = enrichedItems,
+                items = parsedItems,
                 hasNextPage = parsedItems.size >= MOVIES_PAGE_SIZE,
                 isStale = false,
             )
@@ -262,7 +279,7 @@ class LostFilmRepositoryImpl(
         }
     }
 
-    override suspend fun loadSeriesCatalog(pageNumber: Int): PageState {
+    private suspend fun loadSeriesPage(pageNumber: Int): PageState {
         return try {
             val fetchedAt = clock()
             val json = anonymousHttpClient.fetchSeriesCatalogPage(pageNumber)
@@ -273,14 +290,9 @@ class LostFilmRepositoryImpl(
                     fetchedAt = fetchedAt,
                 )
             }
-            val enrichedItems = tmdbEnrichmentService.enrichSummaries(
-                items = parsedItems,
-                persistToCache = false,
-            )
-
             PageState.Content(
                 pageNumber = pageNumber,
-                items = enrichedItems,
+                items = parsedItems,
                 hasNextPage = parsedItems.size >= SERIES_CATALOG_PAGE_SIZE,
                 isStale = false,
             )

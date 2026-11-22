@@ -12,6 +12,7 @@ data class TmdbSearchResult(
     val originalName: String = name,
     val releaseYear: Int? = null,
     val rating: String? = null,
+    val posterUrl: String? = null,
 )
 
 enum class TmdbEpisodeOverviewSource {

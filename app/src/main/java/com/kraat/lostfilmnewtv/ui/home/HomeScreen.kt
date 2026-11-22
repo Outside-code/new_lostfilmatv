@@ -85,6 +85,7 @@ fun HomeScreen(
     onEndReached: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onScheduleClick: () -> Unit = {},
+    onHistoryClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onUpdateClick: () -> Unit = {},
     onAuthClick: () -> Unit = {},
@@ -176,6 +177,7 @@ fun HomeScreen(
     }
     val searchRequester = remember { FocusRequester() }
     val scheduleRequester = remember { FocusRequester() }
+    val historyRequester = remember { FocusRequester() }
     val settingsRequester = remember { FocusRequester() }
     val updateRequester = remember { FocusRequester() }
     val loginActionRequester = remember { FocusRequester() }
@@ -302,6 +304,7 @@ fun HomeScreen(
                 },
                 onSearchClick = onSearchClick,
                 onScheduleClick = onScheduleClick,
+                onHistoryClick = onHistoryClick,
                 onSettingsClick = onSettingsClick,
                 onUpdateClick = if (savedAppUpdate != null) onUpdateClick else onRetry,
                 selectedNavItem = selectedNavItem,
@@ -313,6 +316,7 @@ fun HomeScreen(
                 modeFocusRequesters = modeFocusRequesters,
                 searchFocusRequester = searchRequester,
                 scheduleFocusRequester = scheduleRequester,
+                historyFocusRequester = historyRequester,
                 updateFocusRequester = updateRequester,
                 settingsFocusRequester = settingsRequester,
                 downTarget = headerDownTarget,
@@ -410,6 +414,10 @@ fun HomeScreen(
                                     onMoveToPreviousMode = { switchModeFromRail(offset = -1) },
                                     onMoveToNextMode = { switchModeFromRail(offset = 1) },
                                     onEndReached = onEndReached,
+                                    pageWarmupDistance = when (state.selectedMode) {
+                                        HomeFeedMode.Movies, HomeFeedMode.Series -> 4
+                                        else -> 0
+                                    },
                                 )
                             }
                             HomeModeContentState.Empty -> {

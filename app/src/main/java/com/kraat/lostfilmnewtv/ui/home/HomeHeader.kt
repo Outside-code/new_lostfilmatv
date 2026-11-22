@@ -81,6 +81,7 @@ fun HomeHeader(
     onBackToContent: () -> Boolean,
     onSearchClick: () -> Unit,
     onScheduleClick: () -> Unit,
+    onHistoryClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onUpdateClick: () -> Unit,
     selectedNavItem: NavItem,
@@ -92,6 +93,7 @@ fun HomeHeader(
     modeFocusRequesters: Map<HomeFeedMode, FocusRequester>,
     searchFocusRequester: FocusRequester,
     scheduleFocusRequester: FocusRequester,
+    historyFocusRequester: FocusRequester,
     updateFocusRequester: FocusRequester,
     settingsFocusRequester: FocusRequester,
     downTarget: FocusRequester?,
@@ -239,6 +241,32 @@ fun HomeHeader(
                     .focusRequester(searchFocusRequester)
                     .focusProperties {
                         up = scheduleFocusRequester
+                        down = historyFocusRequester
+                        left = FocusRequester.Cancel
+                        right = downTarget ?: FocusRequester.Default
+                    },
+            )
+            HomeHeaderActionButton(
+                label = "История",
+                subtitle = "Недавние просмотры",
+                leadingIcon = HeaderActionIcon.History,
+                onClick = {
+                    onNavItemSelected(NavItem.HISTORY)
+                    onHistoryClick()
+                },
+                onInteraction = onHeaderInteraction,
+                onBackClick = onBackToContent,
+                isPrimary = selectedNavItem == NavItem.HISTORY,
+                isVisualFocusEnabled = isVisualFocusEnabled,
+                minWidth = if (showLabels) ExpandedMenuWidth - 36.dp else CollapsedMenuWidth - 20.dp,
+                hideSubtitle = true,
+                showLabel = showLabels,
+                modifier = Modifier
+                    .then(if (showLabels) Modifier.fillMaxWidth() else Modifier.width(CollapsedMenuWidth - 20.dp))
+                    .testTag("home-action-history")
+                    .focusRequester(historyFocusRequester)
+                    .focusProperties {
+                        up = searchFocusRequester
                         down = if (hasUpdate) updateFocusRequester else settingsFocusRequester
                         left = FocusRequester.Cancel
                         right = downTarget ?: FocusRequester.Default
@@ -267,7 +295,7 @@ fun HomeHeader(
                         .testTag("home-action-update")
                         .focusRequester(updateFocusRequester)
                         .focusProperties {
-                            up = searchFocusRequester
+                            up = historyFocusRequester
                             down = settingsFocusRequester
                             left = FocusRequester.Cancel
                             right = downTarget ?: FocusRequester.Default
@@ -297,7 +325,7 @@ fun HomeHeader(
                     .testTag("home-action-settings")
                     .focusRequester(settingsFocusRequester)
                     .focusProperties {
-                        up = if (hasUpdate) updateFocusRequester else searchFocusRequester
+                        up = if (hasUpdate) updateFocusRequester else historyFocusRequester
                         down = firstModeRequester ?: scheduleFocusRequester
                         left = FocusRequester.Cancel
                         right = downTarget ?: FocusRequester.Default
@@ -506,6 +534,7 @@ private fun HomeModeSegmentButton(
 private enum class HeaderActionIcon {
     Search,
     Calendar,
+    History,
     Refresh,
     Settings,
 }
@@ -662,6 +691,7 @@ private fun HeaderVectorIcon(icon: HeaderActionIcon, color: Color) {
     when (icon) {
         HeaderActionIcon.Search -> SearchIcon(color = color)
         HeaderActionIcon.Calendar -> CalendarIcon(color = color)
+        HeaderActionIcon.History -> HistoryIcon(color = color)
         HeaderActionIcon.Refresh -> RefreshIcon(color = color)
         HeaderActionIcon.Settings -> SettingsLineIcon(color = color)
     }
@@ -871,6 +901,20 @@ private fun CalendarIcon(color: Color) {
             end = Offset(size.width * 0.66f, size.height * 0.28f),
             strokeWidth = 2.1f,
         )
+    }
+}
+
+@Composable
+private fun HistoryIcon(color: Color) {
+    androidx.compose.foundation.Canvas(modifier = Modifier.size(24.dp)) {
+        val stroke = size.width * 0.045f
+        drawCircle(
+            color = color,
+            radius = size.width * 0.34f,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(stroke),
+        )
+        drawLine(color, center.copy(y = size.height * 0.28f), center, strokeWidth = stroke)
+        drawLine(color, center, Offset(size.width * 0.67f, size.height * 0.59f), strokeWidth = stroke)
     }
 }
 

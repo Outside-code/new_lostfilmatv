@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kraat.lostfilmnewtv.playback.PlaybackQualityPreference
+import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryEntry
 import com.kraat.lostfilmnewtv.playback.WatchedMarkingMode
 import com.kraat.lostfilmnewtv.platform.torrserve.TorrServeActionHandler
 import com.kraat.lostfilmnewtv.platform.torrserve.TorrServeLinkBuilder
@@ -40,6 +41,7 @@ fun DetailsRoute(
     onFavoriteContentChanged: (String, Boolean) -> Unit = { _, _ -> },
     onChannelContentChanged: suspend () -> Unit = {},
     openTorrServe: suspend (Context, String, String, String) -> TorrServeOpenResult = actionHandler::open,
+    onPlaybackLaunched: (PlaybackHistoryEntry) -> Unit = {},
 ) {
     // hiltViewModel() создаёт ViewModel через Hilt — SavedStateHandle заполняется
     // из nav-аргументов (detailsUrl и isAuthenticated передаются через route)
@@ -117,6 +119,19 @@ fun DetailsRoute(
             try {
                 val message = when (openTorrServe(context, url, currentDetails?.titleRu.orEmpty(), currentDetails?.posterUrl.orEmpty())) {
                     TorrServeOpenResult.Success -> {
+                        if (currentDetails != null) {
+                            val episode = currentDetails.seasonNumber?.let { season ->
+                                currentDetails.episodeNumber?.let { number -> "Сезон $season · серия $number" }
+                            }
+                            onPlaybackLaunched(PlaybackHistoryEntry(
+                                detailsUrl = currentDetails.detailsUrl,
+                                title = currentDetails.titleRu,
+                                subtitle = listOfNotNull(episode, currentDetails.episodeTitleRu)
+                                    .filter { it.isNotBlank() }.joinToString(" · "),
+                                posterUrl = currentDetails.posterUrl,
+                                startedAt = System.currentTimeMillis(),
+                            ))
+                        }
                         val playEpisodeId = currentDetails?.playEpisodeId
                         if (playEpisodeId != null && watchedMarkingMode == WatchedMarkingMode.AUTO) {
                             launch {

@@ -17,6 +17,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.ConcurrentHashMap
@@ -39,11 +40,13 @@ interface TmdbEnrichmentService {
      * [enrichSummaries] ждёт все N резолвов, возвращает все N элементов и
      * сохраняет их полным upsert, который затирает isWatched.
      *
-     * Порядок эмиссии — порядок item'ов на странице, постеры проявляются
-     * слева направо. Эмитится только то, у чего арт-поля изменились: тайтл,
-     * который TMDB не нашла, не даёт эмиссии вовсе, а не копию без изменений.
+     * Карточки обновляются по мере готовности, а их порядок на странице
+     * сохраняет коллектор. Описание может прийти после постера.
      */
-    fun enrichProgressively(items: List<ReleaseSummary>): Flow<ReleaseSummary>
+    fun enrichProgressively(
+        items: List<ReleaseSummary>,
+        persistToCache: Boolean = true,
+    ): Flow<ReleaseSummary>
 }
 
 private const val TAG = "TmdbEnrichmentService"
@@ -139,54 +142,64 @@ class TmdbEnrichmentServiceImpl @Inject constructor(
         }
     }
 
-    override fun enrichProgressively(items: List<ReleaseSummary>): Flow<ReleaseSummary> = channelFlow {
+    override fun enrichProgressively(
+        items: List<ReleaseSummary>,
+        persistToCache: Boolean,
+    ): Flow<ReleaseSummary> = channelFlow {
         val pending = items.filterNot { it.hasCompleteArt() }
         if (pending.isEmpty()) {
             return@channelFlow
         }
 
-        val semaphore = Semaphore(6)
-        val deferred = pending.map { item ->
-            async {
-                semaphore.withPermit {
-                    item to tmdbResolver.resolve(
+        val artworkSlots = Semaphore(SUMMARY_ENRICHMENT_CONCURRENCY)
+        for (item in pending) {
+            launch {
+                var current = item
+                suspend fun publish(enriched: ReleaseSummary) {
+                    if (enriched.hasSameArtworkAs(current)) return
+                    if (persistToCache) releaseDao.updateSummaryArtwork(
+                        detailsUrl = enriched.detailsUrl,
+                        posterUrl = enriched.posterUrl,
+                        backdropUrl = enriched.backdropUrl,
+                        episodeOverviewRu = enriched.episodeOverviewRu,
+                        episodeOverviewSource = enriched.episodeOverviewSource,
+                        seriesOverviewRu = enriched.seriesOverviewRu,
+                        movieOverviewRu = enriched.movieOverviewRu,
+                        tmdbRating = enriched.tmdbRating,
+                    )
+                    current = enriched
+                    send(enriched)
+                }
+
+                artworkSlots.acquire()
+                var holdsArtworkSlot = true
+                val urls = try {
+                    tmdbResolver.resolveWithArtwork(
                         detailsUrl = item.detailsUrl,
                         titleRu = item.titleRu,
                         kind = item.kind,
                         originalReleaseYear = item.originalReleaseYear,
+                        onArtwork = { artwork ->
+                            // Text and ratings should not occupy a spot in the artwork queue.
+                            if (holdsArtworkSlot) {
+                                holdsArtworkSlot = false
+                                artworkSlots.release()
+                            }
+                            if (artwork.posterUrl.isNotBlank() || artwork.backdropUrl.isNotBlank()) {
+                                publish(TmdbPosterEnricher.enrichSummary(item, artwork))
+                            }
+                        },
                     )
+                } finally {
+                    if (holdsArtworkSlot) artworkSlots.release()
                 }
+                Log.d(
+                    TAG,
+                    "enrich ${item.detailsUrl}: poster=${!urls?.posterUrl.isNullOrBlank()} " +
+                        "episodeRu=${urls?.episodeOverviewRu?.length ?: 0}",
+                )
+                if (urls != null) publish(TmdbPosterEnricher.enrichSummary(item, urls))
             }
-        }
-
-        // Порядок эмиссии — порядок item'ов в странице: постеры проявляются
-        // слева направо, а не в случайном порядке завершения.
-        for (deferredItem in deferred) {
-            val (item, urls) = deferredItem.await()
-            val enriched = TmdbPosterEnricher.enrichSummary(item, urls)
-            // Решение «записать или пропустить» принималось молча, и по логам
-            // нельзя было отличить «резолвер не дал описания» от «описание уже
-            // было». Теперь видно, что пришло от резолвера и что записано.
-            Log.d(
-                TAG,
-                "enrich ${item.detailsUrl}: poster=${!urls?.posterUrl.isNullOrBlank()} " +
-                    "episodeRu=${urls?.episodeOverviewRu?.length ?: 0} " +
-                    "→ ${if (enriched.hasSameArtworkAs(item)) "пропущено" else "записано"}",
-            )
-            if (enriched.hasSameArtworkAs(item)) {
-                continue
-            }
-            releaseDao.updateSummaryArtwork(
-                detailsUrl = enriched.detailsUrl,
-                posterUrl = enriched.posterUrl,
-                backdropUrl = enriched.backdropUrl,
-                episodeOverviewRu = enriched.episodeOverviewRu,
-                episodeOverviewSource = enriched.episodeOverviewSource,
-                seriesOverviewRu = enriched.seriesOverviewRu,
-                movieOverviewRu = enriched.movieOverviewRu,
-                tmdbRating = enriched.tmdbRating,
-            )
-            send(enriched)
         }
     }
 

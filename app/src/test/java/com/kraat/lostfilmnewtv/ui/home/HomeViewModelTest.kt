@@ -303,6 +303,40 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun moviesLoadWhenOpenedAndLateArtworkKeepsTheNextPage() = runTest(dispatcher) {
+        val movie = summary(detailsUrl = "https://www.lostfilm.today/movies/First")
+        val movieWithPoster = movie.copy(posterUrl = "poster")
+        val nextMovie = summary(detailsUrl = "https://www.lostfilm.today/movies/Second")
+        val artworkGate = CompletableDeferred<Unit>()
+        val repository = FakeLostFilmRepository(
+            pageResults = mapOf(1 to PageState.Content(1, emptyList(), false, false)),
+            movieResults = mutableMapOf(2 to PageState.Content(2, listOf(nextMovie), false, false)),
+            movieFlows = mapOf(1 to flow {
+                emit(PageState.Content(1, listOf(movie), true, false))
+                artworkGate.await()
+                emit(PageState.Content(1, listOf(movieWithPoster), true, false))
+            }),
+        )
+        val viewModel = createViewModel(repository, SavedStateHandle(), ioDispatcher = dispatcher)
+
+        viewModel.onStart()
+        advanceUntilIdle()
+        assertTrue(repository.movieRequests.isEmpty())
+
+        viewModel.onModeSelected(HomeFeedMode.Movies)
+        advanceUntilIdle()
+        assertEquals(listOf(movie), viewModel.uiState.value.movieItems)
+        viewModel.onEndReached()
+        advanceUntilIdle()
+        assertEquals(listOf(movie, nextMovie), viewModel.uiState.value.movieItems)
+
+        artworkGate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf(movieWithPoster, nextMovie), viewModel.uiState.value.movieItems)
+        assertFalse(viewModel.uiState.value.moviesHasNextPage)
+    }
+
+    @Test
     fun onEndReached_inMoviesMode_loadsNextMoviePage() = runTest(dispatcher) {
         val firstMovie = summary(
             detailsUrl = "https://www.lostfilm.today/movies/Dune_Part_Three",
@@ -1645,6 +1679,7 @@ private class FakeLostFilmRepository(
      * контроль тайминга между эмиссиями.
      */
     val observePageEmissions: Map<Int, List<PageState>> = emptyMap(),
+    private val movieFlows: Map<Int, Flow<PageState>> = emptyMap(),
 ) : LostFilmRepository, FavoritesRepository {
     val pageRequests = mutableListOf<Int>()
     val movieRequests = mutableListOf<Int>()
@@ -1667,11 +1702,16 @@ private class FakeLostFilmRepository(
         return flow { emit(loadPage(pageNumber)) }
     }
 
-    override suspend fun loadMovies(pageNumber: Int): PageState {
+    override fun observeMovies(pageNumber: Int): Flow<PageState> = flow {
         movieRequests += pageNumber
-        return checkNotNull(movieResults[pageNumber]) {
-            "Missing fake movie result for page $pageNumber"
+        val customFlow = movieFlows[pageNumber]
+        if (customFlow != null) {
+            customFlow.collect { emit(it) }
+            return@flow
         }
+        emit(checkNotNull(movieResults[pageNumber]) {
+            "Missing fake movie result for page $pageNumber"
+        })
     }
 
     override suspend fun loadDetails(detailsUrl: String): DetailsResult {

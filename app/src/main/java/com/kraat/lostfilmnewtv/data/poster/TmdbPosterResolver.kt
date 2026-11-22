@@ -62,6 +62,14 @@ interface TmdbPosterResolver {
         kind: ReleaseKind,
         originalReleaseYear: Int? = null,
     ): TmdbImageUrls?
+
+    suspend fun resolveWithArtwork(
+        detailsUrl: String,
+        titleRu: String,
+        kind: ReleaseKind,
+        originalReleaseYear: Int?,
+        onArtwork: suspend (TmdbImageUrls) -> Unit,
+    ): TmdbImageUrls? = resolve(detailsUrl, titleRu, kind, originalReleaseYear)
 }
 
 class TmdbPosterResolverImpl(
@@ -87,6 +95,14 @@ class TmdbPosterResolverImpl(
         titleRu: String,
         kind: ReleaseKind,
         originalReleaseYear: Int?,
+    ): TmdbImageUrls? = resolveWithArtwork(detailsUrl, titleRu, kind, originalReleaseYear) {}
+
+    override suspend fun resolveWithArtwork(
+        detailsUrl: String,
+        titleRu: String,
+        kind: ReleaseKind,
+        originalReleaseYear: Int?,
+        onArtwork: suspend (TmdbImageUrls) -> Unit,
     ): TmdbImageUrls? {
         val cacheKey = tmdbCacheKey(detailsUrl, kind)
         val hasTmdbIdOverride = tmdbIdOverride(extractEnglishSlug(detailsUrl), kind) != null
@@ -97,6 +113,7 @@ class TmdbPosterResolverImpl(
             kind = kind,
             originalReleaseYear = originalReleaseYear,
             hasTmdbIdOverride = hasTmdbIdOverride,
+            onArtwork = onArtwork,
         )?.let { return it.urls }
 
         return withKeyLock(cacheKey) {
@@ -107,9 +124,10 @@ class TmdbPosterResolverImpl(
                 kind = kind,
                 originalReleaseYear = originalReleaseYear,
                 hasTmdbIdOverride = hasTmdbIdOverride,
+                onArtwork = onArtwork,
             )?.let { return@withKeyLock it.urls }
 
-            val result = performSearch(cacheKey, detailsUrl, titleRu, kind, originalReleaseYear)
+            val result = performSearch(cacheKey, detailsUrl, titleRu, kind, originalReleaseYear, onArtwork)
             result?.let {
                 inMemoryCache[cacheKey] = it.copy(episodeOverviewRu = null, episodeOverviewSource = null)
             }
@@ -127,6 +145,7 @@ class TmdbPosterResolverImpl(
         kind: ReleaseKind,
         originalReleaseYear: Int?,
         hasTmdbIdOverride: Boolean,
+        onArtwork: suspend (TmdbImageUrls) -> Unit,
     ): CachedMapping? {
         // Сезон и эпизод пишутся под сезонным ключом, а сериал — под корневым.
         // Если корневой маппинг уже известен, он и есть верный id:seasonный
@@ -142,6 +161,7 @@ class TmdbPosterResolverImpl(
         inMemoryCache[cacheKey]?.takeIf {
             seriesRootId == null || inMemoryTmdbIdCache[cacheKey]?.id == seriesRootId
         }?.let { cached ->
+            onArtwork(cached)
             val cachedId = inMemoryTmdbIdCache[cacheKey]
             if (cached.seriesOverviewRu != null || cached.movieOverviewRu != null) {
                 val episodeOverview = if (cached.episodeOverviewRu == null && cachedId?.isFromTmdb == true) {
@@ -190,6 +210,12 @@ class TmdbPosterResolverImpl(
             return null
         }
 
+        val artwork = TmdbImageUrls(
+            posterUrl = dbCached.posterUrl,
+            backdropUrl = dbCached.backdropUrl,
+            rating = dbCached.rating,
+        )
+        onArtwork(artwork)
         val overviews = if (dbCached.isFromTmdb) {
             resolveOverviews(
                 detailsUrl = detailsUrl,
@@ -199,14 +225,11 @@ class TmdbPosterResolverImpl(
         } else {
             ResolvedOverviews()
         }
-        val urls = TmdbImageUrls(
-            posterUrl = dbCached.posterUrl,
-            backdropUrl = dbCached.backdropUrl,
+        val urls = artwork.copy(
             episodeOverviewRu = overviews.episodeOverview?.text,
             episodeOverviewSource = overviews.episodeOverview?.source?.name,
             seriesOverviewRu = overviews.seriesOverviewRu,
             movieOverviewRu = overviews.movieOverviewRu,
-            rating = dbCached.rating,
         )
         inMemoryCache[cacheKey] = urls.copy(episodeOverviewRu = null, episodeOverviewSource = null)
         inMemoryTmdbIdCache[cacheKey] = CachedTmdbId(dbCached.tmdbId, dbCached.source)
@@ -303,6 +326,7 @@ class TmdbPosterResolverImpl(
         titleRu: String,
         kind: ReleaseKind,
         originalReleaseYear: Int?,
+        onArtwork: suspend (TmdbImageUrls) -> Unit,
     ): TmdbImageUrls? {
         val tmdbType = when (kind) {
             ReleaseKind.SERIES -> TmdbMediaType.TV
@@ -324,6 +348,7 @@ class TmdbPosterResolverImpl(
                     detailsUrl = detailsUrl,
                     tmdbId = rootId,
                     kind = kind,
+                    onArtwork = onArtwork,
                 )
             }
         }
@@ -456,11 +481,19 @@ class TmdbPosterResolverImpl(
                     detailsUrl = detailsUrl,
                     tmdbId = freshRootId,
                     kind = kind,
+                    onArtwork = onArtwork,
                 )
             }
         }
 
-        val rating = bestMatch.rating ?: resolveRating(bestMatch.id, kind)
+        val seasonNumber = seasonNumberRegex.find(detailsUrl)
+            ?.groupValues?.getOrNull(1)?.toIntOrNull()
+        // Publish the matched title's poster while TMDB selects localized artwork.
+        // Season cards wait for the correct season's images.
+        val searchPoster = bestMatch.posterUrl?.takeIf { seasonNumber == null }
+        if (searchPoster != null) {
+            onArtwork(TmdbImageUrls(posterUrl = searchPoster, backdropUrl = "", rating = bestMatch.rating))
+        }
         val seriesImages = try {
             tmdbClient.getPosterAndBackdrop(bestMatch.id, tmdbType)
         } catch (e: CancellationException) {
@@ -471,9 +504,7 @@ class TmdbPosterResolverImpl(
         }
 
         // Try season-specific images when a season number is present in the URL.
-        val seasonNumber = seasonNumberRegex.find(detailsUrl)
-            ?.groupValues?.getOrNull(1)?.toIntOrNull()
-        val images = if (kind == ReleaseKind.SERIES && seasonNumber != null) {
+        val curatedImages = if (kind == ReleaseKind.SERIES && seasonNumber != null) {
             val seasonImages = try {
                 tmdbClient.getSeasonImages(bestMatch.id, seasonNumber)
             } catch (e: CancellationException) {
@@ -482,11 +513,17 @@ class TmdbPosterResolverImpl(
                 Log.w(TAG, "TMDB season images failed for ${bestMatch.name} S$seasonNumber: ${e.message}")
                 null
             }
-            mergeSeasonAndSeriesImages(seasonImages, seriesImages)
+            mergeArtwork(seasonImages, seriesImages)
         } else {
             seriesImages
         }
 
+        val images = mergeArtwork(
+            curatedImages,
+            searchPoster?.let { TmdbImageUrls(posterUrl = it, backdropUrl = "") },
+        )
+        images?.let { onArtwork(it.copy(rating = bestMatch.rating)) }
+        val rating = bestMatch.rating ?: resolveRating(bestMatch.id, kind)
         if (images == null && rating.isNullOrBlank()) {
             Log.d(TAG, "No images or rating for ${bestMatch.name}")
             return null
@@ -587,6 +624,7 @@ class TmdbPosterResolverImpl(
         detailsUrl: String,
         tmdbId: Int,
         kind: ReleaseKind,
+        onArtwork: suspend (TmdbImageUrls) -> Unit,
     ): TmdbImageUrls? {
         val tmdbType = when (kind) {
             ReleaseKind.SERIES -> TmdbMediaType.TV
@@ -612,11 +650,12 @@ class TmdbPosterResolverImpl(
                 Log.w(TAG, "TMDB season images failed for reused id=$tmdbId S$seasonNumber: ${e.message}")
                 null
             }
-            mergeSeasonAndSeriesImages(seasonImages, seriesImages)
+            mergeArtwork(seasonImages, seriesImages)
         } else {
             seriesImages
         }
 
+        images?.let { onArtwork(it) }
         val rating = resolveRating(tmdbId, kind)
         if (images == null && rating.isNullOrBlank()) return null
 
@@ -1120,18 +1159,11 @@ class TmdbPosterResolverImpl(
             ?.trim()
     }
 
-    /**
-     * Prefer season-specific poster/backdrop; fall back to series-level images for
-     * whichever field the season endpoint did not provide.
-     */
-    private fun mergeSeasonAndSeriesImages(
-        seasonImages: TmdbImageUrls?,
-        seriesImages: TmdbImageUrls?,
-    ): TmdbImageUrls? {
-        if (seasonImages == null) return seriesImages
-        if (seriesImages == null) return seasonImages
-        val posterUrl = seasonImages.posterUrl.ifBlank { seriesImages.posterUrl }
-        val backdropUrl = seasonImages.backdropUrl.ifBlank { seriesImages.backdropUrl }
+    private fun mergeArtwork(primary: TmdbImageUrls?, fallback: TmdbImageUrls?): TmdbImageUrls? {
+        if (primary == null) return fallback
+        if (fallback == null) return primary
+        val posterUrl = primary.posterUrl.ifBlank { fallback.posterUrl }
+        val backdropUrl = primary.backdropUrl.ifBlank { fallback.backdropUrl }
         if (posterUrl.isBlank() && backdropUrl.isBlank()) return null
         return TmdbImageUrls(posterUrl = posterUrl, backdropUrl = backdropUrl)
     }

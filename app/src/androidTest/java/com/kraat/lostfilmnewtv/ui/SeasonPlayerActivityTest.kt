@@ -12,6 +12,7 @@ import dagger.hilt.android.testing.HiltAndroidTest
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -34,21 +35,31 @@ class SeasonPlayerActivityTest {
             val file = File(context.cacheDir, name).apply { writeBytes(buffer.array()) }
             return android.net.Uri.fromFile(file).toString()
         }
-        val playlist = SeasonPlaylist(listOf(
-            SeasonMediaItem(clip("first.wav", 1), "Первая серия", "", null),
-            SeasonMediaItem(clip("second.wav", 5), "Вторая серия", "", null),
-        ))
+        val firstEpisode = "https://www.lostfilm.tv/series/Playback_Test/season_1/episode_1/"
+        val secondEpisode = "https://www.lostfilm.tv/series/Playback_Test/season_1/episode_2/"
+        val playlist = SeasonPlaylist(
+            items = listOf(
+                SeasonMediaItem(clip("first.wav", 1), "Первая серия", firstEpisode, null, "S01E01"),
+                SeasonMediaItem(clip("second.wav", 5), "Вторая серия", secondEpisode, null, "S01E02"),
+            ),
+            seriesTitle = "Проверка сезона",
+        )
         ActivityScenario.launch<SeasonPlayerActivity>(SeasonPlayerActivity.createIntent(context, playlist)).use { scenario ->
             var advanced = false
             val deadline = SystemClock.elapsedRealtime() + 15000
             while (!advanced && SystemClock.elapsedRealtime() < deadline) {
                 scenario.onActivity { activity ->
                     val view = activity.window.decorView.findViewWithTag<PlayerView>("season-player")
-                    advanced = view.player?.currentMediaItemIndex == 1
+                    val history = activity.history.entries.value
+                    advanced = view.player?.currentMediaItemIndex == 1 && history.firstOrNull()?.detailsUrl == secondEpisode
+                    if (advanced) {
+                        assertEquals("S01E02", history.first().subtitle)
+                        assertTrue(history.single { it.detailsUrl == firstEpisode }.completed)
+                    }
                 }
                 if (!advanced) SystemClock.sleep(100)
             }
-            assertTrue("The second item must start automatically after the first ends", advanced)
+            assertTrue("The second item must start automatically and enter history after the first ends", advanced)
         }
     }
 }

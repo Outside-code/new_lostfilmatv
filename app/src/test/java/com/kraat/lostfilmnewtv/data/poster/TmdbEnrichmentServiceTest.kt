@@ -11,7 +11,6 @@ import com.kraat.lostfilmnewtv.data.model.TmdbImageUrls
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -68,14 +67,15 @@ class TmdbEnrichmentServiceTest {
 
         val emitted = service.enrichProgressively(listOf(summary(FIRST_URL), summary(SECOND_URL))).toList()
 
-        assertEquals(listOf(FIRST_URL, SECOND_URL), emitted.map { it.detailsUrl })
+        assertEquals(setOf(FIRST_URL, SECOND_URL), emitted.map { it.detailsUrl }.toSet())
         assertTrue(emitted.all { it.posterUrl.isNotBlank() })
         assertEquals("7.7", emitted.first().tmdbRating)
 
         val stored = releaseDao.getSummary(FIRST_URL)
         requireNotNull(stored)
-        assertEquals(emitted.first().posterUrl, stored.posterUrl)
-        assertEquals(emitted.first().backdropUrl, stored.backdropUrl)
+        val first = emitted.single { it.detailsUrl == FIRST_URL }
+        assertEquals(first.posterUrl, stored.posterUrl)
+        assertEquals(first.backdropUrl, stored.backdropUrl)
         assertEquals("7.7", stored.tmdbRating)
     }
 
@@ -251,20 +251,11 @@ class TmdbEnrichmentServiceTest {
     }
 
     @Test
-    fun enrichProgressively_holdsLaterItemsUntilGatedHeadResolves() = runTest {
-        // Контракт KDoc: постеры проявляются слева направо. Поэтому закрытый
-        // первый item должен держать весь хвост, даже если второй и третий уже
-        // разрешились: иначе лента показывала бы карточки не по порядку.
+    fun enrichProgressively_emitsReadyArtworkWhileEarlierCardIsStillPending() = runTest {
         releaseDao.upsertSummaries(listOf(entity(FIRST_URL), entity(SECOND_URL), entity(THIRD_URL)))
         val headGate = CompletableDeferred<Unit>()
-        val secondResolved = CompletableDeferred<Unit>()
-        val thirdResolved = CompletableDeferred<Unit>()
         val service = createService { detailsUrl ->
-            when (detailsUrl) {
-                FIRST_URL -> headGate.await()
-                SECOND_URL -> secondResolved.complete(Unit)
-                THIRD_URL -> thirdResolved.complete(Unit)
-            }
+            if (detailsUrl == FIRST_URL) headGate.await()
             TmdbImageUrls(
                 posterUrl = "https://image.tmdb.org/t/p/w780/p.jpg",
                 backdropUrl = "https://image.tmdb.org/t/p/w1280/b.jpg",
@@ -272,40 +263,67 @@ class TmdbEnrichmentServiceTest {
         }
 
         val emitted = CopyOnWriteArrayList<ReleaseSummary>()
+        val tailEmitted = CompletableDeferred<Unit>()
         val allEmitted = CompletableDeferred<Unit>()
         val collector = launch(Dispatchers.Default) {
             service.enrichProgressively(
                 listOf(summary(FIRST_URL), summary(SECOND_URL), summary(THIRD_URL)),
             ).collect {
                 emitted += it
+                if (emitted.size == 2) tailEmitted.complete(Unit)
                 if (emitted.size == 3) allEmitted.complete(Unit)
             }
         }
 
-        // Хвост разрешился, голова — нет. Таймауты ждём на реальном диспетчере:
-        // executor запросов Room невидим для TestCoroutineScheduler.
         withContext(Dispatchers.IO) {
-            assertNotNull("Второй item должен быть отправлен в резолвер", withTimeoutOrNull(5_000) { secondResolved.await() })
-            assertNotNull("Третий item должен быть отправлен в резолвер", withTimeoutOrNull(5_000) { thirdResolved.await() })
-            // Даём хвосту время на эмиссию: иначе проверка ниже прошла бы потому,
-            // что send ещё не успел выполниться, а не потому, что порядок соблюдён.
-            delay(200)
+            assertNotNull(withTimeoutOrNull(5_000) { tailEmitted.await() })
         }
-        assertTrue(
-            "Пока не разрешён первый item, хвост эмитить нельзя — иначе порядок слева направо нарушен",
-            emitted.isEmpty(),
-        )
-
+        assertEquals(setOf(SECOND_URL, THIRD_URL), emitted.map { it.detailsUrl }.toSet())
         headGate.complete(Unit)
         withContext(Dispatchers.IO) {
-            assertNotNull("Все три item должны прийти после разблокировки", withTimeoutOrNull(5_000) { allEmitted.await() })
+            assertNotNull(withTimeoutOrNull(5_000) { allEmitted.await() })
         }
-        collector.cancel()
+        collector.join()
+        assertEquals(FIRST_URL, emitted.last().detailsUrl)
+    }
 
-        assertEquals(
-            listOf(FIRST_URL, SECOND_URL, THIRD_URL),
-            emitted.map { it.detailsUrl },
-        )
+    @Test
+    fun enrichProgressively_startsTheNextPosterWhileTheFirstArtworkWaitsForText() = runTest {
+        val textGate = CompletableDeferred<Unit>()
+        val artwork = TmdbImageUrls("poster", "backdrop")
+        val resolver = object : TmdbPosterResolver {
+            override suspend fun resolve(
+                detailsUrl: String,
+                titleRu: String,
+                kind: ReleaseKind,
+                originalReleaseYear: Int?,
+            ): TmdbImageUrls? = error("Progressive resolution must accept early artwork")
+
+            override suspend fun resolveWithArtwork(
+                detailsUrl: String,
+                titleRu: String,
+                kind: ReleaseKind,
+                originalReleaseYear: Int?,
+                onArtwork: suspend (TmdbImageUrls) -> Unit,
+            ): TmdbImageUrls {
+                onArtwork(artwork)
+                textGate.await()
+                return artwork.copy(episodeOverviewRu = "Описание")
+            }
+        }
+        val service = TmdbEnrichmentServiceImpl(resolver, releaseDao)
+        val cards = List(8) { index -> summary("https://lostfilm.tv/series/show_$index/season_1/episode_1/") }
+        val emitted = mutableListOf<ReleaseSummary>()
+        val collector = launch {
+            service.enrichProgressively(cards, persistToCache = false).toList(emitted)
+        }
+        testScheduler.runCurrent()
+        assertEquals(cards.map { it.detailsUrl }.toSet(), emitted.map { it.detailsUrl }.toSet())
+        assertTrue(emitted.all { it.posterUrl == "poster" && it.episodeOverviewRu == null })
+
+        textGate.complete(Unit)
+        collector.join()
+        assertEquals(8, emitted.count { it.episodeOverviewRu == "Описание" })
     }
 
     private fun createService(resolve: suspend (String) -> TmdbImageUrls?) = TmdbEnrichmentServiceImpl(

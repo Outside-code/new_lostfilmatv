@@ -25,8 +25,19 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 class SeasonLoginRequired : IOException("Войдите в LostFilm для просмотра сезона")
-data class SeasonMediaItem(val url: String, val title: String, val detailsUrl: String, val episodeId: String?)
-data class SeasonPlaylist(val items: List<SeasonMediaItem>)
+data class SeasonMediaItem(
+    val url: String,
+    val title: String,
+    val detailsUrl: String,
+    val episodeId: String?,
+    val episodeLabel: String = "",
+)
+
+data class SeasonPlaylist(
+    val items: List<SeasonMediaItem>,
+    val posterUrl: String = "",
+    val seriesTitle: String = "",
+)
 
 fun interface SeasonPlaybackPreparer {
     suspend fun prepare(season: SeriesGuideSeason, title: String, poster: String, progress: (String) -> Unit): SeasonPlaylist
@@ -67,7 +78,10 @@ class SeasonPlaybackCoordinator @Inject constructor(
             if (!torrent.label.contains(quality.storageValue)) {
                 throw IOException("${quality.storageValue}p для серии ${episode.episodeNumber} недоступно. Выберите качество в настройках.")
             }
-            val episodeTitle = "$title · S${episode.seasonNumber.toString().padStart(2, '0')}E${episode.episodeNumber.toString().padStart(2, '0')} · ${torrent.label}"
+            val seasonNumber = episode.seasonNumber.toString().padStart(2, '0')
+            val episodeNumber = episode.episodeNumber.toString().padStart(2, '0')
+            val episodeLabel = "S${seasonNumber}E$episodeNumber"
+            val episodeTitle = "$title · $episodeLabel · ${torrent.label}"
             val prepared = downloader.prepare(context, torrent.url) ?: throw IOException("Не удалось скачать торрент")
             val body = if (prepared.startsWith("content://")) {
                 val bytes = context.contentResolver.openInputStream(android.net.Uri.parse(prepared))?.use { it.readBytes() }
@@ -91,9 +105,10 @@ class SeasonPlaybackCoordinator @Inject constructor(
             SeasonMediaItem(
                 url = torrentStreamUrl(baseUrl, result), title = episodeTitle,
                 detailsUrl = episode.detailsUrl, episodeId = details.playEpisodeId ?: episode.episodeId,
+                episodeLabel = episodeLabel,
             )
         }
-        SeasonPlaylist(items)
+        SeasonPlaylist(items, posterUrl = poster, seriesTitle = title)
     }
 }
 

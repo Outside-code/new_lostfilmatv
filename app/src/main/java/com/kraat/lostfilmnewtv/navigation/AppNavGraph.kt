@@ -23,6 +23,7 @@ import com.kraat.lostfilmnewtv.ui.auth.AuthUiState
 import com.kraat.lostfilmnewtv.ui.auth.AuthViewModel
 import com.kraat.lostfilmnewtv.ui.details.DetailsRoute
 import com.kraat.lostfilmnewtv.ui.guide.SeriesGuideRoute
+import com.kraat.lostfilmnewtv.ui.history.PlaybackHistoryScreen
 import com.kraat.lostfilmnewtv.ui.home.HomeScreen
 import com.kraat.lostfilmnewtv.ui.overview.MovieOverviewRoute
 import com.kraat.lostfilmnewtv.ui.overview.SeriesOverviewRoute
@@ -148,6 +149,7 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 },
                 onSearchClick = { navController.navigate(AppDestination.Search.route) },
                 onScheduleClick = { navController.navigate(AppDestination.Schedule.route) },
+                onHistoryClick = { navController.navigate(AppDestination.PlaybackHistory.route) },
                 onSettingsClick = { navController.navigate(AppDestination.Settings.createRoute()) },
                 onUpdateClick = {
                     val apkUrl = savedAppUpdate?.apkUrl
@@ -199,6 +201,7 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 watchedMarkingMode = appGraphEntryPoint.playbackPreferencesStore().readWatchedMarkingMode(),
                 actionHandler = appGraphEntryPoint.torrServeActionHandler(),
                 linkBuilder = appGraphEntryPoint.torrServeLinkBuilder(),
+                onPlaybackLaunched = appGraphEntryPoint.playbackHistoryStore()::recordLaunch,
                 onWatchedStateChanged = { url, isWatched ->
                     navController.previousBackStackEntry?.savedStateHandle?.set(HOME_WATCHED_DETAILS_URL_KEY, url)
                     navController.previousBackStackEntry?.savedStateHandle?.set(HOME_WATCHED_CHANGED_STATE_KEY, isWatched)
@@ -282,6 +285,13 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                     }
                 },
             )
+        }
+
+        composable(AppDestination.PlaybackHistory.route) {
+            val entries by appGraphEntryPoint.playbackHistoryStore().entries.collectAsStateWithLifecycle()
+            PlaybackHistoryScreen(entries = entries) { url ->
+                navController.navigate(AppDestination.Details.createRoute(url, isAuthenticated))
+            }
         }
 
         // ── Settings ──────────────────────────────────────────────────────────

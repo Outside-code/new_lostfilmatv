@@ -23,6 +23,8 @@ import androidx.media3.ui.PlayerView
 import com.kraat.lostfilmnewtv.data.repository.LostFilmRepository
 import com.kraat.lostfilmnewtv.playback.PlaybackPreferencesStore
 import com.kraat.lostfilmnewtv.playback.WatchedMarkingMode
+import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryEntry
+import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryStore
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +35,7 @@ import kotlinx.coroutines.launch
 class SeasonPlayerActivity : ComponentActivity() {
     @Inject lateinit var repository: LostFilmRepository
     @Inject lateinit var preferences: PlaybackPreferencesStore
+    @Inject lateinit var history: PlaybackHistoryStore
     private lateinit var view: PlayerView
     private lateinit var caption: TextView
     private var player: ExoPlayer? = null
@@ -41,8 +44,11 @@ class SeasonPlayerActivity : ComponentActivity() {
     private var resumePlayback = true
     private var resolution = ""
     private val completed = mutableSetOf<Int>()
+    private var lastPlayingIndex: Int? = null
     private val urls by lazy { intent.getStringArrayListExtra("urls").orEmpty() }
     private val titles by lazy { intent.getStringArrayListExtra("titles").orEmpty() }
+    private val episodeLabels by lazy { intent.getStringArrayListExtra("episodeLabels").orEmpty() }
+    private val seriesTitle by lazy { intent.getStringExtra("seriesTitle").orEmpty() }
     private val detailsUrls by lazy { intent.getStringArrayListExtra("detailsUrls").orEmpty() }
     private val episodeIds by lazy { intent.getStringArrayListExtra("episodeIds").orEmpty() }
 
@@ -95,6 +101,10 @@ class SeasonPlayerActivity : ComponentActivity() {
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) markCompleted(current.currentMediaItemIndex - 1)
                 updateCaption()
             }
+            override fun onEvents(player: Player, events: Player.Events) {
+                if (player.isPlaying) recordPlayingEpisode(player.currentMediaItemIndex)
+            }
+
             override fun onVideoSizeChanged(videoSize: VideoSize) {
                 resolution = "${videoSize.width}×${videoSize.height}"
                 updateCaption()
@@ -132,7 +142,22 @@ class SeasonPlayerActivity : ComponentActivity() {
         ).joinToString(" · ")
     }
 
+    private fun recordPlayingEpisode(index: Int) {
+        if (lastPlayingIndex == index) return
+        val url = detailsUrls.getOrNull(index)?.takeIf { it.isNotBlank() } ?: return
+        val title = seriesTitle.ifBlank { titles.getOrNull(index).orEmpty() }
+        lastPlayingIndex = index
+        history.recordLaunch(PlaybackHistoryEntry(
+            detailsUrl = url,
+            title = title,
+            subtitle = episodeLabels.getOrNull(index).orEmpty(),
+            posterUrl = intent.getStringExtra("posterUrl").orEmpty(),
+            startedAt = System.currentTimeMillis(),
+        ))
+    }
+
     private fun markCompleted(i: Int) {
+        detailsUrls.getOrNull(i)?.let(history::markCompleted)
         if (i !in urls.indices || !completed.add(i) || preferences.readWatchedMarkingMode() != WatchedMarkingMode.AUTO) return
         val id = episodeIds.getOrNull(i)?.takeIf { it.isNotBlank() } ?: return
         val url = detailsUrls.getOrNull(i)?.takeIf { it.isNotBlank() } ?: return
@@ -156,8 +181,11 @@ class SeasonPlayerActivity : ComponentActivity() {
         fun createIntent(context: Context, playlist: SeasonPlaylist): Intent = Intent(context, SeasonPlayerActivity::class.java).apply {
             putStringArrayListExtra("urls", ArrayList(playlist.items.map { it.url }))
             putStringArrayListExtra("titles", ArrayList(playlist.items.map { it.title }))
+            putStringArrayListExtra("episodeLabels", ArrayList(playlist.items.map { it.episodeLabel }))
+            putExtra("seriesTitle", playlist.seriesTitle)
             putStringArrayListExtra("detailsUrls", ArrayList(playlist.items.map { it.detailsUrl }))
             putStringArrayListExtra("episodeIds", ArrayList(playlist.items.map { it.episodeId.orEmpty() }))
+            putExtra("posterUrl", playlist.posterUrl)
         }
     }
 }
