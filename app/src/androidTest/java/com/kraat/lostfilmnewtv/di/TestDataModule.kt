@@ -68,8 +68,8 @@ class TestFakeRepository : LostFilmRepository {
         playEpisodeId: String,
         targetWatched: Boolean,
     ): Boolean? = setEpisodeWatchedResult
-    override suspend fun setFavorite(detailsUrl: String, targetFavorite: Boolean): FavoriteMutationResult = setFavoriteResult
-    override fun observeFavoriteReleases(pageNumber: Int): Flow<FavoriteReleasesResult> =
+    suspend fun setFavorite(detailsUrl: String, targetFavorite: Boolean): FavoriteMutationResult = setFavoriteResult
+    fun observeFavoriteReleases(pageNumber: Int): Flow<FavoriteReleasesResult> =
         flowOf(favoriteReleasesResult)
 }
 

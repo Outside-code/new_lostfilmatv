@@ -64,17 +64,17 @@ fun PosterCard(
         scale = CardDefaults.scale(focusedScale = POSTER_FOCUSED_SCALE),
         glow = CardDefaults.glow(
             focusedGlow = Glow(
-                elevationColor = HomeAccentGoldGlow.copy(alpha = 0.42f),
-                elevation = 20.dp
+                elevationColor = HomeAccentGoldGlow.copy(alpha = 0.18f),
+                elevation = 8.dp
             )
         ),
         border = CardDefaults.border(
             border = Border(
-                border = BorderStroke(0.5.dp, HomePanelBorder.copy(alpha = 0.14f)),
+                border = BorderStroke(0.5.dp, HomePanelBorder.copy(alpha = 0.65f)),
                 shape = shape
             ),
             focusedBorder = Border(
-                border = BorderStroke(1.2.dp, FocusBorder.copy(alpha = 0.88f)),
+                border = BorderStroke(1.5.dp, FocusBorder),
                 shape = shape
             )
         ),

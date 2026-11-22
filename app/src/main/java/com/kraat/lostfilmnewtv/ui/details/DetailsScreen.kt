@@ -58,6 +58,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.kraat.lostfilmnewtv.ui.components.rememberBackdropImageRequest
 import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.ui.components.PosterImage
 import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
@@ -379,17 +380,11 @@ private fun ContentState(
 
 @Composable
 private fun BackgroundPoster(details: ReleaseDetails?) {
-    val context = LocalContext.current
     Box(modifier = Modifier.fillMaxSize()) {
         if (details != null) {
             val backgroundImage = details.backdropUrl?.takeIf { it.isNotBlank() }
                 ?: details.posterUrl
-            val request = remember(context, backgroundImage) {
-                ImageRequest.Builder(context)
-                    .data(backgroundImage)
-                    .size(1280, 720)
-                    .build()
-            }
+            val request = rememberBackdropImageRequest(backgroundImage)
             AsyncImage(
                 model = request,
                 contentDescription = null,

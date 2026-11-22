@@ -31,7 +31,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
@@ -39,7 +38,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
@@ -53,7 +51,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.StateFlow
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import com.kraat.lostfilmnewtv.ui.components.rememberBackdropImageRequest
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
@@ -677,7 +675,6 @@ private fun Int.formatFavoriteSeriesCount(): String {
 
 @Composable
 private fun HomeBackdrop(item: ReleaseSummary?) {
-    val context = LocalContext.current
     val backdropUrl = item?.backdropUrl?.takeIf { it.isNotBlank() }
     val posterUrl = item?.posterUrl?.takeIf { it.isNotBlank() }
     val backdropImage = HomeBackdropImage(
@@ -691,13 +688,7 @@ private fun HomeBackdrop(item: ReleaseSummary?) {
     ) { targetImage ->
         val targetImageUrl = targetImage.url
         if (targetImageUrl != null) {
-            val request = remember(context, targetImageUrl) {
-                ImageRequest.Builder(context)
-                    .data(targetImageUrl)
-                    .size(1280, 720)
-                    .crossfade(true)
-                    .build()
-            }
+            val request = rememberBackdropImageRequest(targetImageUrl)
             Box(modifier = Modifier.fillMaxSize()) {
                 AsyncImage(
                     model = request,
@@ -712,7 +703,6 @@ private fun HomeBackdrop(item: ReleaseSummary?) {
                                 Modifier
                                     .fillMaxHeight()
                                     .width(1_120.dp)
-                                    .blur(8.dp)
                             },
                         ),
                 )

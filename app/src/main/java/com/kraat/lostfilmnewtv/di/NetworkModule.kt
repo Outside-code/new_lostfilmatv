@@ -1,6 +1,7 @@
 package com.kraat.lostfilmnewtv.di
 
 import android.content.Context
+import com.kraat.lostfilmnewtv.BuildConfig
 import com.kraat.lostfilmnewtv.data.auth.EncryptedSessionStore
 import com.kraat.lostfilmnewtv.data.network.AuthBridgeClient
 import com.kraat.lostfilmnewtv.data.network.LostFilmConcurrencyLimits.LOSTFILM_MAX_CONCURRENT_REQUESTS
@@ -99,7 +100,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAuthBridgeClient(okHttpClient: OkHttpClient): AuthBridgeClient =
-        AuthBridgeClient(AUTH_BRIDGE_BASE_URL, okHttpClient)
+        AuthBridgeClient(BuildConfig.AUTH_BRIDGE_BASE_URL, okHttpClient)
 
     @Provides
     @Singleton

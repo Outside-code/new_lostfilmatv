@@ -1,4 +1,5 @@
 import java.util.Base64
+import java.net.URI
 
 plugins {
     alias(libs.plugins.android.application)
@@ -7,6 +8,17 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
+}
+
+val authBridgeBaseUrl = providers.gradleProperty("authBridgeBaseUrl")
+    .orElse(providers.environmentVariable("AUTH_BRIDGE_BASE_URL"))
+    .orElse("https://lost.hagenka.online")
+    .get().trim().trimEnd('/')
+val authBridgeUri = URI(authBridgeBaseUrl)
+require(authBridgeUri.scheme == "https" && !authBridgeUri.host.isNullOrBlank() &&
+    authBridgeUri.rawUserInfo == null && authBridgeUri.rawQuery == null &&
+    authBridgeUri.rawFragment == null && authBridgeUri.rawPath.orEmpty().isEmpty()) {
+    "authBridgeBaseUrl must be an HTTPS origin, for example https://auth.example.com"
 }
 
 val releaseVersionCodeProvider = providers.gradleProperty("releaseVersionCode").orElse("1")
@@ -49,6 +61,7 @@ android {
         targetSdk = 35
         versionCode = releaseVersionCodeProvider.get().toInt()
         versionName = releaseVersionNameProvider.get()
+        buildConfigField("String", "AUTH_BRIDGE_BASE_URL", "\"$authBridgeBaseUrl\"")
         testInstrumentationRunner = "com.kraat.lostfilmnewtv.HiltTestRunner"
     }
 
@@ -155,6 +168,7 @@ dependencies {
     testImplementation(libs.hilt.android.testing)
     kspTest(libs.hilt.android.compiler)
     testImplementation(libs.mockito.core)
+    androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.hilt.android.testing)

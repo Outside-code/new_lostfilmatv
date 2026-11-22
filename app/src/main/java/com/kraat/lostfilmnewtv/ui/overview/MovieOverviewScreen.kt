@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.kraat.lostfilmnewtv.ui.components.rememberBackdropImageRequest
 import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
 import com.kraat.lostfilmnewtv.ui.components.PosterImage
@@ -95,16 +96,10 @@ fun MovieOverviewScreen(
 
 @Composable
 private fun MovieOverviewBackgroundPoster(details: ReleaseDetails?) {
-    val context = LocalContext.current
     val imageUrl = details?.backdropUrl?.takeIf { !it.isNullOrBlank() }
         ?: details?.posterUrl
         ?: return
-    val request = remember(context, imageUrl) {
-        ImageRequest.Builder(context)
-            .data(imageUrl)
-            .size(1280, 720)
-            .build()
-    }
+    val request = rememberBackdropImageRequest(imageUrl)
 
     AsyncImage(
         model = request,

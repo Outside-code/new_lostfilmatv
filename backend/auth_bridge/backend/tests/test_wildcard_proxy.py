@@ -170,7 +170,7 @@ class WildcardProxyRouterTest(unittest.TestCase):
             app.state.lostfilm_proxy_service = original_proxy_service
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Connect your TV", response.text)
+        self.assertIn("Вход на телевизоре", response.text)
         self.assertEqual(status_response.json()["status"], "failed")
         self.assertEqual(proxy_calls, [])
 
@@ -194,7 +194,7 @@ class WildcardProxyRouterTest(unittest.TestCase):
         response = self.client.get("/", headers={"host": f"{pairing['phoneVerifier']}.auth.example.test"})
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Device connected. Return to your TV.", response.text)
+        self.assertIn("Телевизор подключён", response.text)
 
     def test_wildcard_root_uses_proxied_upstream_after_browser_session_starts(self) -> None:
         pairing = self.client.post("/api/pairings").json()
@@ -513,7 +513,7 @@ class WildcardProxyRouterTest(unittest.TestCase):
         self.assertEqual(r2.status_code, 200)
         self.assertEqual(release.status_code, 204)
         self.assertNotEqual(r3.status_code, 429)
-        self.assertIn("Connect your TV", r3.text)
+        self.assertIn("Вход на телевизоре", r3.text)
 
     def test_finalized_pairing_does_not_reset_proxy_budget_for_other_pairings(self) -> None:
         active_pairing = self.client.post("/api/pairings").json()

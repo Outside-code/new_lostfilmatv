@@ -337,7 +337,7 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
             arguments = listOf(
                 navArgument(AppDestination.Auth.autoStartArg) {
                     type = NavType.BoolType
-                    defaultValue = false
+                    defaultValue = true
                 },
             ),
         ) { backStackEntry ->

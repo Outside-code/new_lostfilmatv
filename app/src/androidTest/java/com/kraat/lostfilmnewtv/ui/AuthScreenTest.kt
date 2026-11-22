@@ -3,6 +3,7 @@ package com.kraat.lostfilmnewtv.ui
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.kraat.lostfilmnewtv.data.auth.AuthCompletionResult
@@ -34,7 +35,7 @@ class AuthScreenTest {
             ),
         )
 
-        composeRule.onNodeWithText("Начать вход").assertIsDisplayed()
+        composeRule.onNodeWithText("Получить QR-код").assertIsDisplayed()
     }
 
     @Test
@@ -46,11 +47,11 @@ class AuthScreenTest {
             ),
         )
 
-        composeRule.onNodeWithText("Начать вход").performClick()
+        composeRule.onNodeWithText("Получить QR-код").performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("1. Откройте QR на телефоне\n2. Войдите в LostFilm\n3. Вернитесь к телевизору, экран обновится сам").assertIsDisplayed()
-        composeRule.onNodeWithText("Откройте ссылку на телефоне").assertIsDisplayed()
+        composeRule.onNodeWithText("Наведите камеру на QR-код").assertIsDisplayed()
+        composeRule.onNodeWithText("Ожидаем подключения телефона…").assertIsDisplayed()
         composeRule.onNodeWithText("Отменить").assertIsDisplayed()
     }
 
@@ -65,15 +66,29 @@ class AuthScreenTest {
             ),
         )
 
-        composeRule.onNodeWithText("Начать вход").performClick()
+        composeRule.onNodeWithText("Получить QR-код").performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Проверяем вход...").assertIsDisplayed()
+        composeRule.onNodeWithText("Проверяем вход…").assertIsDisplayed()
 
         completionGate.complete(AuthCompletionResult.NetworkError)
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Получить новый код").assertIsDisplayed()
         composeRule.onNodeWithText("Назад").assertIsDisplayed()
+    }
+
+    @Test
+    fun autoStartShowsScannableCodeWithoutExtraClick() {
+        composeRule.setAuthContent(
+            repository = FakeAuthRepository(
+                startPairingResult = pairing(PairingStatus.PENDING),
+                pollBehavior = FakePollBehavior.Suspend,
+            ),
+            autoStart = true,
+        )
+        composeRule.waitForIdle()
+        composeRule.onNodeWithContentDescription("QR-код для входа в LostFilm").assertIsDisplayed()
+        composeRule.onNodeWithText("ABC123").assertIsDisplayed()
     }
 
     private fun createViewModel(repository: FakeAuthRepository): AuthViewModel {
@@ -85,12 +100,14 @@ class AuthScreenTest {
 
     private fun androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.setAuthContent(
         repository: FakeAuthRepository,
+        autoStart: Boolean = false,
     ) {
         val viewModel = createViewModel(repository)
         setContent {
             LostFilmTheme {
                 AuthScreen(
                     viewModel = viewModel,
+                    autoStart = autoStart,
                     onAuthComplete = {},
                     onNavigateBack = {},
                 )
