@@ -100,34 +100,22 @@ class TmdbPosterClientTest {
     }
 
     @Test
-    fun getPosterAndBackdrop_usesEnglishBackdrop_whenRussianBackdropMissing() = runTest {
+    fun getPosterAndBackdrop_combinesRussianPosterAndEnglishBackdropInOneRequest() = runTest {
         val requestedUrls = mutableListOf<String>()
         val client = TmdbPosterClient(
             okHttpClient = OkHttpClient.Builder()
                 .addInterceptor(Interceptor { chain ->
                     val url = chain.request().url.toString()
                     requestedUrls += url
-                    val body = when {
-                        url.contains("language=ru") -> {
-                            """
-                            {
-                              "posters": [{"file_path": "/ru-poster.jpg"}],
-                              "backdrops": []
-                            }
-                            """.trimIndent()
+                    val body = """
+                        {
+                          "posters": [
+                            {"file_path": "/en-poster.jpg", "iso_639_1": "en", "vote_average": 10},
+                            {"file_path": "/ru-poster.jpg", "iso_639_1": "ru"}
+                          ],
+                          "backdrops": [{"file_path": "/en-backdrop.jpg", "iso_639_1": "en"}]
                         }
-
-                        url.contains("language=en") -> {
-                            """
-                            {
-                              "posters": [{"file_path": "/en-poster.jpg"}],
-                              "backdrops": [{"file_path": "/en-backdrop.jpg"}]
-                            }
-                            """.trimIndent()
-                        }
-
-                        else -> "{" + "\"posters\": [], \"backdrops\": []}"
-                    }
+                    """.trimIndent()
 
                     Response.Builder()
                         .request(chain.request())
@@ -146,39 +134,26 @@ class TmdbPosterClientTest {
         requireNotNull(result)
         assertEquals("https://image.tmdb.org/t/p/w780/ru-poster.jpg", result.posterUrl)
         assertEquals("https://image.tmdb.org/t/p/w1280/en-backdrop.jpg", result.backdropUrl)
-        assertTrue(requestedUrls.any { it.contains("language=ru") && it.contains("include_image_language=ru,null") })
-        assertTrue(requestedUrls.any { it.contains("language=en") && it.contains("include_image_language=en,null") })
+        assertTrue(requestedUrls.single().contains("include_image_language=ru,en,null"))
     }
 
     @Test
-    fun getPosterAndBackdrop_usesEnglishPoster_whenRussianPosterMissing() = runTest {
+    fun getPosterAndBackdrop_usesEnglishPosterAndKeepsNeutralBackdrop() = runTest {
         val requestedUrls = mutableListOf<String>()
         val client = TmdbPosterClient(
             okHttpClient = OkHttpClient.Builder()
                 .addInterceptor(Interceptor { chain ->
                     val url = chain.request().url.toString()
                     requestedUrls += url
-                    val body = when {
-                        url.contains("language=ru") -> {
-                            """
-                            {
-                              "posters": [],
-                              "backdrops": [{"file_path": "/ru-backdrop.jpg"}]
-                            }
-                            """.trimIndent()
+                    val body = """
+                        {
+                          "posters": [{"file_path": "/en-poster.jpg", "iso_639_1": "en"}],
+                          "backdrops": [
+                            {"file_path": "/neutral-backdrop.jpg", "iso_639_1": null},
+                            {"file_path": "/en-backdrop.jpg", "iso_639_1": "en", "vote_average": 10}
+                          ]
                         }
-
-                        url.contains("language=en") -> {
-                            """
-                            {
-                              "posters": [{"file_path": "/en-poster.jpg"}],
-                              "backdrops": [{"file_path": "/en-backdrop.jpg"}]
-                            }
-                            """.trimIndent()
-                        }
-
-                        else -> "{" + "\"posters\": [], \"backdrops\": []}"
-                    }
+                    """.trimIndent()
 
                     Response.Builder()
                         .request(chain.request())
@@ -196,12 +171,12 @@ class TmdbPosterClientTest {
 
         requireNotNull(result)
         assertEquals("https://image.tmdb.org/t/p/w780/en-poster.jpg", result.posterUrl)
-        assertEquals("https://image.tmdb.org/t/p/w1280/ru-backdrop.jpg", result.backdropUrl)
-        assertTrue(requestedUrls.any { it.contains("language=en") && it.contains("include_image_language=en,null") })
+        assertEquals("https://image.tmdb.org/t/p/w1280/neutral-backdrop.jpg", result.backdropUrl)
+        assertTrue(requestedUrls.single().contains("include_image_language=ru,en,null"))
     }
 
     @Test
-    fun getPosterAndBackdrop_doesNotCallEnglish_whenRussianPosterAndBackdropExist() = runTest {
+    fun getPosterAndBackdrop_usesOneRequestWhenPreferredImagesExist() = runTest {
         val requestedUrls = mutableListOf<String>()
         val client = TmdbPosterClient(
             okHttpClient = OkHttpClient.Builder()
@@ -280,6 +255,31 @@ class TmdbPosterClientTest {
 
         requireNotNull(result)
         assertEquals("https://image.tmdb.org/t/p/w780/best-ru-poster.jpg", result.posterUrl)
+    }
+
+    @Test
+    fun getPosterAndBackdrop_triesUnfilteredImagesWhenPreferredPostersAreMissing() = runTest {
+        val calls = mutableListOf<String?>()
+        val client = TmdbPosterClient(
+            okHttpClient = OkHttpClient.Builder().addInterceptor { chain ->
+                val languages = chain.request().url.queryParameter("include_image_language")
+                calls += languages
+                val body = if (languages != null) {
+                    """{"posters":[],"backdrops":[{"file_path":"/neutral.jpg"}]}"""
+                } else {
+                    """{"posters":[{"file_path":"/filipino.jpg","iso_639_1":"tl"}],"backdrops":[]}"""
+                }
+                Response.Builder()
+                    .request(chain.request()).protocol(Protocol.HTTP_1_1)
+                    .code(200).message("OK").body(body.toResponseBody()).build()
+            }.build(),
+            apiKey = "test",
+        )
+
+        val result = requireNotNull(client.getPosterAndBackdrop(123, TmdbMediaType.TV))
+        assertEquals(listOf("ru,en,null", null), calls)
+        assertEquals("https://image.tmdb.org/t/p/w780/filipino.jpg", result.posterUrl)
+        assertEquals("https://image.tmdb.org/t/p/w1280/neutral.jpg", result.backdropUrl)
     }
 
     @Test

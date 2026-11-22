@@ -414,6 +414,7 @@ fun HomeScreen(
                                     onMoveToPreviousMode = { switchModeFromRail(offset = -1) },
                                     onMoveToNextMode = { switchModeFromRail(offset = 1) },
                                     onEndReached = onEndReached,
+                                    nextPage = activeModeData.nextPage.takeIf { activeModeData.hasNextPage },
                                     pageWarmupDistance = when (state.selectedMode) {
                                         HomeFeedMode.Movies, HomeFeedMode.Series -> 6
                                         else -> 0

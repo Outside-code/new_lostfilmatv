@@ -17,8 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -175,10 +177,13 @@ private fun rememberPosterImageRequest(posterUrl: String): ImageRequest {
     val density = LocalDensity.current
     val targetWidthPx = with(density) { (POSTER_CARD_WIDTH.toPx() * POSTER_FOCUSED_SCALE).roundToInt().coerceAtLeast(1) }
     val targetHeightPx = with(density) { (POSTER_CARD_HEIGHT.toPx() * POSTER_FOCUSED_SCALE).roundToInt().coerceAtLeast(1) }
+    val windowWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.roundToPx() }
+    val outputWidthPx = LocalView.current.display?.mode?.physicalWidth ?: 0
+    val displayWidthPx = maxOf(windowWidthPx, outputWidthPx)
 
-    return remember(context, posterUrl, targetWidthPx, targetHeightPx) {
+    return remember(context, posterUrl, targetWidthPx, targetHeightPx, displayWidthPx) {
         ImageRequest.Builder(context)
-            .data(TmdbImageFallbackInterceptor.thumbnailUrl(posterUrl, targetWidthPx))
+            .data(TmdbImageFallbackInterceptor.thumbnailUrl(posterUrl, targetWidthPx, displayWidthPx))
             // Decode near the rendered card size instead of the full remote poster.
             .size(targetWidthPx, targetHeightPx)
             .build()

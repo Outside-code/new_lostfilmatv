@@ -9,8 +9,6 @@ import android.util.Log
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -24,6 +22,7 @@ private const val POSTER_SIZE = "w780"
 private const val BACKDROP_SIZE = "w1280"
 private const val TAG = "TmdbPosterClient"
 private const val TMDB_RATE_LIMIT_MS = 300L
+private val tmdbRequests = TmdbRequestThrottle(TMDB_RATE_LIMIT_MS)
 private const val HTTP_TOO_MANY_REQUESTS = 429
 private const val OVERVIEW_MAX_ATTEMPTS = 3
 private const val OVERVIEW_RETRY_BASE_DELAY_MS = 500L
@@ -72,7 +71,7 @@ open class TmdbPosterClient(
             .tmdbHeaders()
             .build()
 
-        rateLimit()
+        tmdbRequests.awaitTurn(artwork = true)
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 throw IOException("TMDB HTTP ${response.code} for $url")
@@ -127,41 +126,26 @@ open class TmdbPosterClient(
             TmdbMediaType.MOVIE -> "/movie/$tmdbId/images"
         }
 
-        val imagesBaseUrl = "${baseUrl.trimEnd('/')}$endpoint"
-        val russianImages = fetchImages(imagesBaseUrl, language = "ru")
-        if (russianImages.hasPosterAndBackdrop()) {
-            return@withContext russianImages
-        }
-
-        val englishImages = if (russianImages.needsEnglishFallback()) {
-            fetchImages(imagesBaseUrl, language = "en")
-        } else {
-            null
-        }
-
-        val merged = mergeImages(russianImages, englishImages)
-        if (merged != null && merged.posterUrl.isNotBlank()) {
-            return@withContext merged
-        }
-        // Even when ru/en returned a backdrop, they can have zero posters (e.g. Brothers/66515).
-        // Fall back to unfiltered images to pick up posters in other languages (tl, etc.).
-        val fallback = fetchImages(imagesBaseUrl, language = null)
-        return@withContext mergeImages(merged, fallback) ?: fallback ?: merged
+        fetchPreferredImages("${baseUrl.trimEnd('/')}$endpoint")
     }
 
-    private suspend fun fetchImages(baseUrl: String, language: String?): TmdbImageUrls? {
-        val url = if (language != null) {
-            "$baseUrl?language=$language&include_image_language=$language,null"
-        } else {
-            baseUrl
-        }
+    private suspend fun fetchPreferredImages(imagesBaseUrl: String): TmdbImageUrls? {
+        val preferred = fetchImages(imagesBaseUrl, localized = true)
+        if (!preferred?.posterUrl.isNullOrBlank()) return preferred
+
+        // Some titles only have posters in other languages.
+        return mergeImages(preferred, fetchImages(imagesBaseUrl, localized = false))
+    }
+
+    private suspend fun fetchImages(baseUrl: String, localized: Boolean): TmdbImageUrls? {
+        val url = if (localized) "$baseUrl?language=ru&include_image_language=ru,en,null" else baseUrl
 
         val request = Request.Builder()
             .url(url.withTmdbApiKey())
             .tmdbHeaders()
             .build()
 
-        rateLimit()
+        tmdbRequests.awaitTurn(artwork = true)
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 Log.w(TAG, "TMDB image fetch failed: HTTP ${response.code} for $url")
@@ -170,8 +154,8 @@ open class TmdbPosterClient(
             val body = response.body?.string() ?: return null
             val json = JSONObject(body)
 
-            val posterPath = extractBestImagePath(json.optJSONArray("posters"), preferredLanguage = language)
-            val backdropPath = extractBestImagePath(json.optJSONArray("backdrops"), preferredLanguage = language)
+            val posterPath = extractBestImagePath(json.optJSONArray("posters"), localized = localized)
+            val backdropPath = extractBestImagePath(json.optJSONArray("backdrops"), localized = localized)
 
             if (posterPath == null && backdropPath == null) return null
 
@@ -182,7 +166,7 @@ open class TmdbPosterClient(
         }
     }
 
-    private fun extractBestImagePath(array: JSONArray?, preferredLanguage: String?): String? {
+    private fun extractBestImagePath(array: JSONArray?, localized: Boolean): String? {
         if (array == null || array.length() == 0) return null
         return (0 until array.length())
             .asSequence()
@@ -190,7 +174,7 @@ open class TmdbPosterClient(
             .filter { it.optString("file_path", "").isNotBlank() }
             .maxWithOrNull(
                 compareBy<JSONObject> {
-                    if (preferredLanguage != null && it.optString("iso_639_1", "") == preferredLanguage) 1 else 0
+                    if (localized) artworkLanguagePriority(it) else 0
                 }.thenBy { it.optDouble("vote_average", 0.0) }
                     .thenBy { it.optInt("vote_count", 0) }
                     .thenBy { it.optInt("width", 0) * it.optInt("height", 0) },
@@ -198,13 +182,13 @@ open class TmdbPosterClient(
             ?.optString("file_path", "")
     }
 
-    private fun TmdbImageUrls?.hasPosterAndBackdrop(): Boolean {
-        return this != null && posterUrl.isNotBlank() && backdropUrl.isNotBlank()
-    }
-
-    private fun TmdbImageUrls?.needsEnglishFallback(): Boolean {
-        return this == null || posterUrl.isBlank() || backdropUrl.isBlank()
-    }
+    private fun artworkLanguagePriority(image: JSONObject): Int =
+        when (image.optString("iso_639_1", "")) {
+            "ru" -> 3
+            "", "null" -> 2
+            "en" -> 1
+            else -> 0
+        }
 
     private fun mergeImages(primary: TmdbImageUrls?, secondary: TmdbImageUrls?): TmdbImageUrls? {
         val posterUrl = primary?.posterUrl?.ifBlank { secondary?.posterUrl.orEmpty() }
@@ -269,7 +253,7 @@ open class TmdbPosterClient(
                 .tmdbHeaders()
                 .build()
 
-            rateLimit()
+            tmdbRequests.awaitTurn(artwork = false)
             val shouldRetry = okHttpClient.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val body = response.body?.string()
@@ -308,24 +292,7 @@ open class TmdbPosterClient(
         tmdbId: Int,
         seasonNumber: Int,
     ): TmdbImageUrls? = withContext(Dispatchers.IO) {
-        val imagesBaseUrl = "${baseUrl.trimEnd('/')}/tv/$tmdbId/season/$seasonNumber/images"
-        val russianImages = fetchImages(imagesBaseUrl, language = "ru")
-        if (russianImages.hasPosterAndBackdrop()) {
-            return@withContext russianImages
-        }
-
-        val englishImages = if (russianImages.needsEnglishFallback()) {
-            fetchImages(imagesBaseUrl, language = "en")
-        } else {
-            null
-        }
-
-        val merged = mergeImages(russianImages, englishImages)
-        if (merged != null && merged.posterUrl.isNotBlank()) {
-            return@withContext merged
-        }
-        val fallback = fetchImages(imagesBaseUrl, language = null)
-        return@withContext mergeImages(merged, fallback) ?: fallback ?: merged
+        fetchPreferredImages("${baseUrl.trimEnd('/')}/tv/$tmdbId/season/$seasonNumber/images")
     }
 
     /**
@@ -352,7 +319,7 @@ open class TmdbPosterClient(
             .tmdbHeaders()
             .build()
 
-        rateLimit()
+        tmdbRequests.awaitTurn(artwork = false)
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 Log.w(TAG, "TMDB rating fetch failed: HTTP ${response.code} for $endpoint")
@@ -382,21 +349,6 @@ open class TmdbPosterClient(
         return this
     }
 
-    private companion object {
-        private val rateLimitMutex = Mutex()
-        private var lastRateLimitedCallMs = 0L
-
-        suspend fun rateLimit() {
-            rateLimitMutex.withLock {
-                val now = System.currentTimeMillis()
-                val elapsed = now - lastRateLimitedCallMs
-                if (elapsed < TMDB_RATE_LIMIT_MS) {
-                    delay(TMDB_RATE_LIMIT_MS - elapsed)
-                }
-                lastRateLimitedCallMs = System.currentTimeMillis()
-            }
-        }
-    }
 }
 
 private fun JSONObject.optTmdbRating(): String? {

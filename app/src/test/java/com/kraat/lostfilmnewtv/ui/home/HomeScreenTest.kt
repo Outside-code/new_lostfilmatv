@@ -1,8 +1,12 @@
 package com.kraat.lostfilmnewtv.ui.home
 
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsActions
@@ -19,6 +23,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.unit.dp
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
@@ -38,6 +43,54 @@ import org.robolectric.annotation.Config
 class HomeScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun movieRail_preloadsOnceWhenVisibleEdgeIsCloseEvenWithFocusOnFirstCard() {
+        val movies = List(12) { index ->
+            seededState().items.first().copy(
+                detailsUrl = "https://www.lostfilm.today/movies/movie-$index/",
+                titleRu = "Фильм $index",
+                kind = ReleaseKind.MOVIE,
+            )
+        }
+        var requests = 0
+        composeRule.setContent {
+            val entryFocus = remember { FocusRequester() }
+            val cardFocus = remember {
+                movies.associate { homeItemKey(HOME_RAIL_MOVIES, it.detailsUrl) to FocusRequester() }
+            }
+            LostFilmTheme {
+                HomeRail(
+                    railId = HOME_RAIL_MOVIES,
+                    items = movies,
+                    focusedItemKey = null,
+                    entryFocusRequester = entryFocus,
+                    cardFocusRequesters = cardFocus,
+                    shouldRequestFocus = false,
+                    returnFocusRequestVersion = 0,
+                    upTargetRequester = null,
+                    leftTargetRequester = null,
+                    downTargetRequester = null,
+                    isPaging = false,
+                    onItemFocused = {},
+                    onRailFocusChanged = {},
+                    onOpenDetails = {},
+                    onEndReached = { requests++ },
+                    modifier = Modifier.requiredWidth(1_000.dp),
+                    pageWarmupDistance = 6,
+                    nextPage = 2,
+                )
+            }
+        }
+
+        composeRule.runOnIdle { assertEquals(0, requests) }
+        val first = composeRule.onNodeWithTag(posterTag(HOME_RAIL_MOVIES, movies.first().detailsUrl))
+        first.performSemanticsAction(SemanticsActions.RequestFocus)
+        first.assertIsFocused()
+        composeRule.runOnIdle { assertEquals(1, requests) }
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+        composeRule.runOnIdle { assertEquals(1, requests) }
+    }
 
     @Test
     @OptIn(ExperimentalTestApi::class)

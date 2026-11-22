@@ -20,7 +20,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -40,6 +42,7 @@ import com.kraat.lostfilmnewtv.ui.components.rememberShimmerSkeletonBrush
 import com.kraat.lostfilmnewtv.ui.components.PosterCard
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
+import kotlinx.coroutines.flow.first
 
 private const val HOME_PAGING_SKELETON_COUNT = 4
 private val HOME_RAIL_CARD_SPACING = 8.dp
@@ -66,6 +69,7 @@ fun HomeRail(
     onEndReached: () -> Unit,
     modifier: Modifier = Modifier,
     pageWarmupDistance: Int = 0,
+    nextPage: Int? = null,
 ) {
     val itemKeys = remember(items) { items.map { it.detailsUrl } }
     val targetKey = if (focusedItemKey in itemKeys) {
@@ -82,6 +86,18 @@ fun HomeRail(
     var handledReturnFocusRequestVersion by remember(railId) {
         mutableStateOf(returnFocusRequestVersion)
     }
+    val requestNextPage by rememberUpdatedState(onEndReached)
+
+    LaunchedEffect(railId, items.size, pageWarmupDistance, nextPage) {
+        if (items.isEmpty() || pageWarmupDistance == 0 || nextPage == null) return@LaunchedEffect
+        val preloadFromIndex = (items.lastIndex - pageWarmupDistance).coerceAtLeast(0)
+        snapshotFlow {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            focusedCardKey != null && lastVisible >= preloadFromIndex
+        }.first { it }
+        requestNextPage()
+    }
+
     fun handleVerticalNavigation(key: Key): Boolean {
         return when {
             key == Key.DirectionUp && onMoveToPreviousMode != null -> {
@@ -154,7 +170,7 @@ fun HomeRail(
                                 onRailFocusChanged(true)
                                 focusedCardKey = item.detailsUrl
                                 onItemFocused(item.detailsUrl)
-                                if (index >= items.lastIndex - pageWarmupDistance) {
+                                if (pageWarmupDistance == 0 && index == items.lastIndex) {
                                     onEndReached()
                                 }
                             } else if (focusedCardKey == item.detailsUrl) {

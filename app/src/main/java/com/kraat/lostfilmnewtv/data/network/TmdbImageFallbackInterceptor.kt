@@ -31,10 +31,11 @@ class TmdbImageFallbackInterceptor(
         private val DEFAULT_PRIMARY_PREFIX = "${BuildConfig.AUTH_BRIDGE_BASE_URL}/api/tmdb/t/p/"
         private val thumbnailPrefixes = listOf(DEFAULT_PRIMARY_PREFIX, AUTH_BRIDGE_TMDB_IMAGE_PREFIX, TMDB_DIRECT_IMAGE_PREFIX)
 
-        internal fun thumbnailUrl(url: String, targetWidthPx: Int): String {
+        internal fun thumbnailUrl(url: String, targetWidthPx: Int, displayWidthPx: Int): String {
             if (targetWidthPx > 500) return url
+            val size = if (displayWidthPx <= 1920 && targetWidthPx <= 342) "w342" else "w500"
             val prefix = thumbnailPrefixes.firstOrNull { url.startsWith(it + "w780/") } ?: return url
-            return prefix + "w500/" + url.removePrefix(prefix + "w780/")
+            return prefix + size + "/" + url.removePrefix(prefix + "w780/")
         }
     }
 }
