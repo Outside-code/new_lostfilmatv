@@ -6,7 +6,7 @@
 
 Android TV приложение для просмотра новых релизов, фильмов, расписания и избранного LostFilm в интерфейсе, оптимизированном для управления пультом.
 
-![Android TV](https://img.shields.io/badge/Android%20TV-API%2026%2B-brightgreen?logo=android)
+![Android TV](https://img.shields.io/badge/Android%20TV-API%2028%2B-brightgreen?logo=android)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.x-7F52FF?logo=kotlin)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-TV-4285F4?logo=jetpackcompose)
 ![Status](https://img.shields.io/badge/status-private-lightgrey)
@@ -30,21 +30,23 @@ Android TV приложение для просмотра новых релиз�
 
 ## Скриншоты
 
+Актуальная версия: синие акценты, неоновый логотип, чёткие фоны без искусственного размытия.
+
 | Главный экран | Фильмы |
 |---|---|
 | ![Главный экран с новыми релизами](docs/screenshots/home.png) | ![Экран фильмов](docs/screenshots/movies.png) |
 
-| Детали релиза | Обзор сериала |
+| Детали релиза | Гид по сериям |
 |---|---|
-| ![Экран деталей релиза](docs/screenshots/details.png) | ![Экран обзора сериала](docs/screenshots/overview.png) |
+| ![Экран деталей релиза](docs/screenshots/details.png) | ![Гид по сериям](docs/screenshots/guide.png) |
 
-| Гид по сериям | Расписание |
+| Расписание | Настройки |
 |---|---|
-| ![Гид по сериям](docs/screenshots/guide.png) | ![Экран расписания релизов](docs/screenshots/schedule.png) |
+| ![Экран расписания релизов](docs/screenshots/schedule.png) | ![Экран настроек](docs/screenshots/settings.png) |
 
-| Настройки | QR-авторизация |
-|---|---|
-| ![Экран настроек](docs/screenshots/settings.png) | ![Экран QR-авторизации](docs/screenshots/auth.png) |
+| QR-авторизация |
+|---|
+| ![Экран QR-авторизации](docs/screenshots/auth.png) |
 
 ## Требования
 
@@ -57,6 +59,8 @@ Android TV приложение для просмотра новых релиз�
 1. **Скачайте APK**
    - Откройте страницу [Releases](../../releases/latest)
    - Скачайте последнюю версию APK
+
+Версия 0.2.0 использует пакет `com.outside.lostfilmnewtv` и устанавливается рядом со старой версией `com.kraat.lostfilmnewtv`, сохраняя её данные. Последующие обновления 0.2.0 подписываются постоянным ключом проекта.
 
 2. **Установите TorrServe**
    - Скачайте [TorrServe для Android](https://github.com/YouROK/TorrServe/releases)
@@ -112,6 +116,8 @@ Android TV приложение для просмотра новых релиз�
 Адрес сервера задаётся при сборке через `-PauthBridgeBaseUrl=https://auth.example.com`
 или переменную `AUTH_BRIDGE_BASE_URL`. Пошаговая настройка домена, HTTPS и Docker:
 [QR-вход на своём сервере](docs/auth-own-domain.md).
+
+Постеры сначала загружаются через собственный кеш `lost.hagenka.online`; при ошибке используются резервный прокси и CDN TMDB.
 
 Фоновые изображения TMDB загружаются из оригиналов и декодируются под разрешение
 телевизора вплоть до 4K. Искусственное размытие фоновых постеров отключено.

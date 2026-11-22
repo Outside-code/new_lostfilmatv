@@ -390,7 +390,7 @@ private fun BackgroundPoster(details: ReleaseDetails?) {
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
-                alpha = 0.18f,
+                alpha = 1f,
             )
         }
 
@@ -400,8 +400,8 @@ private fun BackgroundPoster(details: ReleaseDetails?) {
                 .background(
                     Brush.verticalGradient(
                         0f to Color.Transparent,
-                        0.36f to DetailsBackgroundMid.copy(alpha = 0.7f),
-                        1f to BackgroundPrimary,
+                        0.36f to DetailsBackgroundMid.copy(alpha = 0.12f),
+                        1f to BackgroundPrimary.copy(alpha = 0.25f),
                     ),
                 ),
         )
@@ -411,9 +411,9 @@ private fun BackgroundPoster(details: ReleaseDetails?) {
                 .fillMaxSize()
                 .background(
                     Brush.horizontalGradient(
-                        0f to Color(0xB8040A10),
-                        0.45f to Color(0x66040A10),
-                        1f to Color(0xD8040A10),
+                        0f to Color(0x38040A10),
+                        0.45f to Color(0x14040A10),
+                        1f to Color(0x26040A10),
                     ),
                 ),
         )
@@ -956,7 +956,7 @@ private fun PosterCard(details: ReleaseDetails?) {
                     Brush.verticalGradient(
                         0f to Color.Transparent,
                         0.54f to Color.Transparent,
-                        1f to Color(0xB8040A10),
+                        1f to Color(0x38040A10),
                     ),
                 ),
         )
@@ -1010,7 +1010,7 @@ private fun StageButton(
         else -> TextPrimary
     }
     val subtitleColor = when {
-        isPrimary -> Color(0xFF473317)
+        isPrimary -> Color(0xFF243B63)
         isHighlighted -> DetailsAccentGoldFocus
         else -> DetailsTextMuted
     }
@@ -1115,7 +1115,7 @@ private fun StageButtonIcon(
 private fun PrimaryPlayIcon(tint: Color, modifier: Modifier) {
     Canvas(modifier = modifier) {
         val radius = size.minDimension / 2f
-        drawCircle(color = Color(0xFF1B1710).copy(alpha = 0.92f), radius = radius)
+        drawCircle(color = Color(0xFF081222).copy(alpha = 0.92f), radius = radius)
         val triangle = Path().apply {
             moveTo(size.width * 0.43f, size.height * 0.33f)
             lineTo(size.width * 0.43f, size.height * 0.67f)

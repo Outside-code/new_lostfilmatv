@@ -91,7 +91,7 @@ fun SettingsTvButton(
     }
     val summaryColor = when {
         !enabled -> HomeTextMuted
-        isSelected -> Color(0xFF5E4419)
+        isSelected -> Color(0xFF243B63)
         else -> HomeTextMuted
     }
     val shape = RoundedCornerShape(12.dp)

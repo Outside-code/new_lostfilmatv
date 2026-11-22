@@ -718,11 +718,11 @@ fun SettingsScreen(
                                     val telegramTag = SettingsFocusTarget.AboutTelegramLink.toTag()
                                     SettingsRowButton(
                                         title = "Исходный код на GitHub",
-                                        description = "Репозиторий kraaton11/new_lostfilmatv",
+                                        description = "Репозиторий Outside-code/new_lostfilmatv",
                                         value = "Открыть",
                                         onClick = {
                                             context.startActivity(
-                                                Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/kraaton11/new_lostfilmatv")).apply {
+                                                Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Outside-code/new_lostfilmatv")).apply {
                                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                                 },
                                             )

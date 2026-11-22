@@ -769,7 +769,7 @@ private fun GuideActionButton(
         else -> DetailsBorderDefault
     }
     val textColor = if (isPrimary) Color(0xFF0D1930) else TextPrimary
-    val subtitleColor = if (isPrimary) Color(0xFF473317) else DetailsTextMuted
+    val subtitleColor = if (isPrimary) Color(0xFF243B63) else DetailsTextMuted
 
     Button(
         onClick = onClick,

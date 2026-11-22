@@ -31,6 +31,12 @@ class PhoneFlowCompatibilityTest(unittest.TestCase):
         self.assertIn("auth_bridge_pairing=", response.headers["set-cookie"])
         self.assertIn("Domain=auth.example.test", response.headers["set-cookie"])
 
+    def test_branding_wordmark_is_available_without_pairing(self) -> None:
+        response = self.client.get("/branding/lostfilm_wordmark.png")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["content-type"], "image/png")
+        self.assertEqual(response.content[:8], b"\x89PNG\r\n\x1a\n")
+
     def test_qr_contract_points_to_stable_pair_path(self) -> None:
         pairing = self.client.post("/api/pairings").json()
 

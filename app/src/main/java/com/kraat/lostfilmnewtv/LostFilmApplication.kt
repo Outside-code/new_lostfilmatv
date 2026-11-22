@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import com.kraat.lostfilmnewtv.data.db.LostFilmDatabase
 import javax.inject.Inject
+import java.util.concurrent.TimeUnit
 import com.kraat.lostfilmnewtv.playback.PlaybackPreferencesStore
 import com.kraat.lostfilmnewtv.data.parser.LostFilmBaseUrl
 import com.kraat.lostfilmnewtv.data.network.TmdbImageFallbackInterceptor
@@ -45,6 +46,13 @@ class LostFilmApplication : Application(), Configuration.Provider, ImageLoaderFa
 
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
+            .okHttpClient {
+                okHttpClient.get().newBuilder()
+                    .connectTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(15, TimeUnit.SECONDS)
+                    .callTimeout(25, TimeUnit.SECONDS)
+                    .build()
+            }
             .memoryCache {
                 MemoryCache.Builder(this)
                     .maxSizePercent(0.25)

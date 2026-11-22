@@ -119,7 +119,7 @@ private fun OverviewBackgroundPoster(overview: SeriesOverview?) {
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = Modifier.fillMaxSize(),
-        alpha = 0.14f,
+        alpha = 1f,
     )
 
     Box(
@@ -128,8 +128,8 @@ private fun OverviewBackgroundPoster(overview: SeriesOverview?) {
             .background(
                 Brush.verticalGradient(
                     0f to Color.Transparent,
-                    0.3f to DetailsBackgroundMid.copy(alpha = 0.74f),
-                    1f to BackgroundPrimary,
+                    0.3f to DetailsBackgroundMid.copy(alpha = 0.12f),
+                    1f to BackgroundPrimary.copy(alpha = 0.25f),
                 ),
             ),
     )

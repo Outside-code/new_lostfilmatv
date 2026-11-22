@@ -31,12 +31,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.PlatformTextStyle
@@ -478,13 +479,6 @@ private fun HomeHeroStage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        0f to BackgroundPrimary.copy(alpha = 0.68f),
-                        0.54f to BackgroundPrimary.copy(alpha = 0.22f),
-                        1f to Color.Transparent,
-                    ),
-                )
                 .padding(start = 2.dp, top = 4.dp, end = 280.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
@@ -495,12 +489,13 @@ private fun HomeHeroStage(
                 color = TextPrimary,
                 fontSize = 36.sp,
                 lineHeight = 40.sp,
+                style = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.8f), Offset(0f, 2f), 8f)),
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Clip,
             )
 
-            targetItem?.episodeTitleRu?.takeIf { it.isNotBlank() }?.let { episodeTitle ->
+            targetItem?.episodeTitleRu?.takeIf { it.isNotBlank() && !it.equals(targetItem.titleRu, ignoreCase = true) }?.let { episodeTitle ->
                 Text(
                     text = episodeTitle,
                     style = TextStyle(
@@ -518,7 +513,8 @@ private fun HomeHeroStage(
             targetItem.heroDescription().takeIf { it.isNotBlank() }?.let { description ->
                 Text(
                     text = description,
-                    color = HomeTextSecondary,
+                    color = TextPrimary,
+                    style = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.85f), Offset(0f, 2f), 7f)),
                     fontSize = 16.sp,
                     lineHeight = 22.sp,
                     maxLines = 5,
@@ -676,75 +672,21 @@ private fun Int.formatFavoriteSeriesCount(): String {
 @Composable
 private fun HomeBackdrop(item: ReleaseSummary?) {
     val backdropUrl = item?.backdropUrl?.takeIf { it.isNotBlank() }
-    val posterUrl = item?.posterUrl?.takeIf { it.isNotBlank() }
-    val backdropImage = HomeBackdropImage(
-        url = backdropUrl ?: posterUrl,
-        isWide = backdropUrl != null,
-    )
-
-    Crossfade(
-        targetState = backdropImage,
-        label = "homeBackdrop",
-    ) { targetImage ->
-        val targetImageUrl = targetImage.url
-        if (targetImageUrl != null) {
-            val request = rememberBackdropImageRequest(targetImageUrl)
-            Box(modifier = Modifier.fillMaxSize()) {
-                AsyncImage(
-                    model = request,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .then(
-                            if (targetImage.isWide) {
-                                Modifier.fillMaxSize()
-                            } else {
-                                Modifier
-                                    .fillMaxHeight()
-                                    .width(1_120.dp)
-                            },
-                        ),
-                )
-            }
+    Crossfade(targetState = backdropUrl, label = "homeBackdrop") { url ->
+        if (url != null) {
+            AsyncImage(
+                model = rememberBackdropImageRequest(url),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .drawBehind {
-                drawRect(Color(0x8A040A11))
-                drawRect(
-                    brush = Brush.horizontalGradient(
-                        0f to BackgroundPrimary.copy(alpha = 1f),
-                        0.34f to BackgroundPrimary.copy(alpha = 0.88f),
-                        0.62f to BackgroundPrimary.copy(alpha = 0.18f),
-                        1f to BackgroundPrimary.copy(alpha = 0.28f),
-                    ),
-                )
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        0f to Color(0x33040A11),
-                        0.38f to Color.Transparent,
-                        1f to BackgroundPrimary.copy(alpha = 0.96f),
-                    ),
-                )
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        0f to BackgroundPrimary.copy(alpha = 0.74f),
-                        0.18f to BackgroundPrimary.copy(alpha = 0.48f),
-                        0.34f to Color.Transparent,
-                    ),
-                )
-            },
+        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.15f)),
     )
 }
-
-private data class HomeBackdropImage(
-    val url: String?,
-    val isWide: Boolean,
-)
 
 @Composable
 private fun HomeLoadingSkeleton(modifier: Modifier = Modifier) {

@@ -56,7 +56,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.kraat.lostfilmnewtv"
+        applicationId = "com.outside.lostfilmnewtv"
         minSdk = 28
         targetSdk = 35
         versionCode = releaseVersionCodeProvider.get().toInt()
@@ -173,4 +173,12 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.hilt.android.testing)
     kspAndroidTest(libs.hilt.android.compiler)
+}
+
+// Lint reads Hilt/KSP sources. Finish generating them before analysis, including parallel CI builds.
+tasks.configureEach {
+    when (name) {
+        "lintAnalyzeDebugUnitTest" -> dependsOn("hiltJavaCompileDebugUnitTest")
+        "lintAnalyzeDebugAndroidTest" -> dependsOn("hiltJavaCompileDebugAndroidTest")
+    }
 }

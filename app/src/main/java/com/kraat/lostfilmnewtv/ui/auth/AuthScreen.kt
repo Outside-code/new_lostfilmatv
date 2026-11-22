@@ -20,6 +20,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.kraat.lostfilmnewtv.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,8 +72,12 @@ fun AuthScreen(
             Modifier.weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Text("LOSTFILM / TV", color = HomeAccentGold, fontSize = 13.sp,
-                fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
+            Image(
+                painter = painterResource(R.drawable.lostfilm_wordmark),
+                contentDescription = "Lost Film",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.width(240.dp).height(52.dp),
+            )
             Text("Вход с телефона", color = TextPrimary, fontSize = 34.sp,
                 lineHeight = 40.sp, fontWeight = FontWeight.Bold)
             Text("Любимые сериалы и история просмотра —\nна вашем телевизоре.",

@@ -417,6 +417,43 @@ class WildcardProxyRouterTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(status_response.json()["status"], "confirmed")
 
+    def test_stable_host_ajax_login_returns_json_after_html_success_and_repeat(self) -> None:
+        pairing = self.client.post("/api/pairings").json()
+        proxy_state = app.state.proxy_session_store.get_or_create(pairing["pairingId"])
+        proxy_state.cookie_jar.set("lf_session", "cookie-1", domain=".lostfilm.today", path="/")
+        proxy_state.login_succeeded = True
+        calls = []
+
+        def successful_html_login(*args, **kwargs):
+            calls.append(args)
+            return SimpleNamespace(
+                status_code=200,
+                headers={"content-type": "text/html; charset=utf-8"},
+                content=b'<html><body>Login successful</body></html>',
+            )
+
+        original_proxy_service = app.state.lostfilm_proxy_service
+        app.state.lostfilm_proxy_service = SimpleNamespace(proxy=successful_html_login)
+        headers = {
+            "host": "auth.example.test",
+            "cookie": f"auth_bridge_pairing={pairing['phoneVerifier']}",
+        }
+        try:
+            first = self.client.post("/ajaxik.users.php", headers=headers)
+            repeated = self.client.post("/ajaxik.users.php", headers=headers)
+        finally:
+            app.state.lostfilm_proxy_service = original_proxy_service
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json(), {"success": True, "result": "ok"})
+        self.assertEqual(repeated.json(), first.json())
+        self.assertEqual(len(calls), 1)
+        status_response = self.client.get(
+            f"/api/pairings/{pairing['pairingId']}",
+            headers={"X-Pairing-Secret": pairing["pairingSecret"]},
+        )
+        self.assertEqual(status_response.json()["status"], "confirmed")
+
     def test_wildcard_proxy_rate_limit_blocks_after_max_requests(self) -> None:
         pairing = self.client.post("/api/pairings").json()
         original_proxy_service = app.state.lostfilm_proxy_service

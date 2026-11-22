@@ -2,7 +2,7 @@ from pathlib import Path
 import logging
 
 from fastapi import APIRouter, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from starlette.concurrency import run_in_threadpool
 
@@ -91,6 +91,9 @@ def attach_wildcard_proxy_router(app, pairing_service: PairingService) -> None:
         except PairingExpiredError:
             return secure_html_response("Pairing expired.", status_code=status.HTTP_410_GONE)
 
+        if request.method == "POST" and proxy_path == "ajaxik.users.php" and pairing.session_payload is not None:
+            return JSONResponse({"success": True, "result": "ok"})
+
         if not _proxy_access_allowed(pairing):
             return _render_phone_shell_response(pairing)
 
@@ -156,7 +159,8 @@ async def _proxy_request(app, pairing_service: PairingService, pairing, request:
         logger.warning("Upstream proxy unavailable pairing_id=%s path=%s", mask_token(pairing.pairing_id), path)
         return secure_html_response("LostFilm is temporarily unavailable. Please try again later.", status_code=502)
     confirmed_payload = None
-    if pairing.session_payload is None and "text/html" in proxied_response.headers.get("content-type", "").lower():
+    is_ajax_login = request.method == "POST" and path == "/ajaxik.users.php"
+    if pairing.session_payload is None and (is_ajax_login or "text/html" in proxied_response.headers.get("content-type", "").lower()):
         proxy_state = app.state.proxy_session_store.get(pairing.pairing_id)
         cookie_names = [cookie.name for cookie in proxy_state.cookie_jar.jar] if proxy_state is not None else []
         html = proxied_response.content.decode("utf-8", errors="ignore")
@@ -176,11 +180,16 @@ async def _proxy_request(app, pairing_service: PairingService, pairing, request:
         )
         if is_authenticated and proxy_state is not None:
             confirmed_payload = pairing_service.confirm_pairing_from_proxy_session(pairing.pairing_id, proxy_state.cookie_jar)
-    response = Response(
-        content=proxied_response.content,
-        status_code=proxied_response.status_code,
-        headers=proxied_response.headers,
-    )
+    if is_ajax_login and confirmed_payload is not None:
+        # The phone form always expects JSON, even when LostFilm returns an HTML
+        # success page or labels its JSON as text/html.
+        response = JSONResponse({"success": True, "result": "ok"})
+    else:
+        response = Response(
+            content=proxied_response.content,
+            status_code=proxied_response.status_code,
+            headers=proxied_response.headers,
+        )
     if confirmed_payload is not None and proxy_state is not None and proxy_state.remember_device:
         await app.state.trusted_device_service.remember(response, confirmed_payload)
     if "text/html" in proxied_response.headers.get("content-type", "").lower():

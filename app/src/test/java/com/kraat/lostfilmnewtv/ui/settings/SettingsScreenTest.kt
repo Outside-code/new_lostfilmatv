@@ -1,5 +1,7 @@
 package com.kraat.lostfilmnewtv.ui.settings
 
+import com.kraat.lostfilmnewtv.BuildConfig
+
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -424,7 +426,7 @@ class SettingsScreenTest {
             .performSemanticsAction(SemanticsActions.OnClick)
 
         composeRule.onNodeWithText("Неофициальный клиент LostFilm для Android TV.").assertExists()
-        composeRule.onNodeWithText("Версия: 0.1.0 (сборка 1)").assertExists()
+        composeRule.onNodeWithText("Версия: ${BuildConfig.VERSION_NAME} (сборка ${BuildConfig.VERSION_CODE})").assertExists()
     }
 
     @Test

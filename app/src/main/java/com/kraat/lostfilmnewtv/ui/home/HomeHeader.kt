@@ -34,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
@@ -57,7 +59,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kraat.lostfilmnewtv.R
-import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 import com.kraat.lostfilmnewtv.ui.theme.FocusBackground
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGold
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGoldGlow
@@ -343,26 +344,15 @@ private fun HomeMenuLogo(showLabels: Boolean) {
             .padding(horizontal = if (showLabels) 12.dp else 0.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_lf_logo),
-                contentDescription = "Логотип LostFilm",
-                modifier = Modifier.size(34.dp),
-            )
-            if (showLabels) {
-                Text(
-                    text = "LostFilm",
-                    color = TextPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip,
-                )
-            }
-        }
+        Image(
+            painter = painterResource(
+                id = if (showLabels) R.drawable.lostfilm_wordmark else R.drawable.ic_lf_logo,
+            ),
+            contentDescription = "Логотип LostFilm",
+            contentScale = if (showLabels) ContentScale.Crop else ContentScale.Fit,
+            modifier = if (showLabels) Modifier.fillMaxWidth().height(44.dp).clipToBounds()
+                else Modifier.size(34.dp),
+        )
     }
 }
 
