@@ -1,5 +1,6 @@
 package com.kraat.lostfilmnewtv.data.network
 
+import com.kraat.lostfilmnewtv.data.network.TmdbRequestThrottle.Priority
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
@@ -11,35 +12,41 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class TmdbRequestThrottleTest {
     @Test
-    fun artworkOvertakesWaitingMetadataWithoutSkippingTheRequestInterval() = runTest {
+    fun titleSearchOvertakesImageSelectionAndMetadataWithoutSkippingTheRequestInterval() = runTest {
         val throttle = TmdbRequestThrottle(300) { testScheduler.currentTime }
         val order = mutableListOf<Pair<String, Long>>()
-        throttle.awaitTurn(artwork = true)
+        throttle.awaitTurn(Priority.ARTWORK)
 
         val description = launch {
-            throttle.awaitTurn(artwork = false)
+            throttle.awaitTurn(Priority.METADATA)
             order += "description" to testScheduler.currentTime
         }
         runCurrent()
         val artwork = launch {
-            throttle.awaitTurn(artwork = true)
+            throttle.awaitTurn(Priority.ARTWORK)
             order += "artwork" to testScheduler.currentTime
         }
+        runCurrent()
+        val search = launch {
+            throttle.awaitTurn(Priority.TITLE_SEARCH)
+            order += "title search" to testScheduler.currentTime
+        }
+        search.join()
         artwork.join()
         description.join()
 
-        assertEquals(listOf("artwork" to 300L, "description" to 600L), order)
+        assertEquals(listOf("title search" to 300L, "artwork" to 600L, "description" to 900L), order)
     }
 
     @Test
     fun cancellingArtworkUnblocksMetadata() = runTest {
         val throttle = TmdbRequestThrottle(300) { testScheduler.currentTime }
-        throttle.awaitTurn(artwork = true)
-        val artwork = launch { throttle.awaitTurn(artwork = true) }
+        throttle.awaitTurn(Priority.ARTWORK)
+        val artwork = launch { throttle.awaitTurn(Priority.ARTWORK) }
         runCurrent()
         artwork.cancelAndJoin()
 
-        throttle.awaitTurn(artwork = false)
+        throttle.awaitTurn(Priority.METADATA)
         assertEquals(300L, testScheduler.currentTime)
     }
 }

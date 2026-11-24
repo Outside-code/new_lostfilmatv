@@ -74,6 +74,15 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 Убедитесь, что у вас установлен Android TV system image через Android Studio SDK Manager.
 
+### Обновление индекса постеров
+
+В APK входят индекс постеров и снимок первой страницы «Фильмов» и «Сериалов». Приложение показывает снимок до 14 дней после его создания и параллельно запрашивает актуальный список. Индекс продолжает работать и после этого срока. Генератор обновляет первые пять страниц, используя те же источники и правила сопоставления, что и приложение. При обычном запуске тестов генератор не обращается к сети.
+
+```bash
+LOSTFILM_POSTER_INDEX_OUTPUT="$PWD/app/src/main/assets/catalog-posters.json" \
+  ./gradlew :app:testDebugUnitTest --tests '*GenerateCatalogPosterIndex' --rerun
+```
+
 ## Release-сборка
 
 ### Подготовка

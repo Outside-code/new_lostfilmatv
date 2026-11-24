@@ -11,26 +11,38 @@ internal class TmdbRequestThrottle(
     private val intervalMs: Long,
     private val nowMs: () -> Long = { System.nanoTime() / 1_000_000L },
 ) {
+    enum class Priority { METADATA, ARTWORK, TITLE_SEARCH }
+
     private val mutex = Mutex()
-    private val artworkWaiters = MutableStateFlow(0)
+    private val waiters = MutableStateFlow(List(Priority.entries.size) { 0 })
     private var lastRequestAt: Long? = null
 
-    suspend fun awaitTurn(artwork: Boolean) {
-        if (artwork) artworkWaiters.update { it + 1 }
+    suspend fun awaitTurn(priority: Priority) {
+        val rank = priority.ordinal
+        fun hasHigherWaiter(counts: List<Int>) =
+            (rank + 1 until counts.size).any { counts[it] > 0 }
+
+        changeWaiters(rank, 1)
         try {
             while (true) {
-                if (!artwork) artworkWaiters.first { it == 0 }
+                waiters.first { !hasHigherWaiter(it) }
                 mutex.withLock {
-                    if (!artwork && artworkWaiters.value > 0) return@withLock
+                    if (hasHigherWaiter(waiters.value)) return@withLock
                     lastRequestAt?.let { last -> delay(intervalMs - (nowMs() - last)) }
-                    // A picture lookup can arrive while a metadata request waits for its slot.
-                    if (!artwork && artworkWaiters.value > 0) return@withLock
+                    // A higher-priority lookup can arrive while this request waits for its slot.
+                    if (hasHigherWaiter(waiters.value)) return@withLock
                     lastRequestAt = nowMs()
                     return
                 }
             }
         } finally {
-            if (artwork) artworkWaiters.update { it - 1 }
+            changeWaiters(rank, -1)
+        }
+    }
+
+    private fun changeWaiters(rank: Int, delta: Int) {
+        waiters.update { current ->
+            current.mapIndexed { index, count -> if (index == rank) count + delta else count }
         }
     }
 }

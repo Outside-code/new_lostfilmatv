@@ -3,6 +3,7 @@ package com.kraat.lostfilmnewtv.data.poster
 import com.kraat.lostfilmnewtv.data.db.TmdbPosterDao
 import com.kraat.lostfilmnewtv.data.db.TmdbPosterMappingEntity
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
+import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverview
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
 import com.kraat.lostfilmnewtv.data.model.TmdbImageUrls
@@ -22,6 +23,67 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class TmdbPosterResolverTest {
     @Test
+    fun bundledCatalogArtworkIsAvailableBeforeEnrichmentAndReusesTmdbIdForDescriptions() = runTest {
+        val movieUrl = "https://mirror.example/movies/Sample/"
+        val client = object : TmdbPosterClient(OkHttpClient(), "fake") {
+            override suspend fun searchByTitle(
+                query: String,
+                year: Int?,
+                type: TmdbMediaType,
+                page: Int,
+                language: String?,
+            ): List<TmdbSearchResult> = error("Indexed titles should skip title search")
+
+            override suspend fun getPosterAndBackdrop(tmdbId: Int, type: TmdbMediaType): TmdbImageUrls =
+                error("Indexed titles already have artwork")
+
+            override suspend fun getMovieOverviewRu(tmdbId: Int): String {
+                assertEquals(12, tmdbId)
+                return "Описание фильма."
+            }
+        }
+        val dao = FakeTmdbPosterDao(TmdbPosterMappingEntity.negative(movieUrl.trimEnd('/'), "MOVIE"))
+        val index = CatalogPosterIndex {
+            """{"entries":{"/movies/Sample":{"tmdbId":12,"posterPath":"/poster.jpg","backdropPath":"/backdrop.jpg","rating":"7.2","year":2026}}}"""
+        }
+        val resolver = TmdbPosterResolverImpl(client, dao, catalogPosterIndex = index)
+        val summary = ReleaseSummary(
+            id = movieUrl,
+            kind = ReleaseKind.MOVIE,
+            titleRu = "Фильм",
+            episodeTitleRu = null,
+            seasonNumber = null,
+            episodeNumber = null,
+            releaseDateRu = "",
+            posterUrl = "",
+            detailsUrl = movieUrl,
+            pageNumber = 1,
+            positionInPage = 0,
+            fetchedAt = 0,
+            originalReleaseYear = 2026,
+        )
+
+        val initial = resolver.restoreCatalogArtwork(listOf(summary, summary.copy(originalReleaseYear = 2024)))
+        assertEquals("https://image.tmdb.org/t/p/w780/poster.jpg", initial[0].posterUrl)
+        assertEquals("https://image.tmdb.org/t/p/w1280/backdrop.jpg", initial[0].backdropUrl)
+        assertEquals("", initial[1].posterUrl)
+        val resolved = resolver.resolve(movieUrl, "Фильм", ReleaseKind.MOVIE, 2026)
+        assertEquals("Описание фильма.", resolved?.movieOverviewRu)
+        assertEquals(12, dao.upserted?.tmdbId)
+    }
+
+    @Test
+    fun bundledCatalogIndexKeepsMovieAndSeriesSeparateAndIgnoresSeasonUrls() {
+        val index = CatalogPosterIndex {
+            """{"entries":{"/movies/Sample":{"tmdbId":12,"posterPath":"/movie.jpg"},"/series/Sample":{"tmdbId":30,"posterPath":"/series.jpg"},"/movies/Bad":{"tmdbId":2,"posterPath":"https://example.com/a.jpg"}}}"""
+        }
+        assertEquals(12, index.entry("https://mirror.example/movies/Sample", null)?.tmdbId)
+        assertEquals(30, index.entry("https://mirror.example/series/Sample/?view=1", null)?.tmdbId)
+        assertNull(index.entry("https://mirror.example/series/Sample/season_1/", null))
+        assertNull(index.entry("https://mirror.example/movies/Bad/", null))
+    }
+
+    @Test
     fun resolve_trimsTrailingSpaceInSlug_beforeSearching() = runTest {
         // lostfilm отдаёт часть URL с лишним пробелом в slug:
         // «/series/Dark_Matter_2024 /season_2/». Год в конце строки из-за
@@ -30,6 +92,8 @@ class TmdbPosterResolverTest {
         var slugQuery: String? = null
         val requestedIds = mutableListOf<Int>()
         var earlyArtwork: TmdbImageUrls? = null
+        val dao = FakeTmdbPosterDao()
+        val seasonUrl = "https://www.lostfilm.today/series/Dark_Matter_2024 /season_2"
         val client = object : TmdbPosterClient(OkHttpClient(), "fake") {
             override suspend fun searchByTitle(
                 query: String,
@@ -65,16 +129,17 @@ class TmdbPosterResolverTest {
             ): TmdbEpisodeOverview {
                 assertEquals("p", earlyArtwork?.posterUrl)
                 assertNull(earlyArtwork?.episodeOverviewRu)
+                assertEquals("p", dao.upserted?.posterUrl)
                 return TmdbEpisodeOverview(
                     text = "Спокойная жизнь.",
                     source = TmdbEpisodeOverviewSource.TMDB_RU,
                 )
             }
         }
-        val resolver = TmdbPosterResolverImpl(client, FakeTmdbPosterDao())
+        val resolver = TmdbPosterResolverImpl(client, dao)
 
         val result = resolver.resolveWithArtwork(
-            detailsUrl = "https://www.lostfilm.today/series/Dark_Matter_2024 /season_2/episode_1/",
+            detailsUrl = "$seasonUrl/episode_1/",
             titleRu = "Тёмная материя",
             kind = ReleaseKind.SERIES,
             originalReleaseYear = null,
@@ -1030,6 +1095,8 @@ private class FakeTmdbPosterDao(
         private set
 
     override suspend fun getByDetailsUrl(detailsUrl: String): TmdbPosterMappingEntity? = cached
+    override suspend fun getByDetailsUrls(detailsUrls: List<String>): List<TmdbPosterMappingEntity> =
+        detailsUrls.mapNotNull { getByDetailsUrl(it) }
 
     override suspend fun upsert(entity: TmdbPosterMappingEntity) {
         upserted = entity

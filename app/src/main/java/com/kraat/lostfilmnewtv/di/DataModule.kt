@@ -1,5 +1,6 @@
 package com.kraat.lostfilmnewtv.di
 
+import android.content.Context
 import com.kraat.lostfilmnewtv.data.auth.AuthRepository
 import com.kraat.lostfilmnewtv.data.auth.AuthRepositoryContract
 import com.kraat.lostfilmnewtv.data.auth.EncryptedSessionStore
@@ -16,6 +17,7 @@ import com.kraat.lostfilmnewtv.data.parser.LostFilmListParser
 import com.kraat.lostfilmnewtv.data.parser.LostFilmSearchParser
 import com.kraat.lostfilmnewtv.data.parser.LostFilmScheduleParser
 import com.kraat.lostfilmnewtv.data.parser.LostFilmSeasonEpisodesParser
+import com.kraat.lostfilmnewtv.data.poster.CatalogPosterIndex
 import com.kraat.lostfilmnewtv.data.poster.TmdbPosterResolver
 import com.kraat.lostfilmnewtv.data.poster.TmdbPosterResolverImpl
 import com.kraat.lostfilmnewtv.data.poster.TmdbEnrichmentService
@@ -29,6 +31,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Singleton
 import okhttp3.OkHttpClient
 
@@ -51,11 +54,24 @@ object DataModule {
 
     @Provides
     @Singleton
+    fun provideCatalogPosterIndex(@ApplicationContext context: Context): CatalogPosterIndex =
+        CatalogPosterIndex {
+            context.assets.open(CatalogPosterIndex.FILE_NAME).bufferedReader().use { it.readText() }
+        }
+
+    @Provides
+    @Singleton
     fun provideTmdbPosterResolver(
         tmdbClient: TmdbPosterClient,
         tmdbDao: TmdbPosterDao,
         kinoPoiskClient: KinoPoiskClient,
-    ): TmdbPosterResolver = TmdbPosterResolverImpl(tmdbClient, tmdbDao, kinoPoiskClient)
+        catalogPosterIndex: CatalogPosterIndex,
+    ): TmdbPosterResolver = TmdbPosterResolverImpl(
+        tmdbClient,
+        tmdbDao,
+        kinoPoiskClient,
+        catalogPosterIndex = catalogPosterIndex,
+    )
 
     @Provides
     @Singleton
@@ -92,6 +108,7 @@ object DataModule {
         tmdbEnrichmentService: TmdbEnrichmentService,
         favoritesRepository: Lazy<FavoritesRepository>,
         sessionStore: EncryptedSessionStore,
+        catalogPosterIndex: CatalogPosterIndex,
     ): LostFilmRepository = LostFilmRepositoryImpl(
         httpClient = httpClient,
         anonymousHttpClient = anonymousHttpClient,
@@ -106,6 +123,7 @@ object DataModule {
         tmdbResolver = tmdbResolver,
         tmdbEnrichmentService = tmdbEnrichmentService,
         favoritesRepository = favoritesRepository,
+        catalogPosterIndex = catalogPosterIndex,
         hasAuthenticatedSession = {
             val session = sessionStore.read()
             session != null && !sessionStore.isExpired()

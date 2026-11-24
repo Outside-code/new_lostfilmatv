@@ -306,6 +306,8 @@ class TmdbPosterResolverSeriesYearTest {
         val rows = mutableMapOf<String, TmdbPosterMappingEntity>()
 
         override suspend fun getByDetailsUrl(detailsUrl: String): TmdbPosterMappingEntity? = rows[detailsUrl]
+        override suspend fun getByDetailsUrls(detailsUrls: List<String>): List<TmdbPosterMappingEntity> =
+            detailsUrls.mapNotNull { getByDetailsUrl(it) }
 
         override suspend fun upsert(entity: TmdbPosterMappingEntity) {
             rows[entity.detailsUrl] = entity
@@ -348,6 +350,8 @@ class TmdbPosterResolverSeriesYearTest {
                 tmdbClient = client,
                 tmdbDao = object : TmdbPosterDao {
                     override suspend fun getByDetailsUrl(detailsUrl: String): TmdbPosterMappingEntity? = null
+                    override suspend fun getByDetailsUrls(detailsUrls: List<String>): List<TmdbPosterMappingEntity> =
+                        detailsUrls.mapNotNull { getByDetailsUrl(it) }
                     override suspend fun upsert(entity: TmdbPosterMappingEntity) = Unit
                     override suspend fun deleteExpired(threshold: Long) = Unit
 

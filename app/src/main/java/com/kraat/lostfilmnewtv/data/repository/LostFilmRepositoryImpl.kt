@@ -30,6 +30,7 @@ import com.kraat.lostfilmnewtv.data.parser.textOrEmpty
 import com.kraat.lostfilmnewtv.data.parser.toEntity
 import com.kraat.lostfilmnewtv.data.parser.toSummaryEntities
 import com.kraat.lostfilmnewtv.data.parser.toSummaryModels
+import com.kraat.lostfilmnewtv.data.poster.CatalogPosterIndex
 import com.kraat.lostfilmnewtv.data.poster.TmdbPosterEnricher
 import com.kraat.lostfilmnewtv.data.poster.TmdbPosterResolver
 import com.kraat.lostfilmnewtv.data.poster.TmdbEnrichmentService
@@ -94,6 +95,7 @@ class LostFilmRepositoryImpl(
     private val favoritesRepository: Lazy<FavoritesRepository>,
     private val hasAuthenticatedSession: suspend () -> Boolean,
     private val clock: () -> Long = { System.currentTimeMillis() },
+    private val catalogPosterIndex: CatalogPosterIndex? = null,
 ) : LostFilmRepository {
     private val cleanupMutex = Mutex()
     private var lastCleanupAt = 0L
@@ -226,19 +228,37 @@ class LostFilmRepositoryImpl(
     }
 
     override fun observeMovies(pageNumber: Int): Flow<PageState> =
-        observeCatalogPage { loadMoviesPage(pageNumber) }
+        observeCatalogPage(pageNumber, ReleaseKind.MOVIE) { loadMoviesPage(pageNumber) }
 
     override fun observeSeriesCatalog(pageNumber: Int): Flow<PageState> =
-        observeCatalogPage { loadSeriesPage(pageNumber) }
+        observeCatalogPage(pageNumber, ReleaseKind.SERIES) { loadSeriesPage(pageNumber) }
 
-    private fun observeCatalogPage(load: suspend () -> PageState): Flow<PageState> = flow {
+    private fun observeCatalogPage(
+        pageNumber: Int,
+        kind: ReleaseKind,
+        load: suspend () -> PageState,
+    ): Flow<PageState> = flow {
+        if (pageNumber == 1 && catalogPosterIndex != null) {
+            val snapshot = withContext(Dispatchers.IO) { catalogPosterIndex.firstPage(kind, clock()) }
+            if (snapshot.isNotEmpty()) emit(PageState.Content(1, snapshot, hasNextPage = false, isStale = true))
+        }
         val page = load()
-        emit(page)
-        if (page !is PageState.Content) return@flow
+        if (page !is PageState.Content) {
+            emit(page)
+            return@flow
+        }
 
-        var items = page.items
+        var items = try {
+            tmdbResolver.restoreCatalogArtwork(page.items)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Log.w(TAG, "Unable to read cached catalog artwork", exception)
+            page.items
+        }
+        emit(page.copy(items = items))
         // The initial catalog is already visible, so artwork failures leave its cards usable.
-        tmdbEnrichmentService.enrichProgressively(page.items, persistToCache = false)
+        tmdbEnrichmentService.enrichProgressively(items, persistToCache = false)
             .catch { error -> Log.w(TAG, "TMDB enrichment failed for catalog page ${page.pageNumber}", error) }
             .collect { enriched ->
                 items = items.map { if (it.detailsUrl == enriched.detailsUrl) enriched else it }

@@ -343,6 +343,35 @@ class HomeScreenTest {
     }
 
     @Test
+    fun homeScreen_upcomingMovieShowsStatusWithoutAvailabilityPlaceholder() {
+        val movie = release(
+            detailsUrl = secondDetailsUrl,
+            titleRu = "Скорый релиз",
+            episodeTitleRu = null,
+            releaseDateRu = "",
+            seasonNumber = null,
+            episodeNumber = null,
+            kind = ReleaseKind.MOVIE,
+        ).copy(availabilityLabel = "Скоро")
+
+        composeRule.setContent {
+            LostFilmTheme {
+                HomeScreen(
+                    state = HomeUiState(
+                        items = listOf(movie),
+                        allNewModeState = HomeModeContentState.Content(listOf(movie)),
+                        selectedItem = movie,
+                        selectedItemKey = movie.detailsUrl,
+                    ),
+                )
+            }
+        }
+
+        assertEquals(2, composeRule.onAllNodesWithText("Скоро").fetchSemanticsNodes().size)
+        composeRule.onNodeWithText("Фильм доступен в релизах LostFilm.").assertDoesNotExist()
+    }
+
+    @Test
     fun homeScreen_rightFromInitialMenu_focusesFirstPoster() {
         composeRule.setContent {
             LostFilmTheme {

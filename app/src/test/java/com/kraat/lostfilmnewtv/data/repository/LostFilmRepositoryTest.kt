@@ -23,11 +23,13 @@ import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.SeriesGuide
 import com.kraat.lostfilmnewtv.data.model.TmdbImageUrls
 import com.kraat.lostfilmnewtv.data.network.LostFilmHttpClient
+import com.kraat.lostfilmnewtv.data.network.TmdbPosterClient
 import com.kraat.lostfilmnewtv.data.parser.LostFilmDetailsParser
 import com.kraat.lostfilmnewtv.data.parser.LostFilmFavoriteSeriesParser
 import com.kraat.lostfilmnewtv.data.parser.LostFilmListParser
 import com.kraat.lostfilmnewtv.data.parser.LostFilmSeasonEpisodesParser
 import com.kraat.lostfilmnewtv.data.parser.fixture
+import com.kraat.lostfilmnewtv.data.poster.CatalogPosterIndex
 import com.kraat.lostfilmnewtv.data.poster.TmdbPosterResolver
 import com.kraat.lostfilmnewtv.data.poster.TmdbPosterResolverImpl
 import java.io.IOException
@@ -38,7 +40,9 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.flow.take
 import com.kraat.lostfilmnewtv.data.repository.FavoritesRepository
 import com.kraat.lostfilmnewtv.data.repository.FavoritesRepositoryImpl
 import com.kraat.lostfilmnewtv.data.poster.TmdbEnrichmentService
@@ -49,6 +53,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -89,6 +94,69 @@ class LostFilmRepositoryTest {
         if (this::database.isInitialized) {
             database.close()
         }
+    }
+
+    @Test
+    fun observeMovies_firstEmissionIncludesRecentPosterMappingsInCatalogOrder() = runTest {
+        val html = fixture("movies-rail.html")
+        val date = 1_790_000_000_000L
+        val parsed = LostFilmListParser().parse(html, pageNumber = 1, fetchedAt = date)
+        val poster = "https://image.tmdb.org/t/p/w780/cached-poster.jpg"
+        for ((index, fetchedAt) in listOf(0 to date, 1 to date - SEVEN_DAYS_MS - 1)) {
+            tmdbPosterDao.upsert(TmdbPosterMappingEntity.create(
+                detailsUrl = parsed[index].detailsUrl.trimEnd('/'),
+                tmdbId = index + 1,
+                tmdbType = "MOVIE",
+                posterUrl = poster,
+                backdropUrl = "https://image.tmdb.org/t/p/w1280/cached-backdrop.jpg",
+                fetchedAt = fetchedAt,
+            ))
+        }
+        val client = TmdbPosterClient(
+            OkHttpClient.Builder().addInterceptor { error("The first page should not wait for TMDB") }.build(),
+            "test",
+        )
+        val repository = createRepository(
+            pageHandler = { error("Unexpected new releases request") },
+            detailsHandler = { html },
+            tmdbResolver = TmdbPosterResolverImpl(client, tmdbPosterDao, clock = { date }),
+        )
+
+        val firstPage = repository.observeMovies(1).first() as PageState.Content
+
+        assertEquals(parsed.map { it.detailsUrl }, firstPage.items.map { it.detailsUrl })
+        assertEquals(poster, firstPage.items[0].posterUrl)
+        assertEquals("", firstPage.items[1].posterUrl)
+    }
+
+    @Test
+    fun observeMovies_rendersBundledFirstPageBeforeFetchingLiveCatalog() = runTest {
+        var fetched = false
+        val html = fixture("movies-rail.html")
+        val repository = createRepository(
+            pageHandler = { error("Unexpected new releases request") },
+            detailsHandler = {
+                fetched = true
+                html
+            },
+            catalogPosterIndex = CatalogPosterIndex {
+                """{"generatedAt":$NOW,"movies":[{"path":"/movies/Bundled","title":"Снимок"}],"entries":{"/movies/Bundled":{"tmdbId":12,"posterPath":"/poster.jpg"}}}"""
+            },
+        )
+
+        val snapshot = repository.observeMovies(1).first() as PageState.Content
+
+        assertFalse(fetched)
+        assertTrue(snapshot.isStale)
+        assertFalse(snapshot.hasNextPage)
+        assertEquals("Снимок", snapshot.items.single().titleRu)
+        assertEquals("https://image.tmdb.org/t/p/w780/poster.jpg", snapshot.items.single().posterUrl)
+
+        val live = repository.observeMovies(1).take(2).last() as PageState.Content
+
+        assertTrue(fetched)
+        assertFalse(live.isStale)
+        assertEquals(LostFilmListParser().parse(html, 1).map { it.titleRu }, live.items.map { it.titleRu })
     }
 
     @Test
@@ -2596,6 +2664,7 @@ class LostFilmRepositoryTest {
         accountPageHandler: suspend (String) -> String = { error("Unexpected account page request: $it") },
         isAuthenticated: Boolean = false,
         tmdbResolver: TmdbPosterResolver = createFakeTmdbResolver(),
+        catalogPosterIndex: CatalogPosterIndex? = null,
     ): LostFilmRepository {
         val fakeHttpClient = FakeLostFilmHttpClient(
             pageHandler = pageHandler,
@@ -2631,6 +2700,7 @@ class LostFilmRepositoryTest {
             tmdbEnrichmentService = tmdbEnrichmentService,
             favoritesRepository = dagger.internal.DoubleCheck.lazy { favoritesRepository },
             clock = { NOW },
+            catalogPosterIndex = catalogPosterIndex,
         )
     }
 }
@@ -3027,6 +3097,8 @@ private data class SeasonEpisodeRow(
 private fun createFakeTmdbResolver(): TmdbPosterResolver {
     val fakeDao = object : TmdbPosterDao {
         override suspend fun getByDetailsUrl(detailsUrl: String) = null
+        override suspend fun getByDetailsUrls(detailsUrls: List<String>): List<TmdbPosterMappingEntity> =
+            detailsUrls.mapNotNull { getByDetailsUrl(it) }
         override suspend fun upsert(entity: com.kraat.lostfilmnewtv.data.db.TmdbPosterMappingEntity) {}
 override suspend fun deleteExpired(threshold: Long) {}
         override suspend fun deleteSeasonMappingsUnder(seriesPrefix: String) {}

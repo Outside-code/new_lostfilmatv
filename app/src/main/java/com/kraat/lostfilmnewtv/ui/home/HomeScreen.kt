@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -620,7 +621,7 @@ private fun ReleaseSummary?.heroDescription(): String {
             ?: item.seriesOverviewRu?.takeIf { it.isNotBlank() }.orEmpty()
         ReleaseKind.MOVIE -> item.movieOverviewRu
             ?.takeIf { it.isNotBlank() }
-            ?: "Фильм доступен в релизах LostFilm."
+            .orEmpty()
     }
 }
 
@@ -702,9 +703,23 @@ private fun HomeBackdrop(item: ReleaseSummary?) {
         }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.42f)),
-    )
+    if (backdropUrl != null) {
+        Box(
+            modifier = Modifier.fillMaxSize().drawWithCache {
+                val textScrim = Brush.radialGradient(
+                    0f to BackgroundPrimary.copy(alpha = 0.54f),
+                    0.48f to BackgroundPrimary.copy(alpha = 0.38f),
+                    1f to Color.Transparent,
+                    center = Offset(size.width * 0.32f, size.height * 0.26f),
+                    radius = size.width * 0.42f,
+                )
+                onDrawBehind {
+                    drawRect(Color.Black.copy(alpha = 0.14f))
+                    drawRect(textScrim)
+                }
+            },
+        )
+    }
 }
 
 @Composable

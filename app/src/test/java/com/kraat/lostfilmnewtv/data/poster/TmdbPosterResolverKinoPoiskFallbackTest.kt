@@ -251,6 +251,8 @@ private open class FixedTmdbPosterDao(
         protected set
 
     override suspend fun getByDetailsUrl(detailsUrl: String): TmdbPosterMappingEntity? = cached
+    override suspend fun getByDetailsUrls(detailsUrls: List<String>): List<TmdbPosterMappingEntity> =
+        detailsUrls.mapNotNull { getByDetailsUrl(it) }
 
     override suspend fun upsert(entity: TmdbPosterMappingEntity) {
         upserted = entity

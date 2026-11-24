@@ -890,7 +890,7 @@ private fun buildDetailsDescription(details: ReleaseDetails?): String {
             ?.replace(detailsWhitespaceRegex, " ")
             ?.trim()
             ?.takeIf { it.isNotBlank() }
-            ?: "Фильм доступен в релизах LostFilm."
+            .orEmpty()
     }
 }
 

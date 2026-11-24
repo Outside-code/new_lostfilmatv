@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kraat.lostfilmnewtv.R
 import com.kraat.lostfilmnewtv.ui.theme.FocusBackground
+import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGold
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGoldGlow
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
@@ -218,7 +219,6 @@ fun HomeHeader(
                         left = FocusRequester.Cancel
                     },
             )
-            MenuDivider()
             HomeHeaderActionButton(
                 label = "Поиск",
                 subtitle = "Сериал или фильм",
@@ -303,7 +303,6 @@ fun HomeHeader(
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
-            MenuDivider()
             HomeHeaderActionButton(
                 label = "Настройки",
                 subtitle = "Приложение",
@@ -355,17 +354,6 @@ private fun HomeMenuLogo(showLabels: Boolean) {
                 else Modifier.size(34.dp),
         )
     }
-}
-
-@Composable
-private fun MenuDivider() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 4.dp)
-            .height(1.dp)
-            .background(HomePanelBorder.copy(alpha = 0.55f)),
-    )
 }
 
 @Composable
@@ -493,8 +481,12 @@ private fun HomeModeSegmentButton(
                 shape = shape,
             )
             .border(
-                width = 1.dp,
-                color = if (active) HomeAccentGold.copy(alpha = 0.84f) else HomePanelBorder.copy(alpha = 0.10f),
+                width = if (showFocusedStyle) 2.dp else 1.dp,
+                color = when {
+                    showFocusedStyle -> FocusBorder
+                    selected -> HomeAccentGold.copy(alpha = 0.40f)
+                    else -> HomePanelBorder.copy(alpha = 0.10f)
+                },
                 shape = shape,
             )
             .onFocusChanged {
@@ -570,7 +562,8 @@ private fun HomeHeaderActionButton(
     )
 
     val borderColor = when {
-        isPrimary || showFocusedStyle -> HomeAccentGold.copy(alpha = 0.86f)
+        showFocusedStyle -> FocusBorder
+        isPrimary -> HomeAccentGold.copy(alpha = 0.40f)
         else -> HomePanelBorder.copy(alpha = 0.10f)
     }
     val textColor = if (isPrimary || showFocusedStyle) HomeAccentGoldGlow else HomeTextMuted
@@ -615,7 +608,7 @@ private fun HomeHeaderActionButton(
                 ),
                 shape = shape,
             )
-            .border(1.dp, borderColor, shape)
+            .border(if (showFocusedStyle) 2.dp else 1.dp, borderColor, shape)
             .onFocusChanged {
                 isFocused = it.isFocused
                 if (it.isFocused) {

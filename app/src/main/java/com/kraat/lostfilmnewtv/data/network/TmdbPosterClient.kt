@@ -6,6 +6,7 @@ import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
 import com.kraat.lostfilmnewtv.data.model.TmdbMediaType
 import com.kraat.lostfilmnewtv.data.model.TmdbSearchResult
 import android.util.Log
+import com.kraat.lostfilmnewtv.data.network.TmdbRequestThrottle.Priority
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -71,7 +72,7 @@ open class TmdbPosterClient(
             .tmdbHeaders()
             .build()
 
-        tmdbRequests.awaitTurn(artwork = true)
+        tmdbRequests.awaitTurn(Priority.TITLE_SEARCH)
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 throw IOException("TMDB HTTP ${response.code} for $url")
@@ -145,7 +146,7 @@ open class TmdbPosterClient(
             .tmdbHeaders()
             .build()
 
-        tmdbRequests.awaitTurn(artwork = true)
+        tmdbRequests.awaitTurn(Priority.ARTWORK)
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 Log.w(TAG, "TMDB image fetch failed: HTTP ${response.code} for $url")
@@ -253,7 +254,7 @@ open class TmdbPosterClient(
                 .tmdbHeaders()
                 .build()
 
-            tmdbRequests.awaitTurn(artwork = false)
+            tmdbRequests.awaitTurn(Priority.METADATA)
             val shouldRetry = okHttpClient.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val body = response.body?.string()
@@ -319,7 +320,7 @@ open class TmdbPosterClient(
             .tmdbHeaders()
             .build()
 
-        tmdbRequests.awaitTurn(artwork = false)
+        tmdbRequests.awaitTurn(Priority.METADATA)
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 Log.w(TAG, "TMDB rating fetch failed: HTTP ${response.code} for $endpoint")

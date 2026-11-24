@@ -303,6 +303,33 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun freshMoviePageReplacesBundledSnapshotAndEnablesPaging() = runTest(dispatcher) {
+        val bundled = summary(detailsUrl = "https://www.lostfilm.today/movies/Bundled")
+        val fresh = summary(detailsUrl = "https://www.lostfilm.today/movies/Live")
+        val refresh = CompletableDeferred<Unit>()
+        val repository = FakeLostFilmRepository(
+            pageResults = mapOf(1 to PageState.Content(1, emptyList(), false, false)),
+            movieFlows = mapOf(1 to flow {
+                emit(PageState.Content(1, listOf(bundled), hasNextPage = false, isStale = true))
+                refresh.await()
+                emit(PageState.Content(1, listOf(fresh), hasNextPage = true, isStale = false))
+            }),
+        )
+        val viewModel = createViewModel(repository, SavedStateHandle(), ioDispatcher = dispatcher)
+
+        viewModel.onStart()
+        viewModel.onModeSelected(HomeFeedMode.Movies)
+        advanceUntilIdle()
+        assertEquals(listOf(bundled), viewModel.uiState.value.movieItems)
+        assertFalse(viewModel.uiState.value.moviesHasNextPage)
+
+        refresh.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf(fresh), viewModel.uiState.value.movieItems)
+        assertTrue(viewModel.uiState.value.moviesHasNextPage)
+    }
+
+    @Test
     fun moviesLoadWhenOpenedAndLateArtworkKeepsTheNextPage() = runTest(dispatcher) {
         val movie = summary(detailsUrl = "https://www.lostfilm.today/movies/First")
         val movieWithPoster = movie.copy(posterUrl = "poster")

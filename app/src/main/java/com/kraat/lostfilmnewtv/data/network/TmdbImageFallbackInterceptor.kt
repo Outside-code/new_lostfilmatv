@@ -4,32 +4,42 @@ import coil.intercept.Interceptor
 import coil.request.ErrorResult
 import coil.request.ImageResult
 import com.kraat.lostfilmnewtv.BuildConfig
+import kotlinx.coroutines.withTimeoutOrNull
 
-/** Try our image cache first, then the legacy proxy and TMDB's CDN. Cached URLs keep working. */
+/** Download from TMDB first, with the shared image proxy as a fallback. */
 class TmdbImageFallbackInterceptor(
     private val proxyPrefix: String = AUTH_BRIDGE_TMDB_IMAGE_PREFIX,
     private val directPrefix: String = TMDB_DIRECT_IMAGE_PREFIX,
-    private val primaryPrefix: String = DEFAULT_PRIMARY_PREFIX,
+    private val previousCachePrefix: String = PREVIOUS_CACHE_PREFIX,
 ) : Interceptor {
     override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
         val request = chain.request
         val url = request.data as? String ?: return chain.proceed(request)
-        val sources = listOf(primaryPrefix, proxyPrefix, directPrefix).distinct()
-        val matchedPrefix = sources.firstOrNull { url.startsWith(it) } ?: return chain.proceed(request)
+        val matchedPrefix = listOf(directPrefix, proxyPrefix, previousCachePrefix)
+            .firstOrNull { url.startsWith(it) } ?: return chain.proceed(request)
         val imagePath = url.removePrefix(matchedPrefix)
-        var result: ImageResult? = null
-        for (source in sources) {
-            result = chain.proceed(request.newBuilder().data(source + imagePath).build())
-            if (result !is ErrorResult) return result
+        // Reuse downloaded posters from previous versions independently of the network host.
+        val cachedRequest = request.newBuilder().diskCacheKey(request.diskCacheKey ?: previousCachePrefix + imagePath)
+        val directRequest = cachedRequest.data(directPrefix + imagePath).build()
+        if (proxyPrefix == directPrefix) return chain.proceed(directRequest)
+        val directResult = when (imagePath.substringBefore('/')) {
+            "w342", "w500" -> withTimeoutOrNull(CDN_THUMBNAIL_TIMEOUT_MS) { chain.proceed(directRequest) }
+            else -> chain.proceed(directRequest)
         }
-        return checkNotNull(result)
+        if (directResult != null && directResult !is ErrorResult) return directResult
+        return chain.proceed(cachedRequest.data(proxyPrefix + imagePath).build())
     }
 
     companion object {
+        private const val CDN_THUMBNAIL_TIMEOUT_MS = 2_500L
         const val AUTH_BRIDGE_TMDB_IMAGE_PREFIX = "https://auth.bazuka.pp.ua/api/tmdb/t/p/"
         const val TMDB_DIRECT_IMAGE_PREFIX = "https://image.tmdb.org/t/p/"
-        private val DEFAULT_PRIMARY_PREFIX = "${BuildConfig.AUTH_BRIDGE_BASE_URL}/api/tmdb/t/p/"
-        private val thumbnailPrefixes = listOf(DEFAULT_PRIMARY_PREFIX, AUTH_BRIDGE_TMDB_IMAGE_PREFIX, TMDB_DIRECT_IMAGE_PREFIX)
+        private val PREVIOUS_CACHE_PREFIX = "${BuildConfig.AUTH_BRIDGE_BASE_URL}/api/tmdb/t/p/"
+        private val thumbnailPrefixes = listOf(
+            TMDB_DIRECT_IMAGE_PREFIX,
+            AUTH_BRIDGE_TMDB_IMAGE_PREFIX,
+            PREVIOUS_CACHE_PREFIX,
+        )
 
         internal fun thumbnailUrl(url: String, targetWidthPx: Int, displayWidthPx: Int): String {
             if (targetWidthPx > 500) return url

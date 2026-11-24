@@ -225,6 +225,8 @@ class TmdbPosterResolverAmbiguousTitleTest {
                 tmdbClient = client,
                 tmdbDao = object : TmdbPosterDao {
                     override suspend fun getByDetailsUrl(detailsUrl: String): TmdbPosterMappingEntity? = null
+                    override suspend fun getByDetailsUrls(detailsUrls: List<String>): List<TmdbPosterMappingEntity> =
+                        detailsUrls.mapNotNull { getByDetailsUrl(it) }
                     override suspend fun upsert(entity: TmdbPosterMappingEntity) = Unit
                     override suspend fun deleteExpired(threshold: Long) = Unit
 

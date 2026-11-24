@@ -35,7 +35,6 @@ import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.network.TmdbImageFallbackInterceptor
 import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
 import com.kraat.lostfilmnewtv.ui.theme.FocusBackground
-import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGold
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGoldGlow
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurface
@@ -134,17 +133,17 @@ fun PosterCard(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(8.dp)
-                        .background(HomeAccentGold.copy(alpha = 0.94f), RoundedCornerShape(999.dp)),
+                        .padding(6.dp)
+                        .background(HomePanelSurfaceStrong.copy(alpha = 0.92f), RoundedCornerShape(999.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = label,
-                        color = Color(0xFF0D1930),
-                        fontSize = 11.sp,
-                        lineHeight = 13.sp,
+                        color = HomeAccentGoldGlow,
+                        fontSize = 10.sp,
+                        lineHeight = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
                     )
                 }
             }

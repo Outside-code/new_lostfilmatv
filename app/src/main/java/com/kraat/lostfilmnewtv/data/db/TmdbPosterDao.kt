@@ -9,6 +9,9 @@ interface TmdbPosterDao {
     @Query("SELECT * FROM tmdb_poster_mappings WHERE detailsUrl = :detailsUrl LIMIT 1")
     suspend fun getByDetailsUrl(detailsUrl: String): TmdbPosterMappingEntity?
 
+    @Query("SELECT * FROM tmdb_poster_mappings WHERE detailsUrl IN (:detailsUrls)")
+    suspend fun getByDetailsUrls(detailsUrls: List<String>): List<TmdbPosterMappingEntity>
+
     @Upsert
     suspend fun upsert(entity: TmdbPosterMappingEntity)
 

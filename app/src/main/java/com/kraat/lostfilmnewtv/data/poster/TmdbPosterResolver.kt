@@ -4,6 +4,7 @@ import android.util.Log
 import com.kraat.lostfilmnewtv.data.db.TmdbPosterDao
 import com.kraat.lostfilmnewtv.data.db.TmdbPosterMappingEntity
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
+import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverview
 import com.kraat.lostfilmnewtv.data.model.TmdbImageUrls
 import com.kraat.lostfilmnewtv.data.model.TmdbMediaType
@@ -17,12 +18,14 @@ import java.util.LinkedHashMap
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 private const val TAG = "TmdbPosterResolver"
 
@@ -56,6 +59,8 @@ private val seasonLevelUrlRegex = Regex("""/season_\d+/?$""")
 private val movieCacheKeyRegex = Regex("""^(.*/movies/[^/?#]+)""")
 
 interface TmdbPosterResolver {
+    suspend fun restoreCatalogArtwork(items: List<ReleaseSummary>) = items
+
     suspend fun resolve(
         detailsUrl: String,
         titleRu: String,
@@ -77,7 +82,27 @@ class TmdbPosterResolverImpl(
     private val tmdbDao: TmdbPosterDao,
     private val kinoPoiskClient: KinoPoiskClient? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
+    private val catalogPosterIndex: CatalogPosterIndex? = null,
 ) : TmdbPosterResolver {
+    override suspend fun restoreCatalogArtwork(
+        items: List<ReleaseSummary>,
+    ): List<ReleaseSummary> {
+        if (items.isEmpty()) return items
+        val keys = items.map { tmdbCacheKey(it.detailsUrl, it.kind) }
+        val cachedByKey = tmdbDao.getByDetailsUrls(keys.distinct()).associateBy { it.detailsUrl }
+        return withContext(Dispatchers.IO) {
+            items.zip(keys) { item, key ->
+                val cached = cachedByKey[key]?.takeIf { canReuseCachedMapping(it, item.originalReleaseYear) }?.let {
+                    TmdbImageUrls(it.posterUrl, it.backdropUrl, rating = it.rating)
+                }
+                val artwork = cached?.takeIf { it.posterUrl.isNotBlank() }
+                    ?: catalogPosterIndex?.entry(item.detailsUrl, item.originalReleaseYear)?.artwork()
+                    ?: cached
+                TmdbPosterEnricher.enrichSummary(item, artwork)
+            }
+        }
+    }
+
     private val inMemoryCache = LruMemoryCache<String, TmdbImageUrls>(MEMORY_CACHE_MAX_SIZE)
     private val negativeMemoryCache = LruMemoryCache<String, Unit>(MEMORY_CACHE_MAX_SIZE)
     private val inMemoryTmdbIdCache = LruMemoryCache<String, CachedTmdbId>(MEMORY_CACHE_MAX_SIZE)
@@ -105,7 +130,14 @@ class TmdbPosterResolverImpl(
         onArtwork: suspend (TmdbImageUrls) -> Unit,
     ): TmdbImageUrls? {
         val cacheKey = tmdbCacheKey(detailsUrl, kind)
-        val hasTmdbIdOverride = tmdbIdOverride(extractEnglishSlug(detailsUrl), kind) != null
+        val tmdbIdOverride = tmdbIdOverride(extractEnglishSlug(detailsUrl), kind)
+        val hasTmdbIdOverride = tmdbIdOverride != null
+        val indexed = catalogPosterIndex?.let { index ->
+            withContext(Dispatchers.IO) {
+                index.entry(detailsUrl, originalReleaseYear)
+                    ?.takeIf { tmdbIdOverride == null || it.tmdbId == tmdbIdOverride }
+            }
+        }
 
         lookupCached(
             cacheKey = cacheKey,
@@ -113,6 +145,7 @@ class TmdbPosterResolverImpl(
             kind = kind,
             originalReleaseYear = originalReleaseYear,
             hasTmdbIdOverride = hasTmdbIdOverride,
+            ignoreNegativeCache = hasTmdbIdOverride || indexed != null,
             onArtwork = onArtwork,
         )?.let { return it.urls }
 
@@ -124,10 +157,15 @@ class TmdbPosterResolverImpl(
                 kind = kind,
                 originalReleaseYear = originalReleaseYear,
                 hasTmdbIdOverride = hasTmdbIdOverride,
+                ignoreNegativeCache = hasTmdbIdOverride || indexed != null,
                 onArtwork = onArtwork,
             )?.let { return@withKeyLock it.urls }
 
-            val result = performSearch(cacheKey, detailsUrl, titleRu, kind, originalReleaseYear, onArtwork)
+            val result = if (indexed == null) {
+                performSearch(cacheKey, detailsUrl, titleRu, kind, originalReleaseYear, onArtwork)
+            } else {
+                buildImagesFromTmdbId(cacheKey, detailsUrl, indexed.tmdbId, kind, onArtwork, indexed.artwork())
+            }
             result?.let {
                 inMemoryCache[cacheKey] = it.copy(episodeOverviewRu = null, episodeOverviewSource = null)
             }
@@ -145,6 +183,7 @@ class TmdbPosterResolverImpl(
         kind: ReleaseKind,
         originalReleaseYear: Int?,
         hasTmdbIdOverride: Boolean,
+        ignoreNegativeCache: Boolean,
         onArtwork: suspend (TmdbImageUrls) -> Unit,
     ): CachedMapping? {
         // Сезон и эпизод пишутся под сезонным ключом, а сериал — под корневым.
@@ -193,7 +232,7 @@ class TmdbPosterResolverImpl(
                 ),
             )
         }
-        if (!hasTmdbIdOverride && negativeMemoryCache[cacheKey] != null) {
+        if (!ignoreNegativeCache && negativeMemoryCache[cacheKey] != null) {
             return CachedMapping(null)
         }
 
@@ -202,7 +241,7 @@ class TmdbPosterResolverImpl(
             Log.d(TAG, "Season mapping $cacheKey has id=${dbCached.tmdbId}, series id=$seriesRootId: переищем")
             return null
         }
-        if (canReuseNegativeMapping(dbCached) && !hasTmdbIdOverride) {
+        if (canReuseNegativeMapping(dbCached) && !ignoreNegativeCache) {
             negativeMemoryCache[cacheKey] = Unit
             return CachedMapping(null)
         }
@@ -529,11 +568,6 @@ class TmdbPosterResolverImpl(
             return null
         }
 
-        val overviews = resolveOverviews(
-            detailsUrl = detailsUrl,
-            tmdbId = bestMatch.id,
-            kind = kind,
-        )
         val resolvedImages = images ?: TmdbImageUrls(
             posterUrl = "",
             backdropUrl = "",
@@ -555,6 +589,7 @@ class TmdbPosterResolverImpl(
         inMemoryTmdbIdCache[cacheKey] = CachedTmdbId(bestMatch.id, TmdbPosterMappingEntity.SOURCE_TMDB)
         invalidateStaleSeasonMappings(cacheKey)
 
+        val overviews = resolveOverviews(detailsUrl = detailsUrl, tmdbId = bestMatch.id, kind = kind)
         return resolvedImages.copy(
             episodeOverviewRu = overviews.episodeOverview?.text,
             episodeOverviewSource = overviews.episodeOverview?.source?.name,
@@ -625,18 +660,25 @@ class TmdbPosterResolverImpl(
         tmdbId: Int,
         kind: ReleaseKind,
         onArtwork: suspend (TmdbImageUrls) -> Unit,
+        indexedArtwork: TmdbImageUrls? = null,
     ): TmdbImageUrls? {
         val tmdbType = when (kind) {
             ReleaseKind.SERIES -> TmdbMediaType.TV
             ReleaseKind.MOVIE -> TmdbMediaType.MOVIE
         }
-        val seriesImages = try {
-            tmdbClient.getPosterAndBackdrop(tmdbId, tmdbType)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "TMDB images failed for reused id=$tmdbId: ${e.message}")
-            null
+        val seriesImages = if (indexedArtwork != null && indexedArtwork.backdropUrl.isNotBlank()) {
+            indexedArtwork
+        } else {
+            indexedArtwork?.let { onArtwork(it) }
+            val fetchedImages = try {
+                tmdbClient.getPosterAndBackdrop(tmdbId, tmdbType)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "TMDB images failed for reused id=$tmdbId: ${e.message}")
+                null
+            }
+            mergeArtwork(indexedArtwork, fetchedImages)
         }
 
         val seasonNumber = seasonNumberRegex.find(detailsUrl)
@@ -656,16 +698,15 @@ class TmdbPosterResolverImpl(
         }
 
         images?.let { onArtwork(it) }
-        val rating = resolveRating(tmdbId, kind)
+        val rating = indexedArtwork?.rating ?: resolveRating(tmdbId, kind)
         if (images == null && rating.isNullOrBlank()) return null
 
-        val overviews = resolveOverviews(detailsUrl = detailsUrl, tmdbId = tmdbId, kind = kind)
         val resolvedImages = images ?: TmdbImageUrls(
             posterUrl = "",
             backdropUrl = "",
             rating = rating,
         )
-        Log.d(TAG, "Reused series id=$tmdbId for $detailsUrl: poster=${resolvedImages.posterUrl.take(60)}...")
+        Log.d(TAG, "Reused TMDB id=$tmdbId for $detailsUrl: poster=${resolvedImages.posterUrl.take(60)}...")
 
         tmdbDao.upsert(
             TmdbPosterMappingEntity.create(
@@ -679,7 +720,9 @@ class TmdbPosterResolverImpl(
             ),
         )
         inMemoryTmdbIdCache[cacheKey] = CachedTmdbId(tmdbId, TmdbPosterMappingEntity.SOURCE_TMDB)
+        if (indexedArtwork != null && kind == ReleaseKind.SERIES) invalidateStaleSeasonMappings(cacheKey)
 
+        val overviews = resolveOverviews(detailsUrl = detailsUrl, tmdbId = tmdbId, kind = kind)
         return resolvedImages.copy(
             episodeOverviewRu = overviews.episodeOverview?.text,
             episodeOverviewSource = overviews.episodeOverview?.source?.name,

@@ -191,9 +191,13 @@ class HomeViewModel @Inject constructor(
                 if (md.pagingErrorMessage == null || md.isPaging || state.isInitialLoading || !md.hasNextPage) return
                 loadPage(pageNumber = md.nextPage, isPagingRequest = true)
             }
-            HomeFeedMode.Movies -> {
-                if (md.pagingErrorMessage == null || md.isPaging || !md.hasNextPage) return
-                loadMovies(pageNumber = md.nextPage, isPagingRequest = true)
+            HomeFeedMode.Movies, HomeFeedMode.Series -> {
+                if (md.pagingErrorMessage == null || md.isPaging) return
+                when {
+                    !md.hasNextPage -> onRetry()
+                    mode == HomeFeedMode.Movies -> loadMovies(pageNumber = md.nextPage, isPagingRequest = true)
+                    else -> loadSeriesCatalog(pageNumber = md.nextPage, isPagingRequest = true)
+                }
             }
             HomeFeedMode.Favorites -> {
                 if (md.pagingErrorMessage == null ||
@@ -206,10 +210,6 @@ class HomeViewModel @Inject constructor(
                 loadFavoriteReleases(pageNumber = md.nextPage, isPagingRequest = true)
             }
             HomeFeedMode.FavoriteSeries -> Unit
-            HomeFeedMode.Series -> {
-                if (md.pagingErrorMessage == null || md.isPaging || !md.hasNextPage) return
-                loadSeriesCatalog(pageNumber = md.nextPage, isPagingRequest = true)
-            }
         }
     }
 
@@ -774,15 +774,17 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch(ioDispatcher + catalogJob) {
             var firstPageEmission = true
+            var receivedSnapshot = false
             observe(pageNumber).collect { result ->
                 when (result) {
                     is PageState.Content -> {
                         val pageItems = result.items.filterNot { it.detailsUrl in existingKeys }
                         val artworkByUrl = pageItems.associateBy { it.detailsUrl }
+                        val replacePageContents = firstPageEmission || receivedSnapshot
                         _uiState.update { state ->
                             state.updateMode(mode) { md ->
                                 val items = when {
-                                    !firstPageEmission -> md.items.map { item ->
+                                    !replacePageContents -> md.items.map { item ->
                                         artworkByUrl[item.detailsUrl] ?: item
                                     }
                                     isPagingRequest -> (md.items + pageItems).distinctBy { it.detailsUrl }
@@ -793,7 +795,7 @@ class HomeViewModel @Inject constructor(
                                 } else {
                                     HomeModeContentState.Content(items)
                                 }
-                                if (firstPageEmission) {
+                                if (replacePageContents) {
                                     md.copy(
                                         items = items,
                                         contentState = content,
@@ -808,10 +810,11 @@ class HomeViewModel @Inject constructor(
                             }.resolveSelection()
                         }
                         firstPageEmission = false
+                        receivedSnapshot = result.isStale
                     }
                     is PageState.Error -> _uiState.update { state ->
                         state.updateMode(mode) { md ->
-                            if (isPagingRequest && md.items.isNotEmpty()) {
+                            if ((isPagingRequest || receivedSnapshot) && md.items.isNotEmpty()) {
                                 md.copy(isPaging = false, pagingErrorMessage = result.message)
                             } else {
                                 md.copy(
