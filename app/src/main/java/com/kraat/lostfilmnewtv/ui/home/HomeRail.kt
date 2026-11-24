@@ -45,8 +45,8 @@ import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
 import kotlinx.coroutines.flow.first
 
 private const val HOME_PAGING_SKELETON_COUNT = 4
-private val HOME_RAIL_CARD_SPACING = 8.dp
-private val HOME_RAIL_HORIZONTAL_PADDING = 12.dp
+private val HOME_RAIL_CARD_SPACING = 9.dp
+private val HOME_RAIL_HORIZONTAL_PADDING = 6.dp
 
 @Composable
 fun HomeRail(

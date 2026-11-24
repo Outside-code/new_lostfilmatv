@@ -16,6 +16,7 @@ val FocusBackground = Color(0xFF172433)   // clearly lifted surface
 val HomeAccentGold = Color(0xFF82AAFF)
 val HomeAccentGoldGlow = Color(0xFFC7DDFF)
 val HomeAccentBlue = Color(0xFF8DB7D8)
+internal val HomeFocusBlue = Color(0xFF439CFF)
 val HomeTextSecondary = Color(0xFFD2D9E2)
 val HomeTextMuted = Color(0xFF8793A3)
 val HomeStatusError = Color(0xFFE07060)

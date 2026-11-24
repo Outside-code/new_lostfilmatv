@@ -2,9 +2,6 @@
 
 package com.kraat.lostfilmnewtv.ui.home
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -37,15 +34,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -59,19 +53,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kraat.lostfilmnewtv.R
-import com.kraat.lostfilmnewtv.ui.theme.FocusBackground
-import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGold
-import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGoldGlow
-import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
-import com.kraat.lostfilmnewtv.ui.theme.HomeTextMuted
-import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
+import com.kraat.lostfilmnewtv.ui.theme.HomeFocusBlue
+import com.kraat.lostfilmnewtv.ui.theme.HomeTextSecondary
+import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 
-private val ExpandedMenuWidth = 204.dp
-private val CollapsedMenuWidth = 68.dp
-private val MenuButtonHeight = 38.dp
-private val MenuShape = RoundedCornerShape(20.dp)
-private val MenuButtonShape = RoundedCornerShape(12.dp)
+private val ExpandedMenuWidth = 168.dp
+private val CollapsedMenuWidth = 56.dp
+private val MenuButtonHeight = 36.dp
+private val MenuButtonShape = RoundedCornerShape(10.dp)
+private val MenuSelection = Color(0xFF16365F)
+
+private fun Modifier.homeMenuItemAppearance(selected: Boolean, focused: Boolean): Modifier =
+    background(if (selected) MenuSelection else Color.Transparent, MenuButtonShape)
+        .then(if (focused) Modifier.border(1.5.dp, HomeFocusBlue, MenuButtonShape) else Modifier)
 
 @Composable
 fun HomeHeader(
@@ -136,30 +131,7 @@ fun HomeHeader(
         modifier = modifier
             .fillMaxHeight()
             .then(if (showLabels) Modifier.width(ExpandedMenuWidth) else Modifier.width(CollapsedMenuWidth))
-            .shadow(
-                elevation = 22.dp,
-                shape = MenuShape,
-                spotColor = Color.Black.copy(alpha = 0.82f),
-                ambientColor = Color.Black.copy(alpha = 0.76f),
-            )
-            .background(
-                brush = Brush.verticalGradient(
-                    0f to Color(0xE60A1420),
-                    0.52f to HomePanelSurfaceStrong.copy(alpha = 0.90f),
-                    1f to Color(0xF2050B12),
-                ),
-                shape = MenuShape,
-            )
-            .border(
-                width = 1.dp,
-                brush = Brush.verticalGradient(
-                    0f to Color.White.copy(alpha = 0.12f),
-                    0.58f to Color.White.copy(alpha = 0.04f),
-                    1f to HomeAccentGold.copy(alpha = 0.16f),
-                ),
-                shape = MenuShape,
-            )
-            .padding(horizontal = if (showLabels) 16.dp else 9.dp, vertical = 8.dp),
+            .padding(vertical = 8.dp),
     ) {
         Column(
             modifier = Modifier.fillMaxHeight(),
@@ -167,6 +139,7 @@ fun HomeHeader(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             HomeMenuLogo(showLabels = showLabels)
+            Spacer(modifier = Modifier.height(9.dp))
             if (hasModeToggle) {
                 HomeHeaderModeSegmentedControl(
                     currentMode = selectedMode,
@@ -430,17 +403,8 @@ private fun HomeModeSegmentButton(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val showFocusedStyle = isFocused && isVisualFocusEnabled
-    val scale by animateFloatAsState(
-        targetValue = if (showFocusedStyle) 1.04f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "homeModeSegmentScale",
-    )
-    val shape = MenuButtonShape
     val active = selected || showFocusedStyle
-    val contentColor = if (active) HomeAccentGoldGlow else HomeTextMuted
+    val contentColor = if (active) TextPrimary else HomeTextSecondary
     Box(
         modifier = modifier
             .height(MenuButtonHeight)
@@ -469,26 +433,7 @@ private fun HomeModeSegmentButton(
                 }
                 false
             }
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .background(
-                brush = Brush.verticalGradient(
-                    0f to FocusBackground.copy(alpha = if (active) 0.78f else 0.28f),
-                    1f to HomePanelSurfaceStrong.copy(alpha = if (active) 0.92f else 0.48f),
-                ),
-                shape = shape,
-            )
-            .border(
-                width = if (showFocusedStyle) 2.dp else 1.dp,
-                color = when {
-                    showFocusedStyle -> FocusBorder
-                    selected -> HomeAccentGold.copy(alpha = 0.40f)
-                    else -> HomePanelBorder.copy(alpha = 0.10f)
-                },
-                shape = shape,
-            )
+            .homeMenuItemAppearance(selected, showFocusedStyle)
             .onFocusChanged {
                 isFocused = it.isFocused
                 if (it.isFocused) onInteraction()
@@ -504,8 +449,8 @@ private fun HomeModeSegmentButton(
         Row(
             modifier = Modifier
                 .then(if (showLabel) Modifier.fillMaxWidth() else Modifier)
-                .padding(horizontal = if (showLabel) 10.dp else 0.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = if (showLabel) 15.dp else 0.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             HeaderModeIcon(mode = mode, color = contentColor)
@@ -552,23 +497,8 @@ private fun HomeHeaderActionButton(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val showFocusedStyle = isFocused && isVisualFocusEnabled
-    val scale by animateFloatAsState(
-        targetValue = if (showFocusedStyle) 1.04f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "homeActionScale",
-    )
-
-    val borderColor = when {
-        showFocusedStyle -> FocusBorder
-        isPrimary -> HomeAccentGold.copy(alpha = 0.40f)
-        else -> HomePanelBorder.copy(alpha = 0.10f)
-    }
-    val textColor = if (isPrimary || showFocusedStyle) HomeAccentGoldGlow else HomeTextMuted
-    val subtitleColor = if (isPrimary || showFocusedStyle) HomeAccentGold.copy(alpha = 0.80f) else HomeTextMuted
-    val shape = MenuButtonShape
+    val textColor = if (isPrimary || showFocusedStyle) TextPrimary else HomeTextSecondary
+    val subtitleColor = if (isPrimary || showFocusedStyle) HomeAccentGold else HomeTextSecondary
 
     Box(
         modifier = modifier
@@ -597,18 +527,7 @@ private fun HomeHeaderActionButton(
             )
             .height(if (compact) 38.dp else MenuButtonHeight)
             .widthIn(min = minWidth)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .background(
-                brush = Brush.verticalGradient(
-                    0f to FocusBackground.copy(alpha = if (isPrimary || showFocusedStyle) 0.76f else 0.24f),
-                    1f to HomePanelSurfaceStrong.copy(alpha = if (isPrimary || showFocusedStyle) 0.90f else 0.46f),
-                ),
-                shape = shape,
-            )
-            .border(if (showFocusedStyle) 2.dp else 1.dp, borderColor, shape)
+            .homeMenuItemAppearance(isPrimary, showFocusedStyle)
             .onFocusChanged {
                 isFocused = it.isFocused
                 if (it.isFocused) {
@@ -622,13 +541,13 @@ private fun HomeHeaderActionButton(
                 onLongClick = onLongClick,
             )
             .padding(
-                horizontal = if (!showLabel) 0.dp else if (compact) 11.dp else 18.dp,
+                horizontal = if (!showLabel) 0.dp else if (compact) 11.dp else 15.dp,
                 vertical = if (compact) 3.dp else 3.dp,
             ),
         contentAlignment = if (showLabel) Alignment.CenterStart else Alignment.Center,
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             leadingIcon?.let { icon ->

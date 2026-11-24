@@ -64,6 +64,7 @@ import com.kraat.lostfilmnewtv.ui.components.rememberShimmerSkeletonBrush
 import com.kraat.lostfilmnewtv.ui.theme.BackgroundPrimary
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentBlue
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGold
+import com.kraat.lostfilmnewtv.ui.theme.HomeFocusBlue
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurface
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
@@ -72,6 +73,8 @@ import com.kraat.lostfilmnewtv.ui.theme.HomeTextSecondary
 import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+
+private val HomeBackdropBase = Color(0xFF080F1C)
 
 @Composable
 fun HomeScreen(
@@ -241,8 +244,8 @@ fun HomeScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    0f to Color(0xFF07111B),
-                    0.34f to Color(0xFF061018),
+                    0f to HomeBackdropBase,
+                    0.70f to HomeBackdropBase,
                     1f to BackgroundPrimary,
                 ),
             ),
@@ -323,9 +326,7 @@ fun HomeScreen(
                 downTarget = headerDownTarget,
                 showLabels = shouldShowHomeMenuLabels,
                 isVisualFocusEnabled = !isSwitchingModeFromRail,
-                modifier = Modifier
-                    .width(if (shouldShowHomeMenuLabels) 204.dp else 68.dp)
-                    .fillMaxHeight(),
+                modifier = Modifier.fillMaxHeight(),
             )
 
             Column(
@@ -495,16 +496,16 @@ private fun HomeHeroStage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 2.dp, top = 4.dp, end = 280.dp, bottom = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp),
+                .padding(start = 2.dp, top = 4.dp, end = 280.dp, bottom = 30.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
         ) {
             ReleaseHeroMetaRow(targetItem)
 
             Text(
                 text = targetItem?.titleRu.orEmpty(),
                 color = TextPrimary,
-                fontSize = 36.sp,
-                lineHeight = 40.sp,
+                fontSize = 34.sp,
+                lineHeight = 38.sp,
                 style = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.8f), Offset(0f, 2f), 8f)),
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
@@ -549,60 +550,54 @@ private fun HomeHeroStage(
 @Composable
 private fun ReleaseHeroMetaRow(item: ReleaseSummary?) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        item?.availabilityLabel?.takeIf { it.isNotBlank() }?.let { label ->
-            HeroMetaPill(label = label, highlighted = true)
-        }
-        seasonEpisodeHeroLabel(item)?.let { label ->
-            HeroMetaPill(label = label, highlighted = true)
-        }
-        item?.tmdbRating?.takeIf { it.isNotBlank() }?.let { rating ->
-            HeroMetaPill(label = "TMDB $rating")
-        }
-        item.episodeOverviewSourceLabel()?.let { label ->
-            HeroMetaPill(label = label)
-        }
-        item?.releaseDateRu?.takeIf { it.isNotBlank() }?.let { date ->
-            HeroMetaPill(label = date)
-        }
         item?.kind?.let { kind ->
-            HeroMetaPill(
+            HeroMetaLabel(
                 label = when (kind) {
                     ReleaseKind.SERIES -> "Сериал"
                     ReleaseKind.MOVIE -> "Фильм"
                 },
             )
         }
+        item?.availabilityLabel?.takeIf { it.isNotBlank() }?.let { label ->
+            HeroMetaLabel(label = label, highlighted = true)
+        }
+        seasonEpisodeHeroLabel(item)?.let { label ->
+            HeroMetaLabel(label = label)
+        }
+        item?.tmdbRating?.takeIf { it.isNotBlank() }?.let { rating ->
+            HeroMetaLabel(label = "TMDB $rating")
+        }
+        item.episodeOverviewSourceLabel()?.let { label ->
+            HeroMetaLabel(label = label)
+        }
+        item?.releaseDateRu?.takeIf { it.isNotBlank() }?.let { date ->
+            HeroMetaLabel(label = date)
+        }
     }
 }
 
 @Composable
-private fun HeroMetaPill(
+private fun HeroMetaLabel(
     label: String,
     highlighted: Boolean = false,
 ) {
-    val shape = RoundedCornerShape(999.dp)
     Text(
         text = label,
-        color = TextPrimary,
-        fontSize = 11.sp,
-        lineHeight = 13.sp,
+        color = if (highlighted) HomeBackdropBase else TextPrimary,
+        fontSize = 13.sp,
+        lineHeight = 15.sp,
         fontWeight = FontWeight.SemiBold,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .background(
-                color = HomePanelSurface.copy(alpha = 0.46f),
-                shape = shape,
-            )
-            .border(
-                width = 1.dp,
-                color = if (highlighted) HomeAccentGold.copy(alpha = 0.62f) else HomePanelBorder.copy(alpha = 0.46f),
-                shape = shape,
-            )
-            .padding(horizontal = 11.dp, vertical = 4.dp),
+        modifier = if (highlighted) {
+            Modifier.background(HomeFocusBlue, RoundedCornerShape(999.dp))
+                .padding(horizontal = 9.dp, vertical = 3.dp)
+        } else {
+            Modifier
+        },
     )
 }
 
@@ -615,6 +610,7 @@ private fun seasonEpisodeHeroLabel(item: ReleaseSummary?): String? {
 
 private fun ReleaseSummary?.heroDescription(): String {
     val item = this ?: return ""
+    if (item.kind == ReleaseKind.MOVIE && item.availabilityLabel.equals("Скоро", ignoreCase = true)) return ""
     return when (item.kind) {
         ReleaseKind.SERIES -> item.episodeOverviewRu
             ?.takeIf { it.isNotBlank() }
@@ -692,33 +688,38 @@ private fun Int.formatFavoriteSeriesCount(): String {
 @Composable
 private fun HomeBackdrop(item: ReleaseSummary?) {
     val backdropUrl = item?.backdropUrl?.takeIf { it.isNotBlank() }
-    Crossfade(targetState = backdropUrl, label = "homeBackdrop") { url ->
+    Crossfade(
+        targetState = backdropUrl,
+        modifier = Modifier.fillMaxSize(),
+        label = "homeBackdrop",
+    ) { url ->
         if (url != null) {
-            AsyncImage(
-                model = rememberBackdropImageRequest(url),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-    }
-
-    if (backdropUrl != null) {
-        Box(
-            modifier = Modifier.fillMaxSize().drawWithCache {
-                val textScrim = Brush.radialGradient(
-                    0f to BackgroundPrimary.copy(alpha = 0.54f),
-                    0.48f to BackgroundPrimary.copy(alpha = 0.38f),
-                    1f to Color.Transparent,
-                    center = Offset(size.width * 0.32f, size.height * 0.26f),
-                    radius = size.width * 0.42f,
+            Box(Modifier.fillMaxSize()) {
+                AsyncImage(
+                    model = rememberBackdropImageRequest(url),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxWidth(0.68f).fillMaxHeight(),
                 )
-                onDrawBehind {
-                    drawRect(Color.Black.copy(alpha = 0.14f))
-                    drawRect(textScrim)
-                }
-            },
-        )
+                Box(Modifier.fillMaxSize().drawWithCache {
+                    val leftFade = Brush.horizontalGradient(
+                        0.32f to HomeBackdropBase,
+                        0.45f to HomeBackdropBase.copy(alpha = 0.70f),
+                        0.61f to HomeBackdropBase.copy(alpha = 0.18f),
+                        0.77f to Color.Transparent,
+                    )
+                    val bottomFade = Brush.verticalGradient(
+                        0.45f to Color.Transparent,
+                        0.76f to HomeBackdropBase.copy(alpha = 0.62f),
+                        1f to HomeBackdropBase,
+                    )
+                    onDrawBehind {
+                        drawRect(leftFade)
+                        drawRect(bottomFade)
+                    }
+                })
+            }
+        }
     }
 }
 

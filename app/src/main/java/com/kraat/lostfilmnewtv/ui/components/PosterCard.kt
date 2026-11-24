@@ -33,9 +33,9 @@ import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.network.TmdbImageFallbackInterceptor
-import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
 import com.kraat.lostfilmnewtv.ui.theme.FocusBackground
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGoldGlow
+import com.kraat.lostfilmnewtv.ui.theme.HomeFocusBlue
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurface
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
@@ -43,7 +43,7 @@ import kotlin.math.roundToInt
 
 private val POSTER_CARD_WIDTH = 112.dp
 private val POSTER_CARD_HEIGHT = 172.dp
-private const val POSTER_FOCUSED_SCALE = 1.065f
+private const val POSTER_FOCUSED_SCALE = 1.04f
 
 @Composable
 fun PosterCard(
@@ -53,7 +53,6 @@ fun PosterCard(
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(12.dp)
-    val borderColor = if (isFocused) FocusBorder.copy(alpha = 0.88f) else HomePanelBorder.copy(alpha = 0.14f)
     val overlayColor = if (isFocused) FocusBackground.copy(alpha = 0.82f) else HomePanelSurface.copy(alpha = 0.62f)
     val watchedBadgeColor = if (isFocused) HomeAccentGoldGlow.copy(alpha = 0.86f) else HomePanelSurfaceStrong.copy(alpha = 0.86f)
     val posterRequest = item.posterUrl.takeIf { it.isNotBlank() }?.let { rememberPosterImageRequest(it) }
@@ -76,7 +75,7 @@ fun PosterCard(
                 shape = shape
             ),
             focusedBorder = Border(
-                border = BorderStroke(1.5.dp, FocusBorder),
+                border = BorderStroke(2.5.dp, HomeFocusBlue),
                 shape = shape
             )
         ),
@@ -134,7 +133,7 @@ fun PosterCard(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(6.dp)
-                        .background(HomePanelSurfaceStrong.copy(alpha = 0.92f), RoundedCornerShape(999.dp)),
+                        .background(Color(0xEB315377), RoundedCornerShape(999.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(

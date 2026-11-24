@@ -352,6 +352,7 @@ class HomeScreenTest {
             seasonNumber = null,
             episodeNumber = null,
             kind = ReleaseKind.MOVIE,
+            movieOverviewRu = "Описание будущего фильма.",
         ).copy(availabilityLabel = "Скоро")
 
         composeRule.setContent {
@@ -368,6 +369,7 @@ class HomeScreenTest {
         }
 
         assertEquals(2, composeRule.onAllNodesWithText("Скоро").fetchSemanticsNodes().size)
+        composeRule.onNodeWithText("Описание будущего фильма.").assertDoesNotExist()
         composeRule.onNodeWithText("Фильм доступен в релизах LostFilm.").assertDoesNotExist()
     }
 
