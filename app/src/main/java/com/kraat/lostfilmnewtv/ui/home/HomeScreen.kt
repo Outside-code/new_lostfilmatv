@@ -32,7 +32,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -40,7 +39,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
@@ -53,18 +51,18 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.StateFlow
-import coil.compose.AsyncImage
-import com.kraat.lostfilmnewtv.ui.components.rememberBackdropImageRequest
+import com.kraat.lostfilmnewtv.ui.components.TvBackdrop
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
 import com.kraat.lostfilmnewtv.updates.SavedAppUpdate
 import com.kraat.lostfilmnewtv.ui.components.ShimmerSkeletonBox
 import com.kraat.lostfilmnewtv.ui.components.rememberShimmerSkeletonBrush
+import com.kraat.lostfilmnewtv.ui.theme.BackgroundDeep
 import com.kraat.lostfilmnewtv.ui.theme.BackgroundPrimary
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentBlue
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGold
-import com.kraat.lostfilmnewtv.ui.theme.HomeFocusBlue
+import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurface
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
@@ -73,8 +71,6 @@ import com.kraat.lostfilmnewtv.ui.theme.HomeTextSecondary
 import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-
-private val HomeBackdropBase = Color(0xFF080F1C)
 
 @Composable
 fun HomeScreen(
@@ -244,9 +240,9 @@ fun HomeScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    0f to HomeBackdropBase,
-                    0.70f to HomeBackdropBase,
-                    1f to BackgroundPrimary,
+                    0f to BackgroundPrimary,
+                    0.70f to BackgroundPrimary,
+                    1f to BackgroundDeep,
                 ),
             ),
     ) {
@@ -586,14 +582,14 @@ private fun HeroMetaLabel(
 ) {
     Text(
         text = label,
-        color = if (highlighted) HomeBackdropBase else TextPrimary,
+        color = if (highlighted) BackgroundPrimary else TextPrimary,
         fontSize = 13.sp,
         lineHeight = 15.sp,
         fontWeight = FontWeight.SemiBold,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = if (highlighted) {
-            Modifier.background(HomeFocusBlue, RoundedCornerShape(999.dp))
+            Modifier.background(FocusBorder, RoundedCornerShape(999.dp))
                 .padding(horizontal = 9.dp, vertical = 3.dp)
         } else {
             Modifier
@@ -693,33 +689,7 @@ private fun HomeBackdrop(item: ReleaseSummary?) {
         modifier = Modifier.fillMaxSize(),
         label = "homeBackdrop",
     ) { url ->
-        if (url != null) {
-            Box(Modifier.fillMaxSize()) {
-                AsyncImage(
-                    model = rememberBackdropImageRequest(url),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxWidth(0.68f).fillMaxHeight(),
-                )
-                Box(Modifier.fillMaxSize().drawWithCache {
-                    val leftFade = Brush.horizontalGradient(
-                        0.32f to HomeBackdropBase,
-                        0.45f to HomeBackdropBase.copy(alpha = 0.70f),
-                        0.61f to HomeBackdropBase.copy(alpha = 0.18f),
-                        0.77f to Color.Transparent,
-                    )
-                    val bottomFade = Brush.verticalGradient(
-                        0.45f to Color.Transparent,
-                        0.76f to HomeBackdropBase.copy(alpha = 0.62f),
-                        1f to HomeBackdropBase,
-                    )
-                    onDrawBehind {
-                        drawRect(leftFade)
-                        drawRect(bottomFade)
-                    }
-                })
-            }
-        }
+        TvBackdrop(url)
     }
 }
 

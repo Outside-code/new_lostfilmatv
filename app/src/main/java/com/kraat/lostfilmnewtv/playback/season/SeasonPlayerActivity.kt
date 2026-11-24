@@ -9,6 +9,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -25,6 +26,8 @@ import com.kraat.lostfilmnewtv.playback.PlaybackPreferencesStore
 import com.kraat.lostfilmnewtv.playback.WatchedMarkingMode
 import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryEntry
 import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryStore
+import com.kraat.lostfilmnewtv.ui.theme.BackgroundPrimary
+import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -73,10 +76,11 @@ class SeasonPlayerActivity : ComponentActivity() {
         }
         root.addView(view, FrameLayout.LayoutParams(-1, -1))
         caption = TextView(this).apply {
-            setTextColor(Color.WHITE); textSize = 18f
+            setTextColor(TextPrimary.toArgb())
+            textSize = 18f
             setShadowLayer(6f, 0f, 2f, Color.BLACK)
             setPadding(32, 20, 32, 20)
-            setBackgroundColor(0x90000000.toInt())
+            setBackgroundColor(BackgroundPrimary.copy(alpha = 0.86f).toArgb())
         }
         root.addView(caption, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
         view.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { caption.visibility = it })

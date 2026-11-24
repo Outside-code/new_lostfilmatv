@@ -54,19 +54,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kraat.lostfilmnewtv.R
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGold
-import com.kraat.lostfilmnewtv.ui.theme.HomeFocusBlue
+import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomeTextSecondary
+import com.kraat.lostfilmnewtv.ui.theme.SelectionSurface
 import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 
 private val ExpandedMenuWidth = 168.dp
 private val CollapsedMenuWidth = 56.dp
 private val MenuButtonHeight = 36.dp
 private val MenuButtonShape = RoundedCornerShape(10.dp)
-private val MenuSelection = Color(0xFF16365F)
 
 private fun Modifier.homeMenuItemAppearance(selected: Boolean, focused: Boolean): Modifier =
-    background(if (selected) MenuSelection else Color.Transparent, MenuButtonShape)
-        .then(if (focused) Modifier.border(1.5.dp, HomeFocusBlue, MenuButtonShape) else Modifier)
+    background(if (selected) SelectionSurface else Color.Transparent, MenuButtonShape)
+        .then(if (focused) Modifier.border(1.5.dp, FocusBorder, MenuButtonShape) else Modifier)
 
 @Composable
 fun HomeHeader(

@@ -1,8 +1,6 @@
 package com.kraat.lostfilmnewtv.ui.settings
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,11 +24,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -38,16 +33,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kraat.lostfilmnewtv.ui.theme.BackgroundSurface
 import com.kraat.lostfilmnewtv.ui.theme.FocusBackground
+import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGold
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGoldGlow
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
-import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorderFocus
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurface
-import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
 import com.kraat.lostfilmnewtv.ui.theme.HomeTextMuted
 import com.kraat.lostfilmnewtv.ui.theme.HomeTextSecondary
+import com.kraat.lostfilmnewtv.ui.theme.SelectionSurface
 import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
+
+private val SettingsControlShape = RoundedCornerShape(10.dp)
 
 @Composable
 fun SettingsTvButton(
@@ -62,62 +60,30 @@ fun SettingsTvButton(
     onFocused: (() -> Unit)? = null,
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isFocused && enabled) 1.03f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "buttonScale",
-    )
-
     val backgroundColor = when {
-        !enabled -> HomePanelSurface.copy(alpha = 0.72f)
-        isSelected -> HomeAccentGold
-        isFocused -> FocusBackground
-        else -> HomePanelSurface
-    }
-    val borderColor = when {
-        !enabled -> HomePanelBorder
-        isSelected && isFocused -> HomeAccentGoldGlow
-        isFocused -> HomePanelBorderFocus
-        isSelected -> HomeAccentGold
-        else -> HomePanelBorder
+        isSelected -> SelectionSurface
+        isFocused && enabled -> FocusBackground
+        else -> Color.Transparent
     }
     val textColor = when {
         !enabled -> HomeTextMuted
-        isSelected -> Color(0xFF0D1930)
-        else -> TextPrimary
+        isSelected || isFocused -> TextPrimary
+        else -> HomeTextSecondary
     }
-    val summaryColor = when {
-        !enabled -> HomeTextMuted
-        isSelected -> Color(0xFF243B63)
-        else -> HomeTextMuted
-    }
-    val shape = RoundedCornerShape(12.dp)
+    val summaryColor = if (enabled && isSelected) HomeAccentGoldGlow else HomeTextMuted
 
     Button(
         onClick = onClick,
         enabled = enabled,
-        shape = shape,
+        shape = SettingsControlShape,
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color.Transparent,
+            containerColor = backgroundColor,
             disabledContainerColor = Color.Transparent,
             disabledContentColor = textColor,
         ),
         modifier = modifier
             .fillMaxWidth()
-            .drawBehind {
-                drawRoundRect(
-                    color = backgroundColor,
-                    cornerRadius = CornerRadius(12.dp.toPx()),
-                )
-            }
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .border(2.dp, borderColor, shape)
+            .then(if (isFocused && enabled) Modifier.border(2.dp, FocusBorder, SettingsControlShape) else Modifier)
             .onFocusChanged {
                 isFocused = it.isFocused
                 if (it.isFocused) onFocused?.invoke()
@@ -167,7 +133,7 @@ fun SettingsOverviewCard(
             .fillMaxWidth()
             .testTag(tag)
             .focusable(false)
-            .border(1.dp, HomePanelBorder, RoundedCornerShape(14.dp))
+            .background(BackgroundSurface, RoundedCornerShape(14.dp))
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -212,26 +178,10 @@ fun SettingsRowButton(
     onFocused: (() -> Unit)? = null,
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isFocused && enabled) 1.015f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "settingsRowScale",
-    )
-    val shape = RoundedCornerShape(12.dp)
     val backgroundColor = when {
-        !enabled -> HomePanelSurface.copy(alpha = 0.58f)
-        isSelected -> HomePanelSurfaceStrong
-        isFocused -> FocusBackground
-        else -> HomePanelSurface
-    }
-    val borderColor = when {
-        !enabled -> HomePanelBorder
-        isFocused -> HomePanelBorderFocus
-        isSelected -> HomeAccentGold.copy(alpha = 0.72f)
-        else -> HomePanelBorder
+        isSelected -> SelectionSurface
+        isFocused && enabled -> FocusBackground
+        else -> Color.Transparent
     }
     val valueColor = when {
         !enabled -> HomeTextMuted
@@ -243,25 +193,15 @@ fun SettingsRowButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        shape = shape,
+        shape = SettingsControlShape,
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color.Transparent,
+            containerColor = backgroundColor,
             disabledContainerColor = Color.Transparent,
             disabledContentColor = textColor,
         ),
         modifier = modifier
             .fillMaxWidth()
-            .drawBehind {
-                drawRoundRect(
-                    color = backgroundColor,
-                    cornerRadius = CornerRadius(12.dp.toPx()),
-                )
-            }
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .border(2.dp, borderColor, shape)
+            .then(if (isFocused && enabled) Modifier.border(2.dp, FocusBorder, SettingsControlShape) else Modifier)
             .onFocusChanged {
                 isFocused = it.isFocused
                 if (it.isFocused) onFocused?.invoke()
@@ -320,7 +260,6 @@ fun SettingsTextField(
     onFocused: (() -> Unit)? = null,
     isPassword: Boolean = false,
 ) {
-    var isFocused by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -328,26 +267,21 @@ fun SettingsTextField(
         visualTransformation = if (isPassword) androidx.compose.ui.text.input.PasswordVisualTransformation()
             else androidx.compose.ui.text.input.VisualTransformation.None,
         label = { Text(text = label) },
+        shape = SettingsControlShape,
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = TextPrimary,
             unfocusedTextColor = TextPrimary,
             focusedLabelColor = HomeAccentGoldGlow,
             unfocusedLabelColor = HomeTextMuted,
             cursorColor = HomeAccentGoldGlow,
-            focusedBorderColor = HomePanelBorderFocus,
+            focusedBorderColor = FocusBorder,
             unfocusedBorderColor = HomePanelBorder,
             focusedContainerColor = FocusBackground,
             unfocusedContainerColor = HomePanelSurface,
         ),
         modifier = modifier
             .fillMaxWidth()
-            .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) HomePanelBorderFocus else Color.Transparent,
-                shape = RoundedCornerShape(12.dp),
-            )
             .onFocusChanged {
-                isFocused = it.isFocused
                 if (it.isFocused) onFocused?.invoke()
             }
             .then(if (tag != null) Modifier.testTag(tag) else Modifier),

@@ -33,7 +33,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -60,7 +59,8 @@ import com.kraat.lostfilmnewtv.ui.components.rememberShimmerSkeletonBrush
 import com.kraat.lostfilmnewtv.ui.theme.BackgroundPrimary
 import com.kraat.lostfilmnewtv.ui.theme.DetailsAccentBlue
 import com.kraat.lostfilmnewtv.ui.theme.DetailsAccentGold
-import com.kraat.lostfilmnewtv.ui.theme.DetailsAccentGoldFocus
+import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
+import com.kraat.lostfilmnewtv.ui.theme.SelectionSurface
 import com.kraat.lostfilmnewtv.ui.theme.DetailsBackgroundMid
 import com.kraat.lostfilmnewtv.ui.theme.DetailsBackgroundTop
 import com.kraat.lostfilmnewtv.ui.theme.DetailsBorderDefault
@@ -558,19 +558,12 @@ private fun SeasonSidebarItem(
     val progress = if (totalCount == 0) 0f else watchedCount / totalCount.toFloat()
     val shape = RoundedCornerShape(12.dp)
     val textColor = if (isSelected) TextPrimary else DetailsTextSecondary
+    var isFocused by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isSelected) DetailsSurfaceSoft else Color.Transparent, shape)
-            .drawBehind {
-                if (isSelected) {
-                    drawRect(
-                        color = DetailsAccentGold,
-                        size = size.copy(width = 2.dp.toPx()),
-                    )
-                }
-            },
+            .background(if (isSelected) SelectionSurface else Color.Transparent, shape),
     ) {
         Button(
             onClick = onClick,
@@ -581,10 +574,10 @@ private fun SeasonSidebarItem(
             ),
             modifier = Modifier
                 .fillMaxWidth()
+                .then(if (isFocused) Modifier.border(2.dp, FocusBorder, shape) else Modifier)
                 .onFocusChanged { focusState ->
-                    if (focusState.isFocused) {
-                        onClick()
-                    }
+                    isFocused = focusState.isFocused
+                    if (isFocused) onClick()
                 },
         ) {
             Column(
@@ -659,13 +652,12 @@ private fun EpisodeRow(
 
     val background = when {
         isFocused -> DetailsSurfaceFocused
-        isSelected -> DetailsSurfaceSoft
+        isSelected -> SelectionSurface
         else -> HomePanelSurface
     }
     val borderColor = when {
-        isSelected && isFocused -> DetailsAccentGoldFocus
+        isFocused -> FocusBorder
         isSelected -> DetailsAccentGold
-        isFocused -> DetailsAccentBlue
         episode.isAvailable -> availableColor.copy(alpha = 0.50f)
         else -> HomePanelBorder
     }
@@ -792,9 +784,8 @@ private fun GuideActionButton(
         else -> DetailsSurfaceSoft
     }
     val borderColor = when {
-        isPrimary && isFocused -> DetailsAccentGoldFocus
+        isFocused -> FocusBorder
         isPrimary -> DetailsAccentGold
-        isFocused -> DetailsAccentBlue
         else -> DetailsBorderDefault
     }
     val textColor = if (isPrimary) Color(0xFF0D1930) else TextPrimary

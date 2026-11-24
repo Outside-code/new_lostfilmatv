@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,9 +41,6 @@ import com.kraat.lostfilmnewtv.playback.PlaybackQualityPreference
 import com.kraat.lostfilmnewtv.playback.WatchedMarkingMode
 import com.kraat.lostfilmnewtv.tvchannel.AndroidTvChannelMode
 import com.kraat.lostfilmnewtv.ui.theme.BackgroundPrimary
-import com.kraat.lostfilmnewtv.ui.theme.BackgroundSurface
-import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurface
-import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
 import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 import com.kraat.lostfilmnewtv.updates.UpdateCheckMode
 
@@ -207,7 +203,7 @@ fun SettingsScreen(
         Text(
             text = "Настройки",
             color = TextPrimary,
-            fontSize = 30.sp,
+            fontSize = 34.sp,
             fontWeight = FontWeight.SemiBold,
         )
         Row(
@@ -243,16 +239,15 @@ fun SettingsScreen(
                     )?.let { contentRequesters.getValue(it.toTag()) } ?: railRequesters.getValue(section)
                 },
                 modifier = Modifier
-                    .width(292.dp)
+                    .width(232.dp)
                     .fillMaxHeight(),
             )
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .background(BackgroundSurface, RoundedCornerShape(18.dp))
                     .onFocusChanged { contentHasFocus = it.hasFocus }
-                    .padding(22.dp),
+                    .padding(bottom = 8.dp),
             ) {
                 Column(
                     modifier = Modifier
@@ -266,7 +261,6 @@ fun SettingsScreen(
                                 SettingsOverviewCard(
                                     title = "Воспроизведение",
                                     subtitle = "Качество для запуска торрента и автоматическая отметка просмотренного.",
-                                    modifier = Modifier.background(HomePanelSurfaceStrong, RoundedCornerShape(14.dp)),
                                 ) {
                                     SettingsOverviewValue(text = "Качество: ${selectedQuality.shortLabel()}")
                                     SettingsOverviewValue(text = "Отметка просмотренного: $watchedSummary")
@@ -343,7 +337,6 @@ fun SettingsScreen(
                                 SettingsOverviewCard(
                                     title = "Главный экран",
                                     subtitle = "Что показывать в домашнем экране приложения.",
-                                    modifier = Modifier.background(HomePanelSurfaceStrong, RoundedCornerShape(14.dp)),
                                 ) {
                                     SettingsOverviewValue(text = homeScreenSummary)
                                 }
@@ -449,7 +442,6 @@ fun SettingsScreen(
                                 SettingsOverviewCard(
                                     title = "Android TV",
                                     subtitle = "Канал с релизами на главном экране Android TV, вне приложения.",
-                                    modifier = Modifier.background(HomePanelSurfaceStrong, RoundedCornerShape(14.dp)),
                                 ) {
                                     SettingsOverviewValue(text = "Сейчас: ${selectedChannelMode.label()}")
                                 }
@@ -496,7 +488,6 @@ fun SettingsScreen(
                                 SettingsOverviewCard(
                                     title = "TorrServe",
                                     subtitle = "Адрес сервера TorrServe для воспроизведения торрентов.",
-                                    modifier = Modifier.background(HomePanelSurfaceStrong, RoundedCornerShape(14.dp)),
                                 ) {
                                     SettingsOverviewValue(text = torrServeStatusText ?: "Сейчас: $torrServeBaseUrl")
                                 }
@@ -576,7 +567,6 @@ fun SettingsScreen(
                                 SettingsOverviewCard(
                                     title = "Адрес хоста",
                                     subtitle = "Адрес сервера LostFilm, к которому обращается приложение. По умолчанию https://www.lostfilm.today.",
-                                    modifier = Modifier.background(HomePanelSurfaceStrong, RoundedCornerShape(14.dp)),
                                 ) {
                                     SettingsOverviewValue(text = lostFilmHostStatusText ?: "Сейчас: ${lostFilmHost.ifBlank { "по умолчанию" }}")
                                 }
@@ -660,7 +650,6 @@ fun SettingsScreen(
                                 SettingsOverviewCard(
                                     title = "Аккаунт LostFilm",
                                     subtitle = "Вход нужен для Избранного и синхронизации просмотренного.",
-                                    modifier = Modifier.background(HomePanelSurfaceStrong, RoundedCornerShape(14.dp)),
                                 ) {
                                     SettingsOverviewValue(text = "Статус: $accountSummary")
                                 }
@@ -694,7 +683,6 @@ fun SettingsScreen(
                                 SettingsOverviewCard(
                                     title = "О приложении",
                                     subtitle = "Неофициальный клиент LostFilm для Android TV.",
-                                    modifier = Modifier.background(HomePanelSurfaceStrong, RoundedCornerShape(14.dp)),
                                 ) {
                                     SettingsOverviewValue(text = "Версия: ${BuildConfig.VERSION_NAME} (сборка ${BuildConfig.VERSION_CODE})")
                                 }
@@ -778,10 +766,8 @@ private fun SettingsSectionRail(
 ) {
     Column(
         modifier = modifier
-            .background(HomePanelSurface, RoundedCornerShape(18.dp))
-            .padding(14.dp)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         sections.forEachIndexed { index, section ->
             SettingsTvButton(
@@ -858,7 +844,6 @@ private fun UpdatesSectionContent(
     SettingsOverviewCard(
         title = "Обновления",
         subtitle = "Режим проверки и установка новой версии через GitHub.",
-        modifier = Modifier.background(HomePanelSurfaceStrong, RoundedCornerShape(14.dp)),
     ) {
         SettingsOverviewValue(text = "Установлена версия: $installedVersionText")
         SettingsOverviewValue(text = "Последняя версия: ${latestVersionText ?: "-"}")

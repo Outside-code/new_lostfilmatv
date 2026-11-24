@@ -23,6 +23,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,7 +64,7 @@ import com.kraat.lostfilmnewtv.data.model.LostFilmSearchItem
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.ui.theme.BackgroundPrimary
 import com.kraat.lostfilmnewtv.ui.theme.DetailsAccentGold
-import com.kraat.lostfilmnewtv.ui.theme.DetailsAccentGoldFocus
+import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
 import com.kraat.lostfilmnewtv.ui.theme.DetailsBackgroundMid
 import com.kraat.lostfilmnewtv.ui.theme.DetailsBackgroundTop
 import com.kraat.lostfilmnewtv.ui.theme.DetailsBorderDefault
@@ -152,6 +153,8 @@ fun SearchScreen(
                         }
                         .testTag("search-query-input"),
                     singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = FocusBorder),
                     label = { Text("Запрос") },
                     placeholder = { Text("Например: Ted или Путь дракона") },
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -167,8 +170,16 @@ fun SearchScreen(
                     modifier = Modifier.height(56.dp).focusRequester(voiceRequester)
                         .focusProperties { left = queryRequester; right = FocusRequester.Cancel; if (downTarget != null) down = downTarget }
                         .testTag("search-voice"),
-                    colors = TvButtonDefaults.colors(containerColor = DetailsSurfaceReadable, contentColor = TextPrimary,
-                        focusedContainerColor = DetailsAccentGoldFocus, focusedContentColor = Color(0xFF0D1930)),
+                    colors = TvButtonDefaults.colors(
+                        containerColor = DetailsSurfaceReadable,
+                        contentColor = TextPrimary,
+                        focusedContainerColor = DetailsSurfaceFocused,
+                        focusedContentColor = TextPrimary,
+                    ),
+                    shape = TvButtonDefaults.shape(shape = RoundedCornerShape(12.dp)),
+                    border = TvButtonDefaults.border(focusedBorder = androidx.tv.material3.Border(
+                        border = androidx.compose.foundation.BorderStroke(2.dp, FocusBorder),
+                    )),
                 ) {
                     val voiceColor = androidx.tv.material3.LocalContentColor.current
                     androidx.compose.foundation.Canvas(modifier = Modifier.size(22.dp)) {
@@ -302,7 +313,7 @@ private fun SearchResultCard(
         label = "buttonScale",
     )
     val background = if (isFocused) DetailsSurfaceFocused else DetailsSurfaceReadable
-    val border = if (isFocused) DetailsAccentGoldFocus else HomePanelBorder
+    val border = if (isFocused) FocusBorder else HomePanelBorder
     val kindLabel = when (item.kind) {
         ReleaseKind.SERIES -> "Сериал"
         ReleaseKind.MOVIE -> "Фильм"
@@ -319,7 +330,7 @@ private fun SearchResultCard(
                 scaleX = scale
                 scaleY = scale
             }
-            .border(1.dp, border, RoundedCornerShape(24.dp))
+            .border(if (isFocused) 2.dp else 1.dp, border, RoundedCornerShape(24.dp))
             .onFocusChanged { isFocused = it.isFocused },
     ) {
         Row(

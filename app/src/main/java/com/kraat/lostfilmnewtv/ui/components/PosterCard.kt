@@ -34,8 +34,9 @@ import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.network.TmdbImageFallbackInterceptor
 import com.kraat.lostfilmnewtv.ui.theme.FocusBackground
+import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
+import com.kraat.lostfilmnewtv.ui.theme.BadgeSurface
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGoldGlow
-import com.kraat.lostfilmnewtv.ui.theme.HomeFocusBlue
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurface
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
@@ -75,7 +76,7 @@ fun PosterCard(
                 shape = shape
             ),
             focusedBorder = Border(
-                border = BorderStroke(2.5.dp, HomeFocusBlue),
+                border = BorderStroke(2.5.dp, FocusBorder),
                 shape = shape
             )
         ),
@@ -133,7 +134,7 @@ fun PosterCard(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(6.dp)
-                        .background(Color(0xEB315377), RoundedCornerShape(999.dp)),
+                        .background(BadgeSurface, RoundedCornerShape(999.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(

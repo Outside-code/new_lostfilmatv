@@ -39,7 +39,8 @@ import com.kraat.lostfilmnewtv.ui.home.requestFocusWhenReady
 import com.kraat.lostfilmnewtv.ui.theme.BackgroundPrimary
 import com.kraat.lostfilmnewtv.ui.theme.DetailsSurfaceReadable
 import com.kraat.lostfilmnewtv.ui.theme.DetailsTextSecondary
-import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorderFocus
+import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
+import com.kraat.lostfilmnewtv.ui.theme.SelectionSurface
 import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 import java.time.Instant
 import java.time.ZoneId
@@ -101,10 +102,13 @@ fun PlaybackHistoryScreen(
                         colors = ButtonDefaults.colors(
                             containerColor = DetailsSurfaceReadable,
                             contentColor = TextPrimary,
-                            focusedContainerColor = HomePanelBorderFocus,
+                            focusedContainerColor = SelectionSurface,
                             focusedContentColor = TextPrimary,
                         ),
                         scale = ButtonDefaults.scale(focusedScale = 1f),
+                        border = ButtonDefaults.border(focusedBorder = androidx.tv.material3.Border(
+                            border = androidx.compose.foundation.BorderStroke(2.dp, FocusBorder),
+                        )),
                         shape = ButtonDefaults.shape(shape = RoundedCornerShape(14.dp)),
                     ) {
                         Row(

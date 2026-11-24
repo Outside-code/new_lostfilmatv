@@ -5,7 +5,6 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -88,8 +87,7 @@ fun AuthScreen(
         }
         Column(
             Modifier.width(304.dp).verticalScroll(rememberScrollState())
-                .background(HomePanelSurfaceStrong, RoundedCornerShape(24.dp))
-                .border(1.dp, HomePanelBorder, RoundedCornerShape(24.dp))
+                .background(HomePanelSurfaceStrong, RoundedCornerShape(14.dp))
                 .padding(22.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),

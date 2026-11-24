@@ -59,7 +59,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.kraat.lostfilmnewtv.ui.components.rememberBackdropImageRequest
+import com.kraat.lostfilmnewtv.ui.components.TvBackdrop
 import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.ui.components.PosterImage
 import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
@@ -68,9 +68,10 @@ import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
 import com.kraat.lostfilmnewtv.ui.components.ShimmerSkeletonBox
 import com.kraat.lostfilmnewtv.ui.components.rememberShimmerSkeletonBrush
 import com.kraat.lostfilmnewtv.ui.theme.BackgroundPrimary
-import com.kraat.lostfilmnewtv.ui.theme.DetailsAccentBlue
 import com.kraat.lostfilmnewtv.ui.theme.DetailsAccentGold
 import com.kraat.lostfilmnewtv.ui.theme.DetailsAccentGoldFocus
+import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
+import com.kraat.lostfilmnewtv.ui.theme.SelectionSurface
 import com.kraat.lostfilmnewtv.ui.theme.DetailsBackgroundMid
 import com.kraat.lostfilmnewtv.ui.theme.DetailsBackgroundTop
 import com.kraat.lostfilmnewtv.ui.theme.DetailsBorderDefault
@@ -381,22 +382,7 @@ private fun ContentState(
 
 @Composable
 private fun BackgroundPoster(details: ReleaseDetails?) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        if (details != null) {
-            val backgroundImage = details.backdropUrl?.takeIf { it.isNotBlank() }
-                ?: details.posterUrl
-            val request = rememberBackdropImageRequest(backgroundImage)
-            AsyncImage(
-                model = request,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                alpha = 1f,
-            )
-        }
-
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.42f)))
-    }
+    TvBackdrop(details?.backdropUrl?.takeIf { it.isNotBlank() } ?: details?.posterUrl, wideText = true)
 }
 
 @Composable
@@ -971,17 +957,15 @@ private fun StageButton(
         !enabled -> DetailsSurfaceSoft.copy(alpha = 0.6f)
         isPrimary -> DetailsAccentGold
         isHighlighted && isFocused -> DetailsSurfaceFocused
-        isHighlighted -> DetailsSurfaceSoft
+        isHighlighted -> SelectionSurface
         isFocused -> DetailsSurfaceFocused
         isSecondary -> DetailsSurfaceSoft
         else -> DetailsSurfaceCard
     }
     val border = when {
-        isPrimary && isFocused -> DetailsAccentGoldFocus
+        isFocused -> FocusBorder
         isPrimary -> DetailsAccentGold
-        isHighlighted && isFocused -> DetailsAccentGoldFocus
         isHighlighted -> DetailsAccentGold
-        isFocused -> DetailsAccentBlue
         else -> DetailsBorderDefault
     }
     val textColor = when {
@@ -1018,7 +1002,7 @@ private fun StageButton(
                 scaleX = scale
                 scaleY = 1f
             }
-            .border(1.15.dp, border, RoundedCornerShape(if (isPrimary) 12.dp else 10.dp))
+            .border(if (isFocused) 2.dp else 1.dp, border, RoundedCornerShape(if (isPrimary) 12.dp else 10.dp))
             .onFocusChanged {
                 isFocused = it.isFocused
                 onFocusedChange(it.isFocused)

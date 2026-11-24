@@ -57,7 +57,8 @@ import com.kraat.lostfilmnewtv.ui.components.ShimmerSkeletonBox
 import com.kraat.lostfilmnewtv.ui.components.rememberShimmerSkeletonBrush
 import com.kraat.lostfilmnewtv.ui.theme.BackgroundPrimary
 import com.kraat.lostfilmnewtv.ui.theme.DetailsAccentGold
-import com.kraat.lostfilmnewtv.ui.theme.DetailsAccentGoldFocus
+import com.kraat.lostfilmnewtv.ui.theme.BadgeSurface
+import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
 import com.kraat.lostfilmnewtv.ui.theme.DetailsBackgroundMid
 import com.kraat.lostfilmnewtv.ui.theme.DetailsBackgroundTop
 import com.kraat.lostfilmnewtv.ui.theme.DetailsBorderDefault
@@ -290,7 +291,7 @@ private fun ColumnScope.ScheduleLoadingSkeleton() {
                                 .width(92.dp)
                                 .height(36.dp),
                             shape = EpisodeChipShape,
-                            baseColor = Color(0xFF3B277E),
+                            baseColor = BadgeSurface,
                         )
                         ShimmerSkeletonBox(
                             brush = brush,
@@ -430,8 +431,8 @@ private fun ScheduleItemRow(
                 scaleY = scale
             }
             .border(
-                width = if (isFocused) 1.5.dp else 1.dp,
-                color = if (isFocused) DetailsAccentGoldFocus else HomePanelBorder,
+                width = if (isFocused) 2.dp else 1.dp,
+                color = if (isFocused) FocusBorder else HomePanelBorder,
                 shape = ScheduleRowShape,
             )
             .onFocusChanged { isFocused = it.isFocused },
@@ -474,7 +475,7 @@ private fun ScheduleItemRow(
                 modifier = Modifier
                     .width(92.dp)
                     .height(36.dp)
-                    .background(Color(0xFF3B277E), EpisodeChipShape)
+                    .background(BadgeSurface, EpisodeChipShape)
                     .padding(horizontal = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
