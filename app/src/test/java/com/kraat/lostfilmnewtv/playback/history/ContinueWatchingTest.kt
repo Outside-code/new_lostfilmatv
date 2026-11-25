@@ -47,6 +47,15 @@ class ContinueWatchingTest {
         assertNull(listOf(finished).latestUnfinishedSeriesEpisode())
     }
 
+    @Test
+    fun resumeLabelShowsTheEpisodeAndElapsedPlaybackTime() {
+        val entry = history(episode(2, 4).detailsUrl + "/?from=history")
+        assertEquals("S02E04 · 18:42", entry.copy(positionMs = 1_122_500).episodeAndPositionLabel())
+        assertEquals("S02E04 · 1:01:02", entry.copy(positionMs = 3_662_000).episodeAndPositionLabel())
+        assertEquals("S02E04 · 0:00", entry.episodeAndPositionLabel())
+        assertNull(history("https://example.org/movies/a-film").episodeAndPositionLabel())
+    }
+
     private fun episode(season: Int, number: Int) = SeriesGuideEpisode(
         detailsUrl = "https://example.org/series/a-series/season_${season}/episode_$number",
         episodeId = null,

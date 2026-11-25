@@ -75,6 +75,7 @@ fun HomeRail(
     modifier: Modifier = Modifier,
     pageWarmupDistance: Int = 0,
     nextPage: Int? = null,
+    seriesWithNewEpisodes: Set<String> = emptySet(),
 ) {
     val itemKeys = remember(items) { items.map { it.detailsUrl } }
     val targetKey = if (focusedItemKey in itemKeys) {
@@ -175,6 +176,7 @@ fun HomeRail(
                     item = item,
                     onClick = { onOpenDetails(item.detailsUrl) },
                     isFocused = focusedCardKey == item.detailsUrl,
+                    hasNewEpisode = seriesWithNewEpisodes.isNotEmpty() && item.detailsUrl.seriesSlug() in seriesWithNewEpisodes,
                     modifier = Modifier
                         .focusRequester(cardFocusRequesters.getValue(itemKey))
                         .focusProperties {

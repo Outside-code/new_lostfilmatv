@@ -9,6 +9,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -46,11 +47,16 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kraat.lostfilmnewtv.R
+import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryEntry
+import com.kraat.lostfilmnewtv.playback.history.episodeAndPositionLabel
 import com.kraat.lostfilmnewtv.ui.theme.HomeAccentGold
 import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomeTextSecondary
@@ -59,7 +65,12 @@ import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 
 private val ExpandedMenuWidth = 168.dp
 private val CollapsedMenuWidth = 56.dp
+private val MenuLogoHeight = 44.dp
+private val MenuLogoSpacing = 9.dp
+private val MenuItemSpacing = 4.dp
 private val MenuButtonHeight = 36.dp
+private val ContinueButtonHeight = 66.dp
+private val ContinueSubtitleStyle = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
 private val MenuButtonShape = RoundedCornerShape(10.dp)
 
 private fun Modifier.homeMenuItemAppearance(selected: Boolean, focused: Boolean): Modifier =
@@ -95,6 +106,7 @@ fun HomeHeader(
     isVisualFocusEnabled: Boolean = true,
     modifier: Modifier = Modifier,
     onContinueWatching: (() -> Unit)? = null,
+    continueWatchingEntry: PlaybackHistoryEntry? = null,
     isContinuingWatching: Boolean = false,
 ) {
     val visibleModes = remember(availableModes) {
@@ -124,19 +136,29 @@ fun HomeHeader(
         isUpdateDownloading -> "Загрузка"
         else -> "Можно обновить"
     }
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxHeight()
             .then(if (showLabels) Modifier.width(ExpandedMenuWidth) else Modifier.width(CollapsedMenuWidth))
             .padding(vertical = 8.dp),
     ) {
+        val regularButtonCount = visibleModes.size + 4 + if (hasUpdate) 1 else 0
+        val modeGaps = (visibleModes.size - 1).coerceAtLeast(0)
+        val menuGaps = 8 + if (hasUpdate) 1 else 0
+        val requiredHeight = MenuLogoHeight + MenuLogoSpacing + ContinueButtonHeight +
+            MenuButtonHeight * regularButtonCount + MenuItemSpacing * (modeGaps + menuGaps)
+        val buttonHeight = if (showLabels && onContinueWatching != null && requiredHeight > maxHeight) {
+            ((maxHeight - requiredHeight) / regularButtonCount.toFloat() + MenuButtonHeight).coerceAtLeast(30.dp)
+        } else {
+            MenuButtonHeight
+        }
         Column(
             modifier = Modifier.fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(MenuItemSpacing),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             HomeMenuLogo(showLabels = showLabels)
-            Spacer(modifier = Modifier.height(9.dp))
+            Spacer(modifier = Modifier.height(MenuLogoSpacing))
             if (hasModeToggle) {
                 HomeHeaderModeSegmentedControl(
                     currentMode = selectedMode,
@@ -155,6 +177,7 @@ fun HomeHeader(
                     onInteraction = onHeaderInteraction,
                     onBackClick = onBackToContent,
                     showLabels = showLabels,
+                    buttonHeight = buttonHeight,
                     isVisualFocusEnabled = isVisualFocusEnabled,
                     modifier = Modifier.testTag("home-mode-control"),
                 )
@@ -166,6 +189,7 @@ fun HomeHeader(
                 label = "Расписание",
                 subtitle = "Календарь",
                 leadingIcon = HeaderActionIcon.Calendar,
+                menuButtonHeight = buttonHeight,
                 onClick = {
                     onNavItemSelected(NavItem.SCHEDULE)
                     onScheduleClick()
@@ -193,6 +217,7 @@ fun HomeHeader(
                 label = "Поиск",
                 subtitle = "Сериал или фильм",
                 leadingIcon = HeaderActionIcon.Search,
+                menuButtonHeight = buttonHeight,
                 onClick = {
                     onNavItemSelected(NavItem.SEARCH)
                     onSearchClick()
@@ -220,6 +245,7 @@ fun HomeHeader(
                 label = "История",
                 subtitle = "Недавние просмотры",
                 leadingIcon = HeaderActionIcon.History,
+                menuButtonHeight = buttonHeight,
                 onClick = {
                     onNavItemSelected(NavItem.HISTORY)
                     onHistoryClick()
@@ -245,7 +271,8 @@ fun HomeHeader(
             if (onContinueWatching != null) {
                 HomeHeaderActionButton(
                     label = if (isContinuingWatching) "Загружаем серию…" else "Продолжить просмотр",
-                    subtitle = "",
+                    subtitle = continueWatchingEntry?.title.orEmpty(),
+                    episodePosition = continueWatchingEntry?.episodeAndPositionLabel(),
                     leadingIcon = HeaderActionIcon.Play,
                     onClick = onContinueWatching,
                     onInteraction = onHeaderInteraction,
@@ -273,6 +300,7 @@ fun HomeHeader(
                     subtitle = updateVersionText.orEmpty(),
                     statusLabel = updateStatusLabel,
                     leadingIcon = HeaderActionIcon.Refresh,
+                    menuButtonHeight = buttonHeight,
                     onClick = {
                         onNavItemSelected(NavItem.UPDATE)
                         onUpdateClick()
@@ -302,6 +330,7 @@ fun HomeHeader(
                 label = "Настройки",
                 subtitle = "Приложение",
                 leadingIcon = HeaderActionIcon.Settings,
+                menuButtonHeight = buttonHeight,
                 onClick = {
                     onNavItemSelected(NavItem.SETTINGS)
                     onSettingsClick()
@@ -335,7 +364,7 @@ private fun HomeMenuLogo(showLabels: Boolean) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(MenuLogoHeight)
             .padding(horizontal = if (showLabels) 12.dp else 0.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -345,7 +374,7 @@ private fun HomeMenuLogo(showLabels: Boolean) {
             ),
             contentDescription = "Логотип LostFilm",
             contentScale = if (showLabels) ContentScale.Crop else ContentScale.Fit,
-            modifier = if (showLabels) Modifier.fillMaxWidth().height(44.dp).clipToBounds()
+            modifier = if (showLabels) Modifier.fillMaxWidth().height(MenuLogoHeight).clipToBounds()
                 else Modifier.size(34.dp),
         )
     }
@@ -365,6 +394,7 @@ private fun HomeHeaderModeSegmentedControl(
     onInteraction: () -> Unit,
     onBackClick: () -> Boolean,
     showLabels: Boolean,
+    buttonHeight: Dp,
     isVisualFocusEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
@@ -373,7 +403,7 @@ private fun HomeHeaderModeSegmentedControl(
     Column(
         modifier = modifier
             .then(if (showLabels) Modifier.fillMaxWidth() else Modifier.width(46.dp)),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(MenuItemSpacing),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         availableModes.forEachIndexed { index, mode ->
@@ -398,6 +428,7 @@ private fun HomeHeaderModeSegmentedControl(
                 onInteraction = onInteraction,
                 onBackClick = onBackClick,
                 showLabel = showLabels,
+                buttonHeight = buttonHeight,
                 isVisualFocusEnabled = isVisualFocusEnabled,
                 modifier = if (showLabels) Modifier.fillMaxWidth() else Modifier.width(CollapsedMenuWidth - 20.dp),
             )
@@ -420,6 +451,7 @@ private fun HomeModeSegmentButton(
     onInteraction: () -> Unit,
     onBackClick: () -> Boolean,
     showLabel: Boolean,
+    buttonHeight: Dp,
     isVisualFocusEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
@@ -429,7 +461,7 @@ private fun HomeModeSegmentButton(
     val contentColor = if (active) TextPrimary else HomeTextSecondary
     Box(
         modifier = modifier
-            .height(MenuButtonHeight)
+            .height(buttonHeight)
             .testTag(if (selected) "home-mode-toggle" else "home-mode-${mode.storageValue}")
             .focusRequester(focusRequester)
             .focusProperties {
@@ -517,11 +549,18 @@ private fun HomeHeaderActionButton(
     showLabel: Boolean = true,
     isVisualFocusEnabled: Boolean = true,
     wrapLabel: Boolean = false,
+    episodePosition: String? = null,
+    menuButtonHeight: Dp = MenuButtonHeight,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val showFocusedStyle = isFocused && isVisualFocusEnabled
     val textColor = if (isPrimary || showFocusedStyle) TextPrimary else HomeTextSecondary
     val subtitleColor = if (isPrimary || showFocusedStyle) HomeAccentGold else HomeTextSecondary
+    val buttonHeight = when {
+        showLabel && episodePosition != null -> ContinueButtonHeight
+        compact -> 38.dp
+        else -> menuButtonHeight
+    }
 
     Box(
         modifier = modifier
@@ -548,7 +587,7 @@ private fun HomeHeaderActionButton(
                     Modifier
                 },
             )
-            .height(if (compact) 38.dp else MenuButtonHeight)
+            .height(buttonHeight)
             .widthIn(min = minWidth)
             .homeMenuItemAppearance(isPrimary, showFocusedStyle)
             .onFocusChanged {
@@ -576,15 +615,39 @@ private fun HomeHeaderActionButton(
                 HeaderVectorIcon(icon = icon, color = textColor)
             }
             if (showLabel) {
-                Text(
-                    text = label,
-                    color = textColor,
-                    fontSize = if (compact || wrapLabel) 14.sp else 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = if (wrapLabel) 2 else 1,
-                    lineHeight = if (wrapLabel) 14.sp else androidx.compose.ui.unit.TextUnit.Unspecified,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Column {
+                    Text(
+                        text = label,
+                        color = textColor,
+                        fontSize = if (compact || wrapLabel) 14.sp else 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = if (wrapLabel) 2 else 1,
+                        lineHeight = if (wrapLabel) 14.sp else androidx.compose.ui.unit.TextUnit.Unspecified,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (episodePosition != null) {
+                        Text(
+                            text = subtitle,
+                            color = subtitleColor,
+                            modifier = Modifier.height(14.dp),
+                            style = ContinueSubtitleStyle,
+                            fontSize = 11.sp,
+                            lineHeight = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = episodePosition,
+                            color = subtitleColor,
+                            modifier = Modifier.height(14.dp),
+                            style = ContinueSubtitleStyle,
+                            fontSize = 11.sp,
+                            lineHeight = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
             if (showLabel) statusLabel?.let { status ->
                 Text(
@@ -599,7 +662,7 @@ private fun HomeHeaderActionButton(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (showLabel) {
+            if (showLabel && episodePosition == null) {
                 Text(
                     text = subtitle,
                     modifier = if (hideSubtitle) {

@@ -56,6 +56,9 @@ import com.kraat.lostfilmnewtv.ui.components.TvBackdrop
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
+import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryEntry
+import com.kraat.lostfilmnewtv.playback.history.latestUnfinishedSeriesEpisode
+import java.time.LocalDate
 import com.kraat.lostfilmnewtv.updates.SavedAppUpdate
 import com.kraat.lostfilmnewtv.ui.components.ShimmerSkeletonBox
 import com.kraat.lostfilmnewtv.ui.components.rememberShimmerSkeletonBrush
@@ -102,6 +105,7 @@ fun HomeScreen(
     updateDownloadProgress: Int? = null,
     onContinueWatching: (() -> Unit)? = null,
     isContinuingWatching: Boolean = false,
+    playbackHistory: List<PlaybackHistoryEntry> = emptyList(),
 ) {
     val focusState by if (focusStateFlow != null) {
         focusStateFlow.collectAsStateWithLifecycle()
@@ -111,6 +115,16 @@ fun HomeScreen(
     val resolvedExternalSelectedItemKey = focusState.selectedItemKey
 
     val lifecycleOwner = LocalLifecycleOwner.current
+    val resumeEpisode = remember(playbackHistory) { playbackHistory.latestUnfinishedSeriesEpisode() }
+    val seriesWithNewEpisodes = if (state.selectedMode == HomeFeedMode.FavoriteSeries) {
+        val today = LocalDate.now()
+        remember(state.items, playbackHistory, today) {
+            val completed = playbackHistory.filter { it.completed }.mapTo(mutableSetOf()) { it.key }
+            state.items.seriesWithNewEpisodes(today, completed)
+        }
+    } else {
+        emptySet()
+    }
     val activeModeData = state.modeData(state.selectedMode)
     val activeModeState = activeModeData.contentState
     val isAllNewMode by remember(state.selectedMode) {
@@ -314,7 +328,8 @@ fun HomeScreen(
                 onSearchClick = onSearchClick,
                 onScheduleClick = onScheduleClick,
                 onHistoryClick = onHistoryClick,
-                onContinueWatching = onContinueWatching,
+                onContinueWatching = onContinueWatching?.takeIf { resumeEpisode != null },
+                continueWatchingEntry = resumeEpisode,
                 isContinuingWatching = isContinuingWatching,
                 onSettingsClick = onSettingsClick,
                 onUpdateClick = if (savedAppUpdate != null) onUpdateClick else onRetry,
@@ -389,6 +404,7 @@ fun HomeScreen(
                                 HomeRail(
                                     railId = activeRailId,
                                     items = activeModeState.items,
+                                    seriesWithNewEpisodes = seriesWithNewEpisodes,
                                     modifier = Modifier
                                         .fillMaxWidth(),
                                     focusedItemKey = focusedItemKey,

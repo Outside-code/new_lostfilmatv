@@ -21,7 +21,6 @@ import dagger.hilt.android.EntryPointAccessors
 import com.kraat.lostfilmnewtv.di.AppGraphEntryPoint
 import com.kraat.lostfilmnewtv.platform.torrserve.TorrServeOpenResult
 import com.kraat.lostfilmnewtv.playback.history.ContinueWatchingResult
-import com.kraat.lostfilmnewtv.playback.history.latestUnfinishedSeriesEpisode
 import com.kraat.lostfilmnewtv.playback.history.toPlaybackHistoryEntry
 import com.kraat.lostfilmnewtv.playback.season.SeasonPlayerActivity
 import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
@@ -224,7 +223,8 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 onSearchClick = { navController.navigate(AppDestination.Search.route) },
                 onScheduleClick = { navController.navigate(AppDestination.Schedule.route) },
                 onHistoryClick = { navController.navigate(AppDestination.PlaybackHistory.route) },
-                onContinueWatching = continueWatching.takeIf { playbackHistory.latestUnfinishedSeriesEpisode() != null },
+                onContinueWatching = continueWatching,
+                playbackHistory = playbackHistory,
                 isContinuingWatching = isContinuingWatching,
                 onSettingsClick = { navController.navigate(AppDestination.Settings.createRoute()) },
                 onUpdateClick = {

@@ -13,6 +13,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -27,6 +28,9 @@ import androidx.compose.ui.unit.dp
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
+import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryEntry
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import com.kraat.lostfilmnewtv.updates.SavedAppUpdate
 import com.kraat.lostfilmnewtv.ui.theme.LostFilmTheme
 import org.junit.Assert.assertEquals
@@ -123,6 +127,68 @@ class HomeScreenTest {
         composeRule.onNodeWithTag("home-action-settings").assertIsFocused()
         composeRule.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
         composeRule.onNodeWithTag("home-action-history").assertIsFocused()
+    }
+
+    @Test
+    @Config(qualifiers = "w960dp-h540dp-land")
+    fun continueButtonShowsSeriesAndPositionAndOneRemotePressStartsPlayback() {
+        val entry = PlaybackHistoryEntry(
+            detailsUrl = "https://www.lostfilm.today/series/Dexter/season_2/episode_4/",
+            title = "Декстер",
+            startedAt = 1,
+            positionMs = 1_122_000,
+        )
+        var clicks = 0
+        composeRule.setContent {
+            LostFilmTheme {
+                HomeScreen(
+                    state = seededState().copy(availableModes = HomeFeedMode.entries),
+                    savedAppUpdate = SavedAppUpdate("1.3.11", "https://example.test/app.apk"),
+                    selectedNavItem = NavItem.HISTORY,
+                    onContinueWatching = { clicks++ },
+                    playbackHistory = listOf(entry),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Декстер", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithText("S02E04 · 18:42", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("home-action-history").assertIsFocused()
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        composeRule.onNodeWithTag("home-action-continue").assertIsFocused()
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
+        composeRule.runOnIdle { assertEquals(1, clicks) }
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        composeRule.onNodeWithTag("home-action-update").assertIsFocused()
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        composeRule.onNodeWithTag("home-action-settings").assertIsDisplayed().assertIsFocused()
+    }
+
+    @Test
+    @Config(qualifiers = "w960dp-h540dp-land")
+    fun favoriteCardUpdatesItsNewEpisodeBadgeWhenPlaybackCompletes() {
+        val episode = seededState().items.first().copy(
+            releaseDateRu = LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.uuuu")),
+        )
+        val favorite = episode.copy(
+            detailsUrl = episode.detailsUrl.substringBefore("/season_").replace(".today", ".tv"),
+            seasonNumber = null,
+            episodeNumber = null,
+        )
+        val state = homeStateWithModes(
+            selectedMode = HomeFeedMode.FavoriteSeries,
+            allNewItems = listOf(episode),
+            favoriteItems = listOf(favorite),
+        )
+        var history by mutableStateOf<List<PlaybackHistoryEntry>>(emptyList())
+        composeRule.setContent { LostFilmTheme { HomeScreen(state = state, playbackHistory = history) } }
+        composeRule.onNodeWithText("Новая серия", useUnmergedTree = true).assertExists()
+
+        composeRule.runOnIdle {
+            history = listOf(PlaybackHistoryEntry(episode.detailsUrl, episode.titleRu, startedAt = 1, completed = true))
+        }
+        composeRule.onNodeWithText("Новая серия", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithTag(posterTag(HOME_RAIL_FAVORITE_SERIES, favorite.detailsUrl)).assertExists()
     }
 
     @Test

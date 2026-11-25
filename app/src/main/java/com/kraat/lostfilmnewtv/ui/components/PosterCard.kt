@@ -54,6 +54,7 @@ fun PosterCard(
     onClick: () -> Unit,
     isFocused: Boolean = false,
     modifier: Modifier = Modifier,
+    hasNewEpisode: Boolean = false,
 ) {
     val shape = RoundedCornerShape(12.dp)
     val overlayColor = if (isFocused) FocusBackground.copy(alpha = 0.82f) else HomePanelSurface.copy(alpha = 0.62f)
@@ -137,7 +138,8 @@ fun PosterCard(
                 }
             }
 
-            item.availabilityLabel?.takeIf { it.isNotBlank() }?.let { label ->
+            val badgeLabel = if (hasNewEpisode) "Новая серия" else item.availabilityLabel
+            badgeLabel?.takeIf { it.isNotBlank() }?.let { label ->
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)

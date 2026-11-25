@@ -37,7 +37,6 @@ import kotlinx.coroutines.withContext
 
 private const val FOCUS_KEY = "home.focused_item_key"
 private const val HOME_RESUME_REFRESH_INTERVAL_MS = 30 * 60 * 1000L
-private val favoriteSeriesSlugRegex = Regex("""/series/([^/]+)""")
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -880,10 +879,10 @@ private fun applyOptimisticFavoriteChange(
     detailsUrl: String,
     isFavorite: Boolean,
 ): List<ReleaseSummary> {
-    val favoriteSeriesSlug = favoriteSeriesSlug(detailsUrl) ?: return currentFavoriteItems
-    val favoriteItemsWithoutSeries = currentFavoriteItems.filterNot { favoriteSeriesSlug(it.detailsUrl) == favoriteSeriesSlug }
+    val favoriteSeriesSlug = detailsUrl.seriesSlug() ?: return currentFavoriteItems
+    val favoriteItemsWithoutSeries = currentFavoriteItems.filterNot { it.detailsUrl.seriesSlug() == favoriteSeriesSlug }
     if (!isFavorite) return favoriteItemsWithoutSeries
-    val matchingAllNewItem = allNewItems.firstOrNull { favoriteSeriesSlug(it.detailsUrl) == favoriteSeriesSlug }
+    val matchingAllNewItem = allNewItems.firstOrNull { it.detailsUrl.seriesSlug() == favoriteSeriesSlug }
         ?: return currentFavoriteItems
     val matchingAllNewIndex = allNewItems.indexOfFirst { it.detailsUrl == matchingAllNewItem.detailsUrl }
     val insertIndex = favoriteItemsWithoutSeries.indexOfFirst { existing ->
@@ -1036,9 +1035,6 @@ private fun preferredDetailsUrl(itemKey: String?): String? {
     if (itemKey.isNullOrBlank()) return null
     return if (itemKey.contains("::")) itemKey.substringAfter("::", "") else itemKey
 }
-
-private fun favoriteSeriesSlug(detailsUrl: String): String? =
-    favoriteSeriesSlugRegex.find(detailsUrl)?.groupValues?.getOrNull(1)
 
 private fun Map<HomeFeedMode, String>.withDefaultRememberedKeys(
     state: HomeUiState,

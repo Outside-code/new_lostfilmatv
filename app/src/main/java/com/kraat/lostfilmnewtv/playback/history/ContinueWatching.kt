@@ -11,6 +11,18 @@ private val episodePath = Regex("""/series/[^/]+/season_(\d+)/episode_(\d+)""")
 internal fun List<PlaybackHistoryEntry>.latestUnfinishedSeriesEpisode(): PlaybackHistoryEntry? =
     firstOrNull { !it.completed && episodePath.matches(it.key) }
 
+internal fun PlaybackHistoryEntry.episodeAndPositionLabel(): String? {
+    val match = episodePath.matchEntire(key) ?: return null
+    val season = match.groupValues[1].padStart(2, '0')
+    val episode = match.groupValues[2].padStart(2, '0')
+    val totalSeconds = positionMs.coerceAtLeast(0) / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds / 60) % 60
+    val seconds = (totalSeconds % 60).toString().padStart(2, '0')
+    val position = if (hours > 0) "$hours:${minutes.toString().padStart(2, '0')}:$seconds" else "$minutes:$seconds"
+    return "S${season}E$episode · $position"
+}
+
 internal fun SeriesGuide.nextUnwatchedEpisode(
     previousDetailsUrl: String,
     history: List<PlaybackHistoryEntry>,
