@@ -4,17 +4,18 @@ import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
 import com.kraat.lostfilmnewtv.data.model.SeriesGuide
 import com.kraat.lostfilmnewtv.data.model.SeriesGuideEpisode
 import com.kraat.lostfilmnewtv.playback.season.playbackEpisodes
+import com.kraat.lostfilmnewtv.ui.details.DetailsTorrentRowUiModel
 
 private val episodePath = Regex("""/series/[^/]+/season_(\d+)/episode_(\d+)""")
 
-internal fun List<PlaybackHistoryEntry>.latestSeriesEpisode(): PlaybackHistoryEntry? =
-    firstOrNull { episodePath.matches(it.key) }
+internal fun List<PlaybackHistoryEntry>.latestUnfinishedSeriesEpisode(): PlaybackHistoryEntry? =
+    firstOrNull { !it.completed && episodePath.matches(it.key) }
 
 internal fun SeriesGuide.nextUnwatchedEpisode(
-    anchor: PlaybackHistoryEntry,
+    previousDetailsUrl: String,
     history: List<PlaybackHistoryEntry>,
 ): SeriesGuideEpisode? {
-    val match = episodePath.matchEntire(anchor.key) ?: return null
+    val match = episodePath.matchEntire(previousDetailsUrl.releaseKey()) ?: return null
     val seasonNumber = match.groupValues[1].toIntOrNull() ?: return null
     val episodeNumber = match.groupValues[2].toIntOrNull() ?: return null
     val completedKeys = history.filter { it.completed }.mapTo(mutableSetOf()) { it.key }
@@ -42,6 +43,10 @@ internal fun ReleaseDetails.toPlaybackHistoryEntry(startedAt: Long): PlaybackHis
 }
 
 internal sealed interface ContinueWatchingResult {
-    data class Ready(val details: ReleaseDetails, val torrentUrl: String) : ContinueWatchingResult
+    data class Ready(
+        val details: ReleaseDetails,
+        val torrent: DetailsTorrentRowUiModel,
+        val positionMs: Long,
+    ) : ContinueWatchingResult
     data class Unavailable(val message: String) : ContinueWatchingResult
 }

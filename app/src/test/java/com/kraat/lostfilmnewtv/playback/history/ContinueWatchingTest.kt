@@ -24,16 +24,27 @@ class ContinueWatchingTest {
             )),
         )
 
-        assertEquals(anchor, history.latestSeriesEpisode())
-        assertEquals(next, guide.nextUnwatchedEpisode(anchor, history))
+        assertEquals(anchor, history.latestUnfinishedSeriesEpisode())
+        assertEquals(next, guide.nextUnwatchedEpisode(anchor.detailsUrl, history))
     }
 
     @Test
     fun doesNotReturnEarlierEpisodesAfterFinishingASeries() {
         val anchor = history(episode(1, 2).detailsUrl)
         val guide = guide(SeriesGuideSeason(1, listOf(episode(1, 1), episode(1, 2))))
-        assertNull(guide.nextUnwatchedEpisode(anchor, listOf(anchor)))
-        assertNull(listOf(history("https://example.org/movies/a-film")).latestSeriesEpisode())
+        assertNull(guide.nextUnwatchedEpisode(anchor.detailsUrl, listOf(anchor)))
+        assertNull(listOf(history("https://example.org/movies/a-film")).latestUnfinishedSeriesEpisode())
+    }
+
+    @Test
+    fun continueSelectsTheInterruptedEpisodeWithItsSavedPosition() {
+        val interrupted = history(episode(1, 3).detailsUrl).copy(positionMs = 120_000)
+        val finished = history(episode(2, 1).detailsUrl, completed = true)
+        val history = listOf(finished, interrupted)
+
+        assertEquals(interrupted, history.latestUnfinishedSeriesEpisode())
+        assertEquals(120_000L, history.latestUnfinishedSeriesEpisode()?.positionMs)
+        assertNull(listOf(finished).latestUnfinishedSeriesEpisode())
     }
 
     private fun episode(season: Int, number: Int) = SeriesGuideEpisode(

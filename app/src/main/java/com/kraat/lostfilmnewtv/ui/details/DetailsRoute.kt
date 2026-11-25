@@ -14,6 +14,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kraat.lostfilmnewtv.playback.PlaybackQualityPreference
+import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
+import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryEntry
 import com.kraat.lostfilmnewtv.playback.history.toPlaybackHistoryEntry
 import com.kraat.lostfilmnewtv.playback.WatchedMarkingMode
@@ -43,6 +45,7 @@ fun DetailsRoute(
     onChannelContentChanged: suspend () -> Unit = {},
     openTorrServe: suspend (Context, String, String, String) -> TorrServeOpenResult = actionHandler::open,
     onPlaybackLaunched: (PlaybackHistoryEntry) -> Unit = {},
+    openEpisodePlayer: suspend (ReleaseDetails, DetailsTorrentRowUiModel) -> Boolean = { _, _ -> false },
 ) {
     // hiltViewModel() создаёт ViewModel через Hilt — SavedStateHandle заполняется
     // из nav-аргументов (detailsUrl и isAuthenticated передаются через route)
@@ -118,6 +121,12 @@ fun DetailsRoute(
         inFlightJob?.cancel()
         inFlightJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
+                val torrent = supportedTorrentRows.firstOrNull { it.rowId == rowId }
+                if (currentDetails?.kind == ReleaseKind.SERIES && currentDetails.episodeNumber != null &&
+                    torrent != null && openEpisodePlayer(currentDetails, torrent)
+                ) {
+                    return@launch
+                }
                 val message = when (openTorrServe(context, url, currentDetails?.titleRu.orEmpty(), currentDetails?.posterUrl.orEmpty())) {
                     TorrServeOpenResult.Success -> {
                         if (currentDetails != null) {

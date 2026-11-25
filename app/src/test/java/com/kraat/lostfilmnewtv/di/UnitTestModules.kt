@@ -86,6 +86,12 @@ object UnitTestNetworkModule {
     fun provideOkHttpClient(): OkHttpClient = OkHttpClient()
 
     @Provides
+    fun provideTorrentDownloader(): com.kraat.lostfilmnewtv.platform.torrserve.TorrServeTorrentDownloader =
+        com.kraat.lostfilmnewtv.platform.torrserve.TorrServeTorrentDownloader(
+            OkHttpClient.Builder().addInterceptor { throw java.io.IOException("No torrent server in unit tests") }.build(),
+        )
+
+    @Provides
     @Singleton
     fun provideTmdbPosterResolver(): TmdbPosterResolver = object : TmdbPosterResolver {
         override suspend fun resolve(

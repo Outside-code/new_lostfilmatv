@@ -56,6 +56,7 @@ class TestFakeRepository : LostFilmRepository, FavoritesRepository {
     var pageState: PageState = PageState.Content(pageNumber = 1, items = emptyList(), hasNextPage = false, isStale = false)
     var detailsResult: DetailsResult = DetailsResult.Error("detailsUrl", "Not configured")
     var seriesGuideResult: SeriesGuideResult = SeriesGuideResult.Error("Not configured")
+    @Volatile var lastSeriesGuideRequest: String? = null
     var searchResult: SearchResultsResult = SearchResultsResult.Success(query = "", items = emptyList())
     var setEpisodeWatchedResult: Boolean? = false
     var setFavoriteResult: FavoriteMutationResult = FavoriteMutationResult.RequiresLogin()
@@ -66,7 +67,10 @@ class TestFakeRepository : LostFilmRepository, FavoritesRepository {
 
     override suspend fun loadPage(pageNumber: Int): PageState = pageState
     override suspend fun loadDetails(detailsUrl: String): DetailsResult = detailsResult
-    override suspend fun loadSeriesGuide(detailsUrl: String): SeriesGuideResult = seriesGuideResult
+    override suspend fun loadSeriesGuide(detailsUrl: String): SeriesGuideResult {
+        lastSeriesGuideRequest = detailsUrl
+        return seriesGuideResult
+    }
     override suspend fun search(query: String): SearchResultsResult = when (val result = searchResult) {
         is SearchResultsResult.Success -> result.copy(query = query)
         is SearchResultsResult.Error -> result.copy(query = query)

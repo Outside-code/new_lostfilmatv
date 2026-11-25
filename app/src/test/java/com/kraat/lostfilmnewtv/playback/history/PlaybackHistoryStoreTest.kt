@@ -42,4 +42,23 @@ class PlaybackHistoryStoreTest {
         assertEquals(listOf(revisit.copy(completed = true), movie), restored)
         assertTrue(restored.first().completed)
     }
+
+    @Test
+    fun savesAnInterruptedPositionAndClearsItWhenEpisodeEnds() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val url = "https://www.lostfilm.today/series/example/season_1/episode_2/"
+        val initialStore = PlaybackHistoryStore(context)
+        initialStore.recordLaunch(PlaybackHistoryEntry(url, "Сериал", startedAt = 1L))
+        initialStore.savePosition(url, 120_000L)
+
+        val reopenedStore = PlaybackHistoryStore(context)
+        assertEquals(120_000L, reopenedStore.entries.value.first().positionMs)
+        reopenedStore.markCompleted(url)
+        reopenedStore.savePosition(url, 130_000L)
+
+        val completed = PlaybackHistoryStore(context).entries.value.first()
+        assertTrue(completed.completed)
+        assertEquals(0L, completed.positionMs)
+    }
+
 }

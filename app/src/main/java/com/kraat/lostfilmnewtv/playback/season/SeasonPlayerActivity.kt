@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.view.WindowCompat
@@ -30,7 +31,9 @@ import com.kraat.lostfilmnewtv.ui.theme.BackgroundPrimary
 import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -39,6 +42,7 @@ class SeasonPlayerActivity : ComponentActivity() {
     @Inject lateinit var repository: LostFilmRepository
     @Inject lateinit var preferences: PlaybackPreferencesStore
     @Inject lateinit var history: PlaybackHistoryStore
+    @Inject lateinit var playback: SeasonPlaybackCoordinator
     private lateinit var view: PlayerView
     private lateinit var caption: TextView
     private var player: ExoPlayer? = null
@@ -48,6 +52,8 @@ class SeasonPlayerActivity : ComponentActivity() {
     private var resolution = ""
     private val completed = mutableSetOf<Int>()
     private var lastPlayingIndex: Int? = null
+    private var autoAdvanceJob: Job? = null
+    private val autoAdvance by lazy { intent.getBooleanExtra("autoAdvance", false) }
     private val urls by lazy { intent.getStringArrayListExtra("urls").orEmpty() }
     private val titles by lazy { intent.getStringArrayListExtra("titles").orEmpty() }
     private val episodeLabels by lazy { intent.getStringArrayListExtra("episodeLabels").orEmpty() }
@@ -59,7 +65,7 @@ class SeasonPlayerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         if (urls.isEmpty()) { finish(); return }
         index = savedInstanceState?.getInt("index") ?: 0
-        position = savedInstanceState?.getLong("position") ?: 0L
+        position = savedInstanceState?.getLong("position") ?: intent.getLongExtra("startPositionMs", 0L)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         WindowInsetsControllerCompat(window, window.decorView).apply {
@@ -106,7 +112,22 @@ class SeasonPlayerActivity : ComponentActivity() {
                 updateCaption()
             }
             override fun onEvents(player: Player, events: Player.Events) {
-                if (player.isPlaying) recordPlayingEpisode(player.currentMediaItemIndex)
+                if (player.isPlaying) recordPlayingEpisode(player.currentMediaItemIndex, player.currentPosition)
+            }
+
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int,
+            ) {
+                if (oldPosition.mediaItemIndex != newPosition.mediaItemIndex &&
+                    reason != Player.DISCONTINUITY_REASON_AUTO_TRANSITION &&
+                    lastPlayingIndex == oldPosition.mediaItemIndex
+                ) {
+                    detailsUrls.getOrNull(oldPosition.mediaItemIndex)?.let { url ->
+                        history.savePosition(url, oldPosition.positionMs)
+                    }
+                }
             }
 
             override fun onVideoSizeChanged(videoSize: VideoSize) {
@@ -114,7 +135,9 @@ class SeasonPlayerActivity : ComponentActivity() {
                 updateCaption()
             }
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) markCompleted(current.currentMediaItemIndex)
+                if (playbackState != Player.STATE_ENDED || lastPlayingIndex != current.currentMediaItemIndex) return
+                markCompleted(current.currentMediaItemIndex)
+                if (autoAdvance) playNextEpisode(current.currentMediaItemIndex)
             }
             override fun onPlayerError(error: PlaybackException) {
                 android.app.AlertDialog.Builder(this@SeasonPlayerActivity)
@@ -146,7 +169,7 @@ class SeasonPlayerActivity : ComponentActivity() {
         ).joinToString(" · ")
     }
 
-    private fun recordPlayingEpisode(index: Int) {
+    private fun recordPlayingEpisode(index: Int, positionMs: Long) {
         if (lastPlayingIndex == index) return
         val url = detailsUrls.getOrNull(index)?.takeIf { it.isNotBlank() } ?: return
         val title = seriesTitle.ifBlank { titles.getOrNull(index).orEmpty() }
@@ -157,6 +180,7 @@ class SeasonPlayerActivity : ComponentActivity() {
             subtitle = episodeLabels.getOrNull(index).orEmpty(),
             posterUrl = intent.getStringExtra("posterUrl").orEmpty(),
             startedAt = System.currentTimeMillis(),
+            positionMs = positionMs.coerceAtLeast(0L),
         ))
     }
 
@@ -168,6 +192,27 @@ class SeasonPlayerActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) { runCatching { repository.setEpisodeWatched(url, id, true) } }
     }
 
+    private fun playNextEpisode(index: Int) {
+        val url = detailsUrls.getOrNull(index) ?: return
+        if (autoAdvanceJob?.isActive == true) return
+        Toast.makeText(this, "Загружаем следующую серию…", Toast.LENGTH_SHORT).show()
+        autoAdvanceJob = lifecycleScope.launch {
+            try {
+                val next = playback.prepareNextEpisode(url, history.entries.value)
+                if (next == null) {
+                    Toast.makeText(this@SeasonPlayerActivity, "Следующей доступной серии пока нет", Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                startActivity(createIntent(this@SeasonPlayerActivity, next, autoAdvance = true))
+                finish()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                Toast.makeText(this@SeasonPlayerActivity, "Не удалось запустить следующую серию", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("index", player?.currentMediaItemIndex ?: index)
         outState.putLong("position", player?.currentPosition ?: position)
@@ -175,14 +220,30 @@ class SeasonPlayerActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        player?.let { index = it.currentMediaItemIndex; position = it.currentPosition; resumePlayback = it.playWhenReady; it.release() }
+        autoAdvanceJob?.cancel()
+        player?.let { current ->
+            index = current.currentMediaItemIndex
+            position = current.currentPosition
+            resumePlayback = current.playWhenReady
+            if (lastPlayingIndex == index && current.playbackState != Player.STATE_ENDED) {
+                detailsUrls.getOrNull(index)?.let { history.savePosition(it, position) }
+            }
+            current.release()
+        }
         player = null
         if (::view.isInitialized) view.player = null
         super.onStop()
     }
 
     companion object {
-        fun createIntent(context: Context, playlist: SeasonPlaylist): Intent = Intent(context, SeasonPlayerActivity::class.java).apply {
+        fun createIntent(
+            context: Context,
+            playlist: SeasonPlaylist,
+            startPositionMs: Long = 0L,
+            autoAdvance: Boolean = false,
+        ): Intent = Intent(context, SeasonPlayerActivity::class.java).apply {
+            putExtra("startPositionMs", startPositionMs.coerceAtLeast(0L))
+            putExtra("autoAdvance", autoAdvance)
             putStringArrayListExtra("urls", ArrayList(playlist.items.map { it.url }))
             putStringArrayListExtra("titles", ArrayList(playlist.items.map { it.title }))
             putStringArrayListExtra("episodeLabels", ArrayList(playlist.items.map { it.episodeLabel }))

@@ -26,6 +26,7 @@ class SeasonPlaylistTest {
         assertTrue(url.contains("/stream/Show.S01E01.1080p.mkv"))
         assertTrue(url.contains("index=2"))
         assertTrue(url.contains("play="))
+        assertEquals(url, torrentStreamUrl("http://127.0.0.1:8090", "[$response]"))
     }
     @Test(expected = IOException::class) fun missingVideoDoesNotProduceUnplayableLink() {
         torrentStreamUrl("http://127.0.0.1:8090", """{"hash":"1234567890123456789012345678901234567890","file_stats":[]}""")

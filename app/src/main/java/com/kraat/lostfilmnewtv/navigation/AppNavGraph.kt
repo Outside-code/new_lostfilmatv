@@ -21,8 +21,11 @@ import dagger.hilt.android.EntryPointAccessors
 import com.kraat.lostfilmnewtv.di.AppGraphEntryPoint
 import com.kraat.lostfilmnewtv.platform.torrserve.TorrServeOpenResult
 import com.kraat.lostfilmnewtv.playback.history.ContinueWatchingResult
-import com.kraat.lostfilmnewtv.playback.history.latestSeriesEpisode
+import com.kraat.lostfilmnewtv.playback.history.latestUnfinishedSeriesEpisode
 import com.kraat.lostfilmnewtv.playback.history.toPlaybackHistoryEntry
+import com.kraat.lostfilmnewtv.playback.season.SeasonPlayerActivity
+import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
+import com.kraat.lostfilmnewtv.ui.details.DetailsTorrentRowUiModel
 import com.kraat.lostfilmnewtv.ui.auth.AuthScreen
 import com.kraat.lostfilmnewtv.ui.auth.AuthUiState
 import com.kraat.lostfilmnewtv.ui.auth.AuthViewModel
@@ -55,6 +58,22 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
     val appContext = context.applicationContext
     val appGraphEntryPoint = remember(appContext) {
         EntryPointAccessors.fromApplication(appContext, AppGraphEntryPoint::class.java)
+    }
+
+    suspend fun openEpisodePlayer(
+        details: ReleaseDetails,
+        torrent: DetailsTorrentRowUiModel,
+        startPositionMs: Long = 0L,
+    ): Boolean {
+        return try {
+            val playlist = appGraphEntryPoint.seasonPlaybackCoordinator().prepareEpisode(details, torrent)
+            context.startActivity(SeasonPlayerActivity.createIntent(context, playlist, startPositionMs, autoAdvance = true))
+            true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            false
+        }
     }
 
     // AuthViewModel scoped to the NavHost — один экземпляр на весь граф
@@ -97,13 +116,17 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                             is ContinueWatchingResult.Unavailable -> next.message
                             is ContinueWatchingResult.Ready -> {
                                 val details = next.details
-                                when (appGraphEntryPoint.torrServeActionHandler().open(
-                                    context, next.torrentUrl, details.titleRu, details.posterUrl,
+                                if (openEpisodePlayer(details, next.torrent, next.positionMs)) {
+                                    null
+                                } else when (appGraphEntryPoint.torrServeActionHandler().open(
+                                    context, next.torrent.url, details.titleRu, details.posterUrl,
                                 )) {
                                     TorrServeOpenResult.Success -> {
-                                        historyStore.recordLaunch(details.toPlaybackHistoryEntry(System.currentTimeMillis()))
-                                        homeViewModel.onContinuedEpisodeLaunched(details)
-                                        null
+                                        historyStore.recordLaunch(
+                                            details.toPlaybackHistoryEntry(System.currentTimeMillis())
+                                                .copy(positionMs = next.positionMs),
+                                        )
+                                        "Открыто во внешнем плеере. Продолжение зависит от его истории."
                                     }
                                     TorrServeOpenResult.Unavailable -> "Не удалось подключиться к TorrServe"
                                     TorrServeOpenResult.LaunchError -> "Не удалось открыть TorrServe"
@@ -113,7 +136,7 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                     } catch (error: CancellationException) {
                         throw error
                     } catch (_: Exception) {
-                        "Не удалось запустить следующую серию"
+                        "Не удалось продолжить просмотр"
                     } finally {
                         isContinuingWatching = false
                     }
@@ -201,7 +224,7 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 onSearchClick = { navController.navigate(AppDestination.Search.route) },
                 onScheduleClick = { navController.navigate(AppDestination.Schedule.route) },
                 onHistoryClick = { navController.navigate(AppDestination.PlaybackHistory.route) },
-                onContinueWatching = continueWatching.takeIf { playbackHistory.latestSeriesEpisode() != null },
+                onContinueWatching = continueWatching.takeIf { playbackHistory.latestUnfinishedSeriesEpisode() != null },
                 isContinuingWatching = isContinuingWatching,
                 onSettingsClick = { navController.navigate(AppDestination.Settings.createRoute()) },
                 onUpdateClick = {
@@ -255,6 +278,7 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 actionHandler = appGraphEntryPoint.torrServeActionHandler(),
                 linkBuilder = appGraphEntryPoint.torrServeLinkBuilder(),
                 onPlaybackLaunched = appGraphEntryPoint.playbackHistoryStore()::recordLaunch,
+                openEpisodePlayer = { details, torrent -> openEpisodePlayer(details, torrent) },
                 onWatchedStateChanged = { url, isWatched ->
                     navController.previousBackStackEntry?.savedStateHandle?.set(HOME_WATCHED_DETAILS_URL_KEY, url)
                     navController.previousBackStackEntry?.savedStateHandle?.set(HOME_WATCHED_CHANGED_STATE_KEY, isWatched)
