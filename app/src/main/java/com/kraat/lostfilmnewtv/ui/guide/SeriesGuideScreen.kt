@@ -647,7 +647,6 @@ private fun EpisodeRow(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    val availableColor = Color(0xFF69D99D)
     val shape = RoundedCornerShape(18.dp)
 
     val background = when {
@@ -658,7 +657,6 @@ private fun EpisodeRow(
     val borderColor = when {
         isFocused -> FocusBorder
         isSelected -> DetailsAccentGold
-        episode.isAvailable -> availableColor.copy(alpha = 0.50f)
         else -> HomePanelBorder
     }
 
@@ -699,21 +697,19 @@ private fun EpisodeRow(
                 modifier = Modifier
                     .size(width = 82.dp, height = 36.dp)
                     .background(
-                        if (episode.isAvailable) availableColor.copy(alpha = 0.14f)
-                        else if (isSelected) DetailsAccentGold.copy(alpha = 0.16f) else DetailsSurfaceSoft.copy(alpha = 0.64f),
+                        if (isSelected) DetailsAccentBlue.copy(alpha = 0.16f) else DetailsSurfaceSoft.copy(alpha = 0.64f),
                         RoundedCornerShape(12.dp),
                     )
                     .border(
                         1.dp,
-                        if (episode.isAvailable) availableColor.copy(alpha = 0.72f)
-                        else if (isSelected) DetailsAccentGold.copy(alpha = 0.72f) else DetailsBorderDefault.copy(alpha = 0.52f),
+                        if (isSelected) DetailsAccentBlue.copy(alpha = 0.72f) else DetailsBorderDefault.copy(alpha = 0.52f),
                         RoundedCornerShape(12.dp),
                     ),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = "S${episode.seasonNumber.toString().padStart(2, '0')}E${episode.episodeNumber.toString().padStart(2, '0')}",
-                    color = if (episode.isAvailable) availableColor else if (isSelected) DetailsAccentGold else DetailsTextSecondary,
+                    color = if (isSelected) DetailsAccentBlue else DetailsTextSecondary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -725,7 +721,7 @@ private fun EpisodeRow(
                 Text(
                     text = episode.episodeTitleRu?.takeIf { it.isNotBlank() }
                         ?: "Сезон ${episode.seasonNumber} • Серия ${episode.episodeNumber}",
-                    color = if (episode.isAvailable) availableColor else TextPrimary,
+                    color = TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -733,7 +729,7 @@ private fun EpisodeRow(
                 )
                 Text(
                     text = episode.availabilityLabel(LocalDate.now()),
-                    color = if (episode.isAvailable) availableColor else DetailsTextMuted,
+                    color = if (episode.isAvailable) DetailsTextSecondary else DetailsTextMuted,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
