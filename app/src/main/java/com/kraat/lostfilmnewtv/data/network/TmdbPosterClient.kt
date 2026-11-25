@@ -4,6 +4,7 @@ import com.kraat.lostfilmnewtv.data.model.TmdbImageUrls
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverview
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
 import com.kraat.lostfilmnewtv.data.model.TmdbMediaType
+import com.kraat.lostfilmnewtv.data.model.TmdbSearchPage
 import com.kraat.lostfilmnewtv.data.model.TmdbSearchResult
 import android.util.Log
 import com.kraat.lostfilmnewtv.data.network.TmdbRequestThrottle.Priority
@@ -27,6 +28,7 @@ private val tmdbRequests = TmdbRequestThrottle(TMDB_RATE_LIMIT_MS)
 private const val HTTP_TOO_MANY_REQUESTS = 429
 private const val OVERVIEW_MAX_ATTEMPTS = 3
 private const val OVERVIEW_RETRY_BASE_DELAY_MS = 500L
+private val russianLetter = Regex("[А-Яа-яЁё]")
 
 open class TmdbPosterClient(
     private val okHttpClient: OkHttpClient,
@@ -51,7 +53,7 @@ open class TmdbPosterClient(
         type: TmdbMediaType,
         page: Int = 1,
         language: String? = null,
-    ): List<TmdbSearchResult> = withContext(Dispatchers.IO) {
+    ): TmdbSearchPage = withContext(Dispatchers.IO) {
         val endpoint = when (type) {
             TmdbMediaType.TV -> "/search/tv"
             TmdbMediaType.MOVIE -> "/search/movie"
@@ -81,7 +83,7 @@ open class TmdbPosterClient(
                 ?: throw IOException("Empty TMDB response body")
 
             val json = JSONObject(body)
-            val results = json.optJSONArray("results") ?: return@use emptyList()
+            val results = json.optJSONArray("results") ?: return@use TmdbSearchPage(emptyList())
             val totalResults = json.optInt("total_results", 0)
             Log.d("TmdbPosterClient", "Search '$query' returned $totalResults results")
             if (totalResults > 0 && results.length() > 0) {
@@ -89,7 +91,7 @@ open class TmdbPosterClient(
                 Log.d("TmdbPosterClient", "First result: name='${firstItem.optString("name", firstItem.optString("title", ""))}', original='${firstItem.optString("original_name", firstItem.optString("original_title", ""))}'")
             }
 
-            List(results.length()) { i ->
+            val matches = List(results.length()) { i ->
                 val item = results.getJSONObject(i)
                 val name = when (type) {
                     TmdbMediaType.TV -> item.optString("name", "")
@@ -113,8 +115,15 @@ open class TmdbPosterClient(
                     posterUrl = item.optString("poster_path")
                         .takeIf { it.startsWith("/") }
                         ?.let { "$normalizedImageBaseUrl$POSTER_SIZE$it" },
+                    backdropUrl = item.optString("backdrop_path")
+                        .takeIf { it.startsWith("/") }
+                        ?.let { "$normalizedImageBaseUrl$BACKDROP_SIZE$it" },
+                    overviewRu = item.optString("overview").trim().takeIf {
+                        language == "ru-RU" && russianLetter.containsMatchIn(it)
+                    },
                 )
             }.sortedByDescending { it.popularity }
+            TmdbSearchPage(matches, hasNextPage = page < json.optInt("total_pages", page))
         }
     }
 

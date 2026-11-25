@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
@@ -75,6 +74,12 @@ interface TmdbPosterResolver {
         originalReleaseYear: Int?,
         onArtwork: suspend (TmdbImageUrls) -> Unit,
     ): TmdbImageUrls? = resolve(detailsUrl, titleRu, kind, originalReleaseYear)
+
+    suspend fun resolveCatalogArtwork(
+        item: ReleaseSummary,
+        onArtwork: suspend (TmdbImageUrls) -> Unit,
+    ): TmdbImageUrls? =
+        resolveWithArtwork(item.detailsUrl, item.titleRu, item.kind, item.originalReleaseYear, onArtwork)
 }
 
 class TmdbPosterResolverImpl(
@@ -128,6 +133,22 @@ class TmdbPosterResolverImpl(
         kind: ReleaseKind,
         originalReleaseYear: Int?,
         onArtwork: suspend (TmdbImageUrls) -> Unit,
+    ): TmdbImageUrls? =
+        resolveArtwork(detailsUrl, titleRu, kind, originalReleaseYear, fromCatalog = false, onArtwork)
+
+    override suspend fun resolveCatalogArtwork(
+        item: ReleaseSummary,
+        onArtwork: suspend (TmdbImageUrls) -> Unit,
+    ): TmdbImageUrls? =
+        resolveArtwork(item.detailsUrl, item.titleRu, item.kind, item.originalReleaseYear, fromCatalog = true, onArtwork)
+
+    private suspend fun resolveArtwork(
+        detailsUrl: String,
+        titleRu: String,
+        kind: ReleaseKind,
+        originalReleaseYear: Int?,
+        fromCatalog: Boolean,
+        onArtwork: suspend (TmdbImageUrls) -> Unit,
     ): TmdbImageUrls? {
         val cacheKey = tmdbCacheKey(detailsUrl, kind)
         val tmdbIdOverride = tmdbIdOverride(extractEnglishSlug(detailsUrl), kind)
@@ -162,7 +183,7 @@ class TmdbPosterResolverImpl(
             )?.let { return@withKeyLock it.urls }
 
             val result = if (indexed == null) {
-                performSearch(cacheKey, detailsUrl, titleRu, kind, originalReleaseYear, onArtwork)
+                performSearch(cacheKey, detailsUrl, titleRu, kind, originalReleaseYear, fromCatalog, onArtwork)
             } else {
                 buildImagesFromTmdbId(cacheKey, detailsUrl, indexed.tmdbId, kind, onArtwork, indexed.artwork())
             }
@@ -365,6 +386,7 @@ class TmdbPosterResolverImpl(
         titleRu: String,
         kind: ReleaseKind,
         originalReleaseYear: Int?,
+        fromCatalog: Boolean,
         onArtwork: suspend (TmdbImageUrls) -> Unit,
     ): TmdbImageUrls? {
         val tmdbType = when (kind) {
@@ -417,7 +439,13 @@ class TmdbPosterResolverImpl(
         } else if (englishSlug != null && englishSlug.isNotBlank()) {
             val slugQuery = englishSlug.removeYearSuffix()
             try {
-                searchPages(tmdbType, releaseYearHint, slugQuery, onFailure = { searchFailed = true }) { found ->
+                searchPages(
+                    tmdbType,
+                    releaseYearHint,
+                    slugQuery,
+                    onFailure = { searchFailed = true },
+                    language = RUSSIAN_SEARCH_LANGUAGE.takeIf { fromCatalog },
+                ) { found ->
                     found.any { it.matchesSlug(slugQuery.normalizeForTmdbMatch()) }
                 }
             } catch (e: CancellationException) {
@@ -525,43 +553,44 @@ class TmdbPosterResolverImpl(
             }
         }
 
+        if (fromCatalog) {
+            bestMatch.overviewRu?.let { overview ->
+                when (kind) {
+                    ReleaseKind.MOVIE -> movieOverviewCache[bestMatch.id] = overview
+                    ReleaseKind.SERIES -> seriesOverviewCache[bestMatch.id] = overview
+                }
+            }
+        }
         val seasonNumber = seasonNumberRegex.find(detailsUrl)
             ?.groupValues?.getOrNull(1)?.toIntOrNull()
-        // Publish the matched title's poster while TMDB selects localized artwork.
-        // Season cards wait for the correct season's images.
-        val searchPoster = bestMatch.posterUrl?.takeIf { seasonNumber == null }
-        if (searchPoster != null) {
-            onArtwork(TmdbImageUrls(posterUrl = searchPoster, backdropUrl = "", rating = bestMatch.rating))
-        }
-        val seriesImages = try {
-            tmdbClient.getPosterAndBackdrop(bestMatch.id, tmdbType)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "TMDB images failed for ${bestMatch.name}: ${e.message}")
+        val searchArtwork = if (seasonNumber == null) {
+            TmdbImageUrls(
+                posterUrl = bestMatch.posterUrl.orEmpty(),
+                backdropUrl = bestMatch.backdropUrl.orEmpty(),
+                seriesOverviewRu = bestMatch.overviewRu?.takeIf { fromCatalog && kind == ReleaseKind.SERIES },
+                movieOverviewRu = bestMatch.overviewRu?.takeIf { fromCatalog && kind == ReleaseKind.MOVIE },
+                rating = bestMatch.rating,
+            ).takeIf { it.posterUrl.isNotBlank() || it.backdropUrl.isNotBlank() }
+        } else {
             null
         }
-
-        // Try season-specific images when a season number is present in the URL.
-        val curatedImages = if (kind == ReleaseKind.SERIES && seasonNumber != null) {
-            val seasonImages = try {
-                tmdbClient.getSeasonImages(bestMatch.id, seasonNumber)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "TMDB season images failed for ${bestMatch.name} S$seasonNumber: ${e.message}")
-                null
-            }
-            mergeArtwork(seasonImages, seriesImages)
+        searchArtwork?.let { onArtwork(it) }
+        val hasCatalogArtwork = fromCatalog && searchArtwork != null &&
+            searchArtwork.posterUrl.isNotBlank() && searchArtwork.backdropUrl.isNotBlank()
+        val curatedImages = if (hasCatalogArtwork) {
+            null
         } else {
-            seriesImages
+            fetchGalleryArtwork(bestMatch, tmdbType, seasonNumber)
         }
 
-        val images = mergeArtwork(
-            curatedImages,
-            searchPoster?.let { TmdbImageUrls(posterUrl = it, backdropUrl = "") },
-        )
-        images?.let { onArtwork(it.copy(rating = bestMatch.rating)) }
+        val images = mergeArtwork(curatedImages, searchArtwork)
+        if (images != null && images != searchArtwork) {
+            onArtwork(images.copy(
+                rating = bestMatch.rating,
+                seriesOverviewRu = searchArtwork?.seriesOverviewRu,
+                movieOverviewRu = searchArtwork?.movieOverviewRu,
+            ))
+        }
         val rating = bestMatch.rating ?: resolveRating(bestMatch.id, kind)
         if (images == null && rating.isNullOrBlank()) {
             Log.d(TAG, "No images or rating for ${bestMatch.name}")
@@ -597,6 +626,37 @@ class TmdbPosterResolverImpl(
             movieOverviewRu = overviews.movieOverviewRu,
             rating = rating,
         )
+    }
+
+    private suspend fun fetchGalleryArtwork(
+        match: TmdbSearchResult,
+        type: TmdbMediaType,
+        seasonNumber: Int?,
+    ): TmdbImageUrls? {
+        val titleImages =
+            try {
+                tmdbClient.getPosterAndBackdrop(match.id, type)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "TMDB images failed for ${match.name}: ${e.message}")
+                null
+            }
+
+        // Try season-specific images when a season number is present in the URL.
+        return if (type == TmdbMediaType.TV && seasonNumber != null) {
+            val seasonImages = try {
+                tmdbClient.getSeasonImages(match.id, seasonNumber)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "TMDB season images failed for ${match.name} S$seasonNumber: ${e.message}")
+                null
+            }
+            mergeArtwork(seasonImages, titleImages)
+        } else {
+            titleImages
+        }
     }
 
     /**
@@ -857,18 +917,14 @@ class TmdbPosterResolverImpl(
             return ResolvedOverviews()
         }
 
-        val overviews = coroutineScope {
-            listOf(
-                async { resolveEpisodeOverview(detailsUrl, tmdbId, kind) },
-                async { resolveSeriesOverview(detailsUrl, tmdbId, kind) },
-                async { resolveMovieOverview(tmdbId, kind) },
-            ).awaitAll()
+        return when (kind) {
+            ReleaseKind.MOVIE -> ResolvedOverviews(movieOverviewRu = resolveMovieOverview(tmdbId, kind))
+            ReleaseKind.SERIES -> coroutineScope {
+                val episode = async { resolveEpisodeOverview(detailsUrl, tmdbId, kind) }
+                val series = resolveSeriesOverview(detailsUrl, tmdbId, kind)
+                ResolvedOverviews(episodeOverview = episode.await(), seriesOverviewRu = series)
+            }
         }
-        return ResolvedOverviews(
-            episodeOverview = overviews[0] as? TmdbEpisodeOverview,
-            seriesOverviewRu = overviews[1] as? String,
-            movieOverviewRu = overviews[2] as? String,
-        )
     }
 
     private suspend fun resolveMovieOverview(
@@ -1044,7 +1100,7 @@ class TmdbPosterResolverImpl(
         val seenIds = mutableSetOf<Int>()
 
         for (page in 1..MAX_SEARCH_PAGES) {
-            val results = try {
+            val response = try {
                 tmdbClient.searchByTitle(query, releaseYearHint, type, page, language)
             } catch (e: CancellationException) {
                 throw e
@@ -1053,15 +1109,15 @@ class TmdbPosterResolverImpl(
                 Log.e(TAG, "TMDB search failed for '$query' (page $page): ${e.message}")
                 break
             }
-            if (results.isEmpty()) break
+            if (response.results.isEmpty()) break
 
-            val fresh = results.filter { seenIds.add(it.id) }
+            val fresh = response.results.filter { seenIds.add(it.id) }
             if (fresh.isEmpty()) {
                 Log.d(TAG, "TMDB search '$query': page $page не добавила новых id, листание прекращено")
                 break
             }
             collected += fresh
-            if (isEnough(collected)) break
+            if (isEnough(collected) || !response.hasNextPage) break
         }
 
         Log.d(TAG, "TMDB search '$query': собрано ${collected.size} результатов")

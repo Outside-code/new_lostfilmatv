@@ -315,7 +315,7 @@ class TmdbEnrichmentServiceTest {
         val cards = List(8) { index -> summary("https://lostfilm.tv/series/show_$index/season_1/episode_1/") }
         val emitted = mutableListOf<ReleaseSummary>()
         val collector = launch {
-            service.enrichProgressively(cards, persistToCache = false).toList(emitted)
+            service.enrichCatalogProgressively(cards).toList(emitted)
         }
         testScheduler.runCurrent()
         assertEquals(cards.map { it.detailsUrl }.toSet(), emitted.map { it.detailsUrl }.toSet())

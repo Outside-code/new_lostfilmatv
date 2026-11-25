@@ -5,6 +5,7 @@ import com.kraat.lostfilmnewtv.data.db.TmdbPosterMappingEntity
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.TmdbImageUrls
 import com.kraat.lostfilmnewtv.data.model.TmdbMediaType
+import com.kraat.lostfilmnewtv.data.model.TmdbSearchPage
 import com.kraat.lostfilmnewtv.data.model.TmdbSearchResult
 import com.kraat.lostfilmnewtv.data.network.TmdbPosterClient
 import kotlinx.coroutines.test.runTest
@@ -133,12 +134,12 @@ class TmdbPosterResolverSeriesYearTest {
         val dao = StoringTmdbPosterDao()
         val searchQueries = mutableListOf<String>()
         val client = object : TmdbPosterClient(OkHttpClient(), "fake") {
-            override suspend fun searchByTitle(query: String, year: Int?, type: TmdbMediaType, page: Int, language: String?): List<TmdbSearchResult> {
+            override suspend fun searchByTitle(query: String, year: Int?, type: TmdbMediaType, page: Int, language: String?): TmdbSearchPage {
                 searchQueries += query
-                return listOf(
+                return TmdbSearchPage(listOf(
                     TmdbSearchResult(id = 250203, name = "Brothers", originalName = "Brothers", popularity = 41.1, releaseYear = 2026),
                     TmdbSearchResult(id = 66515, name = "Brothers", originalName = "Ang Probinsyano", popularity = 63.5, releaseYear = 2015),
-                )
+                ))
             }
 
             override suspend fun getPosterAndBackdrop(tmdbId: Int, type: TmdbMediaType): TmdbImageUrls =
@@ -186,11 +187,10 @@ class TmdbPosterResolverSeriesYearTest {
             backdropUrl = "",
         )
         val client = object : TmdbPosterClient(OkHttpClient(), "fake") {
-            override suspend fun searchByTitle(query: String, year: Int?, type: TmdbMediaType, page: Int, language: String?): List<TmdbSearchResult> =
-                listOf(
+            override suspend fun searchByTitle(query: String, year: Int?, type: TmdbMediaType, page: Int, language: String?): TmdbSearchPage = TmdbSearchPage(listOf(
                     TmdbSearchResult(id = 250203, name = "Brothers", originalName = "Brothers", popularity = 41.1, releaseYear = 2026),
                     TmdbSearchResult(id = 66515, name = "Brothers", originalName = "Ang Probinsyano", popularity = 63.5, releaseYear = 2015),
-                )
+                ))
 
             override suspend fun getPosterAndBackdrop(tmdbId: Int, type: TmdbMediaType): TmdbImageUrls =
                 TmdbImageUrls(
@@ -252,7 +252,7 @@ class TmdbPosterResolverSeriesYearTest {
         // сверка перед записью обязана поймать расхождение.
         val dao = StoringTmdbPosterDao()
         val client = object : TmdbPosterClient(OkHttpClient(), "fake") {
-            override suspend fun searchByTitle(query: String, year: Int?, type: TmdbMediaType, page: Int, language: String?): List<TmdbSearchResult> {
+            override suspend fun searchByTitle(query: String, year: Int?, type: TmdbMediaType, page: Int, language: String?): TmdbSearchPage {
                 // Пока идёт поиск эпизода, обогащается карточка сериала.
                 dao.rows["https://www.lostfilm.one/series/Brothers/"] = TmdbPosterMappingEntity.create(
                     detailsUrl = "https://www.lostfilm.one/series/Brothers/",
@@ -261,9 +261,9 @@ class TmdbPosterResolverSeriesYearTest {
                     posterUrl = "https://image.tmdb.org/t/p/w780/250203.jpg",
                     backdropUrl = "https://image.tmdb.org/t/p/original/250203-backdrop.jpg",
                 )
-                return listOf(
+                return TmdbSearchPage(listOf(
                     TmdbSearchResult(id = 66515, name = "Brothers", originalName = "Ang Probinsyano", popularity = 63.5, releaseYear = 2015),
-                )
+                ))
             }
 
             override suspend fun getPosterAndBackdrop(tmdbId: Int, type: TmdbMediaType): TmdbImageUrls =
@@ -286,11 +286,10 @@ class TmdbPosterResolverSeriesYearTest {
     }
 
     private fun brothersClient() = object : TmdbPosterClient(OkHttpClient(), "fake") {
-        override suspend fun searchByTitle(query: String, year: Int?, type: TmdbMediaType, page: Int, language: String?): List<TmdbSearchResult> =
-            listOf(
+        override suspend fun searchByTitle(query: String, year: Int?, type: TmdbMediaType, page: Int, language: String?): TmdbSearchPage = TmdbSearchPage(listOf(
                 TmdbSearchResult(id = 250203, name = "Brothers", originalName = "Brothers", popularity = 41.1, releaseYear = 2026),
                 TmdbSearchResult(id = 66515, name = "Brothers", originalName = "Ang Probinsyano", popularity = 63.5, releaseYear = 2015),
-            )
+            ))
 
         override suspend fun getPosterAndBackdrop(tmdbId: Int, type: TmdbMediaType): TmdbImageUrls =
             TmdbImageUrls(
@@ -335,7 +334,7 @@ class TmdbPosterResolverSeriesYearTest {
                 type: TmdbMediaType,
                 page: Int,
                 language: String?,
-            ): List<TmdbSearchResult> = if (query.all { it.code < 128 }) slugResults else emptyList()
+            ): TmdbSearchPage = TmdbSearchPage(if (query.all { it.code < 128 }) slugResults else emptyList())
 
             override suspend fun getPosterAndBackdrop(tmdbId: Int, type: TmdbMediaType): TmdbImageUrls {
                 requestedIds += tmdbId

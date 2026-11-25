@@ -13,6 +13,13 @@ data class TmdbSearchResult(
     val releaseYear: Int? = null,
     val rating: String? = null,
     val posterUrl: String? = null,
+    val backdropUrl: String? = null,
+    val overviewRu: String? = null,
+)
+
+data class TmdbSearchPage(
+    val results: List<TmdbSearchResult>,
+    val hasNextPage: Boolean = false,
 )
 
 enum class TmdbEpisodeOverviewSource {

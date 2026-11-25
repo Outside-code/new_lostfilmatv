@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,7 +23,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -120,13 +118,6 @@ fun HomeHeader(
         isUpdateDownloading -> "Загрузка"
         else -> "Можно обновить"
     }
-    val initialFocusRequester = modeFocusRequesters[selectedMode]?.takeIf { selectedMode in visibleModes }
-        ?: firstModeRequester ?: searchFocusRequester
-
-    LaunchedEffect(Unit) {
-        initialFocusRequester.requestFocus()
-    }
-
     Box(
         modifier = modifier
             .fillMaxHeight()
@@ -438,7 +429,6 @@ private fun HomeModeSegmentButton(
                 isFocused = it.isFocused
                 if (it.isFocused) onInteraction()
             }
-            .focusable()
             .combinedClickable(
                 role = Role.Button,
                 onClick = onClick,
@@ -534,7 +524,6 @@ private fun HomeHeaderActionButton(
                     onInteraction()
                 }
             }
-            .focusable()
             .combinedClickable(
                 role = Role.Button,
                 onClick = onClick,

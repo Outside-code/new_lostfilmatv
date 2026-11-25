@@ -112,6 +112,21 @@ class HomeScreenTest {
 
     @Test
     @OptIn(ExperimentalTestApi::class)
+    fun returningFromHistoryRestoresItsMenuFocus() {
+        composeRule.setContent {
+            LostFilmTheme {
+                HomeScreen(state = seededState(), selectedNavItem = NavItem.HISTORY)
+            }
+        }
+        composeRule.onNodeWithTag("home-action-history").assertIsFocused()
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        composeRule.onNodeWithTag("home-action-settings").assertIsFocused()
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        composeRule.onNodeWithTag("home-action-history").assertIsFocused()
+    }
+
+    @Test
+    @OptIn(ExperimentalTestApi::class)
     fun returningFromSeries_focusesMenuAndOpensScheduleWithoutExtraBack() {
         val owner = object : androidx.lifecycle.LifecycleOwner {
             val registry = androidx.lifecycle.LifecycleRegistry(this)

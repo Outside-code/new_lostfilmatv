@@ -56,6 +56,7 @@ class LostFilmSeriesCatalogParserTest {
         assertEquals("Spider-Noir", item.episodeTitleRu)
         assertEquals("https://www.lostfilm.today/series/Spider_Noir", item.detailsUrl)
         assertEquals("", item.posterUrl)
+        assertEquals("https://www.lostfilm.today/Static/Images/1095/Posters/image.jpg", item.catalogPreviewUrl)
         assertEquals("Скоро", item.availabilityLabel)
         assertEquals("2026", item.releaseDateRu)
         assertEquals(2, item.pageNumber)

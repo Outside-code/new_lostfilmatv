@@ -21,6 +21,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,12 +58,16 @@ fun PosterCard(
     val shape = RoundedCornerShape(12.dp)
     val overlayColor = if (isFocused) FocusBackground.copy(alpha = 0.82f) else HomePanelSurface.copy(alpha = 0.62f)
     val watchedBadgeColor = if (isFocused) HomeAccentGoldGlow.copy(alpha = 0.86f) else HomePanelSurfaceStrong.copy(alpha = 0.86f)
-    val posterRequest = item.posterUrl.takeIf { it.isNotBlank() }?.let { rememberPosterImageRequest(it) }
+    val requestForPoster = rememberPosterRequestFactory()
+    val posterRequest = remember(item.posterUrl, requestForPoster) {
+        item.posterUrl.takeIf { it.isNotBlank() }?.let(requestForPoster)
+    }
 
     Card(
         onClick = onClick,
         modifier = modifier
-            .size(width = POSTER_CARD_WIDTH, height = POSTER_CARD_HEIGHT),
+            .size(width = POSTER_CARD_WIDTH, height = POSTER_CARD_HEIGHT)
+            .semantics { contentDescription = item.titleRu },
         shape = CardDefaults.shape(shape),
         scale = CardDefaults.scale(focusedScale = POSTER_FOCUSED_SCALE),
         glow = CardDefaults.glow(
@@ -88,9 +94,11 @@ fun PosterCard(
         Box(modifier = Modifier.fillMaxSize()) {
             PosterImage(
                 model = posterRequest,
-                contentDescription = item.titleRu,
+                contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
+                catalogPreviewUrl = item.catalogPreviewUrl,
+                placeholderTitle = item.titleRu,
             )
 
             Box(
@@ -171,7 +179,7 @@ fun PosterCard(
 }
 
 @Composable
-private fun rememberPosterImageRequest(posterUrl: String): ImageRequest {
+internal fun rememberPosterRequestFactory(): (String) -> ImageRequest {
     val context = LocalContext.current
     val density = LocalDensity.current
     val targetWidthPx = with(density) { (POSTER_CARD_WIDTH.toPx() * POSTER_FOCUSED_SCALE).roundToInt().coerceAtLeast(1) }
@@ -180,12 +188,13 @@ private fun rememberPosterImageRequest(posterUrl: String): ImageRequest {
     val outputWidthPx = LocalView.current.display?.mode?.physicalWidth ?: 0
     val displayWidthPx = maxOf(windowWidthPx, outputWidthPx)
 
-    return remember(context, posterUrl, targetWidthPx, targetHeightPx, displayWidthPx) {
-        ImageRequest.Builder(context)
-            .data(TmdbImageFallbackInterceptor.thumbnailUrl(posterUrl, targetWidthPx, displayWidthPx))
-            // Decode near the rendered card size instead of the full remote poster.
-            .size(targetWidthPx, targetHeightPx)
-            .build()
+    return remember(context, targetWidthPx, targetHeightPx, displayWidthPx) {
+        { posterUrl: String ->
+            ImageRequest.Builder(context)
+                .data(TmdbImageFallbackInterceptor.thumbnailUrl(posterUrl, targetWidthPx, displayWidthPx))
+                .size(targetWidthPx, targetHeightPx)
+                .build()
+        }
     }
 }
 

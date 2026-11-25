@@ -46,8 +46,9 @@ interface TmdbEnrichmentService {
      */
     fun enrichProgressively(
         items: List<ReleaseSummary>,
-        persistToCache: Boolean = true,
     ): Flow<ReleaseSummary>
+
+    fun enrichCatalogProgressively(items: List<ReleaseSummary>): Flow<ReleaseSummary>
 }
 
 private const val TAG = "TmdbEnrichmentService"
@@ -143,9 +144,15 @@ class TmdbEnrichmentServiceImpl @Inject constructor(
         }
     }
 
-    override fun enrichProgressively(
+    override fun enrichProgressively(items: List<ReleaseSummary>): Flow<ReleaseSummary> =
+        enrichPage(items, fromCatalog = false)
+
+    override fun enrichCatalogProgressively(items: List<ReleaseSummary>): Flow<ReleaseSummary> =
+        enrichPage(items, fromCatalog = true)
+
+    private fun enrichPage(
         items: List<ReleaseSummary>,
-        persistToCache: Boolean,
+        fromCatalog: Boolean,
     ): Flow<ReleaseSummary> = channelFlow {
         val pending = items.filterNot { it.hasCompleteArt() }
         if (pending.isEmpty()) {
@@ -159,7 +166,7 @@ class TmdbEnrichmentServiceImpl @Inject constructor(
                 var current = item
                 suspend fun publish(enriched: ReleaseSummary) {
                     if (enriched.hasSameArtworkAs(current)) return
-                    if (persistToCache) releaseDao.updateSummaryArtwork(
+                    if (!fromCatalog) releaseDao.updateSummaryArtwork(
                         detailsUrl = enriched.detailsUrl,
                         posterUrl = enriched.posterUrl,
                         backdropUrl = enriched.backdropUrl,
@@ -175,23 +182,28 @@ class TmdbEnrichmentServiceImpl @Inject constructor(
 
                 artworkSlots.acquire()
                 var holdsArtworkSlot = true
+                val onArtwork: suspend (TmdbImageUrls) -> Unit = { artwork ->
+                    // Description and rating requests can finish after the next poster starts.
+                    if (holdsArtworkSlot && artwork.posterUrl.isNotBlank()) {
+                        holdsArtworkSlot = false
+                        artworkSlots.release()
+                    }
+                    if (artwork.posterUrl.isNotBlank() || artwork.backdropUrl.isNotBlank()) {
+                        publish(TmdbPosterEnricher.enrichSummary(item, artwork))
+                    }
+                }
                 val urls = try {
-                    tmdbResolver.resolveWithArtwork(
-                        detailsUrl = item.detailsUrl,
-                        titleRu = item.titleRu,
-                        kind = item.kind,
-                        originalReleaseYear = item.originalReleaseYear,
-                        onArtwork = { artwork ->
-                            // Text and ratings should not occupy a spot in the artwork queue.
-                            if (holdsArtworkSlot) {
-                                holdsArtworkSlot = false
-                                artworkSlots.release()
-                            }
-                            if (artwork.posterUrl.isNotBlank() || artwork.backdropUrl.isNotBlank()) {
-                                publish(TmdbPosterEnricher.enrichSummary(item, artwork))
-                            }
-                        },
-                    )
+                    if (fromCatalog) {
+                        tmdbResolver.resolveCatalogArtwork(item, onArtwork)
+                    } else {
+                        tmdbResolver.resolveWithArtwork(
+                            item.detailsUrl,
+                            item.titleRu,
+                            item.kind,
+                            item.originalReleaseYear,
+                            onArtwork,
+                        )
+                    }
                 } finally {
                     if (holdsArtworkSlot) artworkSlots.release()
                 }

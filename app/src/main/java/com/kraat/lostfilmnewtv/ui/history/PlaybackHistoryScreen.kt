@@ -57,14 +57,16 @@ fun PlaybackHistoryScreen(
     val focusKey = entries.firstOrNull { it.key == lastOpenedKey }?.key ?: entries.firstOrNull()?.key
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
+    var initialFocusRequested by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(focusKey) {
+        if (initialFocusRequested || focusKey == null) return@LaunchedEffect
         val index = entries.indexOfFirst { it.key == focusKey }
         if (index >= 0) {
             if (listState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
                 listState.scrollToItem(index)
             }
-            requestFocusWhenReady(focusRequester)
+            initialFocusRequested = requestFocusWhenReady(focusRequester)
         }
     }
 

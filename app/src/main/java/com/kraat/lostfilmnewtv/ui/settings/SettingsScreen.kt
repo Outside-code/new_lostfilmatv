@@ -112,6 +112,8 @@ fun SettingsScreen(
     val railRequesters = remember(visibleSections) {
         visibleSections.associateWith { FocusRequester() }
     }
+    val torrServeUsernameRequester = remember { FocusRequester() }
+    val torrServePasswordRequester = remember { FocusRequester() }
     val contentRequesters = remember {
         buildMap {
             qualityOptions.forEach { put(it.buttonTag(), FocusRequester()) }
@@ -247,6 +249,7 @@ fun SettingsScreen(
                     .weight(1f)
                     .fillMaxHeight()
                     .onFocusChanged { contentHasFocus = it.hasFocus }
+                    .focusGroup()
                     .padding(bottom = 8.dp),
             ) {
                 Column(
@@ -496,6 +499,8 @@ fun SettingsScreen(
                                         value = torrServeBaseUrl,
                                         onValueChange = onTorrServeBaseUrlChanged,
                                         label = "Адрес TorrServe",
+                                        sectionRequester = railRequesters.getValue(SettingsSection.TORRSERVE),
+                                        downRequester = torrServeUsernameRequester,
                                         tag = SettingsFocusTarget.TorrServeBaseUrl.toTag(),
                                         onFocused = {
                                             rememberedActionBySection = rememberedActionBySection + (
@@ -507,10 +512,18 @@ fun SettingsScreen(
                                     SettingsTextField(
                                         value = torrServeUsername, onValueChange = onTorrServeUsernameChanged,
                                         label = "Логин TorrServe (если требуется)", tag = "settings-torrserve-username",
+                                        sectionRequester = railRequesters.getValue(SettingsSection.TORRSERVE),
+                                        downRequester = torrServePasswordRequester,
+                                        upRequester = contentRequesters.getValue(SettingsFocusTarget.TorrServeBaseUrl.toTag()),
+                                        modifier = Modifier.focusRequester(torrServeUsernameRequester),
                                     )
                                     SettingsTextField(
                                         value = torrServePassword, onValueChange = onTorrServePasswordChanged,
                                         label = "Пароль TorrServe", tag = "settings-torrserve-password", isPassword = true,
+                                        sectionRequester = railRequesters.getValue(SettingsSection.TORRSERVE),
+                                        downRequester = contentRequesters.getValue(SettingsFocusTarget.TorrServeSave.toTag()),
+                                        upRequester = torrServeUsernameRequester,
+                                        modifier = Modifier.focusRequester(torrServePasswordRequester),
                                     )
                                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                         SettingsRowButton(
@@ -526,7 +539,8 @@ fun SettingsScreen(
                                             },
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .focusRequester(contentRequesters.getValue(SettingsFocusTarget.TorrServeSave.toTag())),
+                                                .focusRequester(contentRequesters.getValue(SettingsFocusTarget.TorrServeSave.toTag()))
+                                                .focusProperties { up = torrServePasswordRequester },
                                         )
                                         SettingsRowButton(
                                             title = "Сбросить",
@@ -575,6 +589,8 @@ fun SettingsScreen(
                                         value = lostFilmHost,
                                         onValueChange = onLostFilmHostChanged,
                                         label = "Адрес хоста",
+                                        sectionRequester = railRequesters.getValue(SettingsSection.SERVER),
+                                        downRequester = contentRequesters.getValue(SettingsFocusTarget.LostFilmHostSave.toTag()),
                                         tag = SettingsFocusTarget.LostFilmHost.toTag(),
                                         onFocused = {
                                             rememberedActionBySection = rememberedActionBySection + (
@@ -597,7 +613,10 @@ fun SettingsScreen(
                                             },
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .focusRequester(contentRequesters.getValue(SettingsFocusTarget.LostFilmHostSave.toTag())),
+                                                .focusRequester(contentRequesters.getValue(SettingsFocusTarget.LostFilmHostSave.toTag()))
+                                                .focusProperties {
+                                                    up = contentRequesters.getValue(SettingsFocusTarget.LostFilmHost.toTag())
+                                                },
                                         )
                                         SettingsRowButton(
                                             title = "Сбросить",

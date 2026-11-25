@@ -135,6 +135,11 @@ class LostFilmListParser {
             fetchedAt = fetchedAt,
             isWatched = isWatched,
             availabilityLabel = availabilityLabel,
+            catalogPreviewUrl = if (isMovie) {
+                catalogPreviewUrl(contentLink.selectFirst(".picture-box img[src]")?.attr("src").orEmpty())
+            } else {
+                null
+            },
             originalReleaseYear = originalReleaseYear,
         )
     }

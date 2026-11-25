@@ -54,7 +54,9 @@ object UnitTestDataModule {
     fun provideTmdbEnrichmentService(): TmdbEnrichmentService = object : TmdbEnrichmentService {
         override suspend fun enrichSummaries(items: List<ReleaseSummary>, persistToCache: Boolean) = items
         override suspend fun enrichSearchItems(items: List<LostFilmSearchItem>) = items
-        override fun enrichProgressively(items: List<ReleaseSummary>, persistToCache: Boolean): Flow<ReleaseSummary> =
+        override fun enrichProgressively(items: List<ReleaseSummary>): Flow<ReleaseSummary> =
+            emptyFlow()
+        override fun enrichCatalogProgressively(items: List<ReleaseSummary>): Flow<ReleaseSummary> =
             emptyFlow()
     }
 

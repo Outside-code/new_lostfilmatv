@@ -34,17 +34,22 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import coil.imageLoader
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.ui.components.ShimmerSkeletonBox
 import com.kraat.lostfilmnewtv.ui.components.rememberShimmerSkeletonBrush
 import com.kraat.lostfilmnewtv.ui.components.PosterCard
+import com.kraat.lostfilmnewtv.ui.components.rememberPosterRequestFactory
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
 import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collectLatest
 
 private const val HOME_PAGING_SKELETON_COUNT = 4
+private const val CATALOG_POSTERS_AHEAD = 2
 private val HOME_RAIL_CARD_SPACING = 9.dp
 private val HOME_RAIL_HORIZONTAL_PADDING = 6.dp
 
@@ -87,6 +92,9 @@ fun HomeRail(
         mutableStateOf(returnFocusRequestVersion)
     }
     val requestNextPage by rememberUpdatedState(onEndReached)
+    val currentItems by rememberUpdatedState(items)
+    val requestForPoster = rememberPosterRequestFactory()
+    val imageLoader = LocalContext.current.imageLoader
 
     LaunchedEffect(railId, items.size, pageWarmupDistance, nextPage) {
         if (items.isEmpty() || pageWarmupDistance == 0 || nextPage == null) return@LaunchedEffect
@@ -96,6 +104,21 @@ fun HomeRail(
             focusedCardKey != null && lastVisible >= preloadFromIndex
         }.first { it }
         requestNextPage()
+    }
+
+    LaunchedEffect(railId, pageWarmupDistance, imageLoader, requestForPoster) {
+        if (pageWarmupDistance == 0) return@LaunchedEffect
+        snapshotFlow {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+            if (focusedCardKey == null || lastVisible == null) emptyList() else {
+                currentItems.subList(
+                    (lastVisible + 1).coerceAtMost(currentItems.size),
+                    (lastVisible + 1 + CATALOG_POSTERS_AHEAD).coerceAtMost(currentItems.size),
+                ).mapNotNull { it.posterUrl.takeIf(String::isNotBlank) }
+            }
+        }.collectLatest { urls ->
+            for (url in urls) imageLoader.execute(requestForPoster(url))
+        }
     }
 
     fun handleVerticalNavigation(key: Key): Boolean {

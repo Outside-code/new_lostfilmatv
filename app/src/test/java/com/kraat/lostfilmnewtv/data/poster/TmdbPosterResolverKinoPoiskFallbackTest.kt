@@ -9,6 +9,7 @@ import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverview
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
 import com.kraat.lostfilmnewtv.data.model.TmdbImageUrls
 import com.kraat.lostfilmnewtv.data.model.TmdbMediaType
+import com.kraat.lostfilmnewtv.data.model.TmdbSearchPage
 import com.kraat.lostfilmnewtv.data.model.TmdbSearchResult
 import com.kraat.lostfilmnewtv.data.network.KINOPOISK_FILM_TYPES
 import com.kraat.lostfilmnewtv.data.network.KinoPoiskClient
@@ -46,7 +47,7 @@ class TmdbPosterResolverKinoPoiskFallbackTest {
                 type: TmdbMediaType,
                 page: Int,
             language: String?,
-            ): List<TmdbSearchResult> = emptyList()
+            ): TmdbSearchPage = TmdbSearchPage(emptyList())
 
             override suspend fun getPosterAndBackdrop(tmdbId: Int, type: TmdbMediaType): TmdbImageUrls? {
                 error("TMDB не нашёл сериал, картинки сюда попасть не должны")
@@ -116,7 +117,7 @@ class TmdbPosterResolverKinoPoiskFallbackTest {
                 type: TmdbMediaType,
                 page: Int,
             language: String?,
-            ): List<TmdbSearchResult> = emptyList()
+            ): TmdbSearchPage = TmdbSearchPage(emptyList())
 
             override suspend fun getPosterAndBackdrop(tmdbId: Int, type: TmdbMediaType): TmdbImageUrls? = null
 
@@ -204,7 +205,7 @@ class TmdbPosterResolverKinoPoiskFallbackTest {
             type: TmdbMediaType,
             page: Int,
             language: String?,
-        ): List<TmdbSearchResult> = emptyList()
+        ): TmdbSearchPage = TmdbSearchPage(emptyList())
 
         override suspend fun getPosterAndBackdrop(tmdbId: Int, type: TmdbMediaType): TmdbImageUrls? = null
 

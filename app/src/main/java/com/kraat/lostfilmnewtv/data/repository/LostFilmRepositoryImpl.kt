@@ -258,7 +258,7 @@ class LostFilmRepositoryImpl(
         }
         emit(page.copy(items = items))
         // The initial catalog is already visible, so artwork failures leave its cards usable.
-        tmdbEnrichmentService.enrichProgressively(items, persistToCache = false)
+        tmdbEnrichmentService.enrichCatalogProgressively(items)
             .catch { error -> Log.w(TAG, "TMDB enrichment failed for catalog page ${page.pageNumber}", error) }
             .collect { enriched ->
                 items = items.map { if (it.detailsUrl == enriched.detailsUrl) enriched else it }

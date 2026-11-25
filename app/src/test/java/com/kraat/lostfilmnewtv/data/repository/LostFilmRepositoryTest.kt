@@ -3146,7 +3146,7 @@ private class FakeTmdbPosterClient : com.kraat.lostfilmnewtv.data.network.TmdbPo
     apiKey = "fake",
 ) {
     override suspend fun searchByTitle(query: String, year: Int?, type: com.kraat.lostfilmnewtv.data.model.TmdbMediaType, page: Int, language: String?) =
-        emptyList<com.kraat.lostfilmnewtv.data.model.TmdbSearchResult>()
+        com.kraat.lostfilmnewtv.data.model.TmdbSearchPage(emptyList())
 
     override suspend fun getPosterAndBackdrop(tmdbId: Int, type: com.kraat.lostfilmnewtv.data.model.TmdbMediaType) =
         null

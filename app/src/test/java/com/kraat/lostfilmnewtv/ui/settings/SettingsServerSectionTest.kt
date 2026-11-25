@@ -1,11 +1,17 @@
 package com.kraat.lostfilmnewtv.ui.settings
 
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.pressKey
 import com.kraat.lostfilmnewtv.playback.PlaybackQualityPreference
 import com.kraat.lostfilmnewtv.tvchannel.AndroidTvChannelMode
 import com.kraat.lostfilmnewtv.ui.theme.LostFilmTheme
@@ -85,10 +91,15 @@ class SettingsServerSectionTest {
     }
 
     @Test
+    @OptIn(ExperimentalTestApi::class)
     fun hostField_receivesText_throughCallback() {
         val typed = mutableListOf<String>()
         setServerSection(onChanged = { typed += it })
 
+        composeRule.onRoot().performKeyInput {
+            pressKey(Key.DirectionRight)
+            pressKey(Key.DirectionCenter)
+        }
         composeRule.onNodeWithTag("settings-lostfilm-host", useUnmergedTree = true)
             .performTextInput("https://mirror.example.com")
 
@@ -97,5 +108,21 @@ class SettingsServerSectionTest {
             "callback should receive typed text, got: ${typed.last()}",
             typed.last().contains("https://mirror.example.com"),
         )
+    }
+
+    @Test
+    @OptIn(ExperimentalTestApi::class)
+    fun hostFieldLetsTheRemoteMoveBetweenSettingsControls() {
+        setServerSection()
+
+        composeRule.onNodeWithTag("settings-section-server").assertIsFocused()
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+        composeRule.onNodeWithTag("settings-lostfilm-host", useUnmergedTree = true).assertIsFocused()
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        composeRule.onNodeWithTag("settings-lostfilm-host-save").assertIsFocused()
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        composeRule.onNodeWithTag("settings-lostfilm-host", useUnmergedTree = true).assertIsFocused()
+        composeRule.onRoot().performKeyInput { pressKey(Key.DirectionLeft) }
+        composeRule.onNodeWithTag("settings-section-server").assertIsFocused()
     }
 }

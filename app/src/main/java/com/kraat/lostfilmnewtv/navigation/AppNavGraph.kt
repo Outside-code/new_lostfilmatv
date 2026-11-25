@@ -76,10 +76,6 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
             var isUpdateDownloading by remember { mutableStateOf(false) }
             var updateDownloadProgress by remember { mutableStateOf<Int?>(null) }
 
-            LaunchedEffect(Unit) {
-                homeViewModel.onNavItemSelected(NavItem.HOME)
-            }
-
             val watchedDetailsUrl by backStackEntry.savedStateHandle
                 .getStateFlow<String?>(HOME_WATCHED_DETAILS_URL_KEY, null)
                 .collectAsStateWithLifecycle()
@@ -126,9 +122,15 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 focusStateFlow = homeViewModel.focusState,
                 onItemFocused = homeViewModel::onItemFocused,
                 onModeSelected = homeViewModel::onModeSelected,
-                onOpenDetails = { url -> navController.navigate(AppDestination.Details.createRoute(url, isAuthenticated)) },
+                onOpenDetails = { url ->
+                    homeViewModel.onNavItemSelected(NavItem.HOME)
+                    navController.navigate(AppDestination.Details.createRoute(url, isAuthenticated))
+                },
                 onOpenSeriesOverview = { url -> navController.navigate(AppDestination.SeriesOverview.createRoute(url)) },
-                onOpenSeriesGuide = { url -> navController.navigate(AppDestination.SeriesGuide.createRoute(url)) },
+                onOpenSeriesGuide = { url ->
+                    homeViewModel.onNavItemSelected(NavItem.HOME)
+                    navController.navigate(AppDestination.SeriesGuide.createRoute(url))
+                },
                 onEndReached = homeViewModel::onEndReached,
                 onRetry = homeViewModel::onRetry,
                 onPagingRetry = homeViewModel::onPagingRetry,
@@ -136,6 +138,7 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 selectedNavItem = selectedNavItem,
                 onNavItemSelected = homeViewModel::onNavItemSelected,
                 onNavItemLongClick = { navItem ->
+                    homeViewModel.onNavItemSelected(navItem)
                     when (navItem) {
                         NavItem.SEARCH -> navController.navigate(AppDestination.Search.route)
                         NavItem.SCHEDULE -> navController.navigate(AppDestination.Schedule.route)

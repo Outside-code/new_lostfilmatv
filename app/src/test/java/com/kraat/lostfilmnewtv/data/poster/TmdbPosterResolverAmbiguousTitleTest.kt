@@ -5,6 +5,7 @@ import com.kraat.lostfilmnewtv.data.db.TmdbPosterMappingEntity
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.TmdbImageUrls
 import com.kraat.lostfilmnewtv.data.model.TmdbMediaType
+import com.kraat.lostfilmnewtv.data.model.TmdbSearchPage
 import com.kraat.lostfilmnewtv.data.model.TmdbSearchResult
 import com.kraat.lostfilmnewtv.data.network.TmdbPosterClient
 import kotlinx.coroutines.test.runTest
@@ -59,7 +60,8 @@ class TmdbPosterResolverAmbiguousTitleTest {
             "Пять фильмов с названием «Надежда» и без года — угадывать нельзя, лучше без картинки",
             result,
         )
-        assertEquals("TMDB дергаться не должен", emptyList<Int>(), fixture.requestedIds)
+        assertEquals(emptyList<Int>(), fixture.requestedIds)
+        assertEquals(listOf(1, 1), fixture.pageRequests)
     }
 
     @Test
@@ -205,11 +207,14 @@ class TmdbPosterResolverAmbiguousTitleTest {
                 type: TmdbMediaType,
                 page: Int,
                 language: String?,
-            ): List<TmdbSearchResult> {
+            ): TmdbSearchPage {
                 pageRequests += page
                 languages[query] = language
                 val pages = if (query.all { it.code < 128 }) listOf(slugResults) else titlePages
-                return pages.getOrElse(page - 1) { emptyList() }
+                return TmdbSearchPage(
+                    results = pages.getOrElse(page - 1) { emptyList() },
+                    hasNextPage = page < pages.size,
+                )
             }
 
             override suspend fun getPosterAndBackdrop(tmdbId: Int, type: TmdbMediaType): TmdbImageUrls {

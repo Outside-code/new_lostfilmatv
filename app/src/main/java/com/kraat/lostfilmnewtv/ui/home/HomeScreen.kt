@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -169,12 +170,6 @@ fun HomeScreen(
     val modeFocusRequesters = remember {
         HomeFeedMode.entries.associateWith { FocusRequester() }
     }
-    LaunchedEffect(menuReturnFocusRequestVersion) {
-        if (menuReturnFocusRequestVersion > 0) {
-            androidx.compose.runtime.withFrameNanos { }
-            requestFocusWhenReady(modeFocusRequesters.getValue(state.selectedMode))
-        }
-    }
     val searchRequester = remember { FocusRequester() }
     val scheduleRequester = remember { FocusRequester() }
     val historyRequester = remember { FocusRequester() }
@@ -183,6 +178,18 @@ fun HomeScreen(
     val loginActionRequester = remember { FocusRequester() }
     val retryActionRequester = remember { FocusRequester() }
     val contentEntryRequester = remember { FocusRequester() }
+    LaunchedEffect(menuReturnFocusRequestVersion) {
+        val modeRequester = (state.selectedMode.takeIf { it in state.availableModes }
+            ?: modeSwitchOrder.firstOrNull())?.let(modeFocusRequesters::getValue) ?: searchRequester
+        val requester = when (selectedNavItem) {
+            NavItem.HOME, NavItem.UPDATE -> modeRequester
+            NavItem.SEARCH -> searchRequester
+            NavItem.SCHEDULE -> scheduleRequester
+            NavItem.HISTORY -> historyRequester
+            NavItem.SETTINGS -> settingsRequester
+        }
+        requestFocusWhenReady(requester)
+    }
     val cardFocusRequesters = remember(activeRailId) {
         linkedMapOf<String, FocusRequester>()
     }
@@ -414,7 +421,7 @@ fun HomeScreen(
                                     onEndReached = onEndReached,
                                     nextPage = activeModeData.nextPage.takeIf { activeModeData.hasNextPage },
                                     pageWarmupDistance = when (state.selectedMode) {
-                                        HomeFeedMode.Movies, HomeFeedMode.Series -> 6
+                                        HomeFeedMode.Movies, HomeFeedMode.Series -> 12
                                         else -> 0
                                     },
                                 )
@@ -903,7 +910,7 @@ internal suspend fun requestFocusWhenReady(requester: FocusRequester): Boolean {
     withTimeoutOrNull(1_000L) {
         while (!focusMoved) {
             withFrameNanos { }
-            focusMoved = runCatching { requester.requestFocus(); true }.getOrDefault(false)
+            focusMoved = runCatching { requester.requestFocus(FocusDirection.Enter) }.getOrDefault(false)
         }
     }
     return focusMoved

@@ -6,6 +6,8 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,14 +20,25 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -259,10 +272,24 @@ fun SettingsTextField(
     tag: String? = null,
     onFocused: (() -> Unit)? = null,
     isPassword: Boolean = false,
+    sectionRequester: FocusRequester,
+    downRequester: FocusRequester,
+    upRequester: FocusRequester? = null,
 ) {
+    val ime = WindowInsets.ime
+    val density = LocalDensity.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    var editing by remember { mutableStateOf(false) }
+    LaunchedEffect(editing) {
+        if (editing) {
+            withFrameNanos { }
+            keyboard?.show()
+        }
+    }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
+        readOnly = !editing,
         singleLine = true,
         visualTransformation = if (isPassword) androidx.compose.ui.text.input.PasswordVisualTransformation()
             else androidx.compose.ui.text.input.VisualTransformation.None,
@@ -281,8 +308,26 @@ fun SettingsTextField(
         ),
         modifier = modifier
             .fillMaxWidth()
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown || (editing && ime.getBottom(density) > 0)) {
+                    return@onPreviewKeyEvent false
+                }
+                when (event.key) {
+                    Key.DirectionUp -> {
+                        upRequester?.requestFocus(FocusDirection.Up)
+                        true
+                    }
+                    Key.DirectionDown -> downRequester.requestFocus(FocusDirection.Down)
+                    Key.DirectionLeft -> sectionRequester.requestFocus(FocusDirection.Left)
+                    Key.DirectionCenter, Key.Enter -> {
+                        if (editing) keyboard?.show() else editing = true
+                        true
+                    }
+                    else -> false
+                }
+            }
             .onFocusChanged {
-                if (it.isFocused) onFocused?.invoke()
+                if (it.isFocused) onFocused?.invoke() else editing = false
             }
             .then(if (tag != null) Modifier.testTag(tag) else Modifier),
     )
