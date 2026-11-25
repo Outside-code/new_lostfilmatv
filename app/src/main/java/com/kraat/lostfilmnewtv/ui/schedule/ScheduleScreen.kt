@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -55,6 +56,7 @@ import com.kraat.lostfilmnewtv.data.model.ScheduleDay
 import com.kraat.lostfilmnewtv.data.model.ScheduleItem
 import com.kraat.lostfilmnewtv.ui.components.ShimmerSkeletonBox
 import com.kraat.lostfilmnewtv.ui.components.rememberShimmerSkeletonBrush
+import com.kraat.lostfilmnewtv.ui.home.requestFocusWhenReady
 import com.kraat.lostfilmnewtv.ui.theme.BackgroundPrimary
 import com.kraat.lostfilmnewtv.ui.theme.DetailsAccentGold
 import com.kraat.lostfilmnewtv.ui.theme.BadgeSurface
@@ -80,16 +82,7 @@ fun ScheduleScreen(
     onRetry: () -> Unit,
     onOpenItem: (ScheduleItem) -> Unit,
 ) {
-    val firstItemRequester = remember { FocusRequester() }
-    val retryRequester = remember { FocusRequester() }
-
-    LaunchedEffect(state.schedule, state.errorMessage) {
-        withFrameNanos { }
-        when {
-            state.schedule?.days?.any { it.items.isNotEmpty() } == true -> firstItemRequester.requestFocus()
-            state.errorMessage != null -> retryRequester.requestFocus()
-        }
-    }
+    val focusedRow = rememberSaveable { mutableStateOf<String?>(null) }
 
     Box(
         modifier = Modifier
@@ -122,6 +115,8 @@ fun ScheduleScreen(
                 }
 
                 state.errorMessage != null && state.schedule == null -> {
+                    val retryRequester = remember { FocusRequester() }
+                    LaunchedEffect(Unit) { requestFocusWhenReady(retryRequester) }
                     ScheduleCenteredStatePanel {
                         Text(
                             text = state.errorMessage,
@@ -153,14 +148,18 @@ fun ScheduleScreen(
                 else -> {
                     val days = state.schedule?.days.orEmpty()
                     val todayDate = days.firstOrNull { it.isToday }?.date ?: LocalDate.now()
-                    val initialDayIndex = days.indexOfFirst { it.date >= todayDate }
-                        .takeIf { it >= 0 }
-                        ?: 0
+                    val (initialDayIndex, initialRowIndex) = remember {
+                        initialFocusPosition(days, todayDate, focusedRow.value)
+                    }
+                    val initialItemRequester = remember { FocusRequester() }
                     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialDayIndex)
-                    LaunchedEffect(days, initialDayIndex) {
-                        if (days.isNotEmpty()) {
+                    // Poster updates replace the schedule data while the user is moving through it.
+                    LaunchedEffect(Unit) {
+                        withFrameNanos { }
+                        if (listState.layoutInfo.visibleItemsInfo.none { it.index == initialDayIndex }) {
                             listState.scrollToItem(initialDayIndex)
                         }
+                        requestFocusWhenReady(initialItemRequester)
                     }
                     if (state.isLoading) {
                         Row(
@@ -190,7 +189,9 @@ fun ScheduleScreen(
                             ScheduleDaySection(
                                 day = day,
                                 todayDate = todayDate,
-                                firstItemRequester = if (index == initialDayIndex) firstItemRequester else null,
+                                initialRowIndex = initialRowIndex.takeIf { index == initialDayIndex },
+                                initialItemRequester = initialItemRequester,
+                                onItemFocused = { focusedRow.value = it.focusKey(day.date) },
                                 onOpenItem = onOpenItem,
                             )
                         }
@@ -200,6 +201,19 @@ fun ScheduleScreen(
         }
     }
 }
+
+private fun initialFocusPosition(days: List<ScheduleDay>, today: LocalDate, focusedRow: String?): Pair<Int, Int> {
+    if (focusedRow != null) {
+        for ((dayIndex, day) in days.withIndex()) {
+            val rowIndex = day.items.indexOfFirst { it.focusKey(day.date) == focusedRow }
+            if (rowIndex >= 0) return dayIndex to rowIndex
+        }
+    }
+    val todayIndex = days.indexOfFirst { it.date >= today }
+    return todayIndex.coerceAtLeast(0) to 0
+}
+
+private fun ScheduleItem.focusKey(date: LocalDate): String = "$date|${targetUrl.trimEnd('/')}|${episodeLabel.orEmpty()}"
 
 @Composable
 private fun ColumnScope.ScheduleLoadingSkeleton() {
@@ -332,7 +346,9 @@ private fun ColumnScope.ScheduleLoadingSkeleton() {
 private fun ScheduleDaySection(
     day: ScheduleDay,
     todayDate: LocalDate,
-    firstItemRequester: FocusRequester?,
+    initialRowIndex: Int?,
+    initialItemRequester: FocusRequester,
+    onItemFocused: (ScheduleItem) -> Unit,
     onOpenItem: (ScheduleItem) -> Unit,
 ) {
     Column(
@@ -371,8 +387,9 @@ private fun ScheduleDaySection(
                 ScheduleItemRow(
                     item = item,
                     onClick = { onOpenItem(item) },
-                    modifier = if (index == 0 && firstItemRequester != null) {
-                        Modifier.focusRequester(firstItemRequester)
+                    onFocused = { onItemFocused(item) },
+                    modifier = if (index == initialRowIndex) {
+                        Modifier.focusRequester(initialItemRequester)
                     } else {
                         Modifier
                     },
@@ -400,6 +417,7 @@ private fun ScheduleDay.dayHasSchedulePeriodLabel(): Boolean {
 private fun ScheduleItemRow(
     item: ScheduleItem,
     onClick: () -> Unit,
+    onFocused: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isFocused by remember { mutableStateOf(false) }
@@ -435,7 +453,10 @@ private fun ScheduleItemRow(
                 color = if (isFocused) FocusBorder else HomePanelBorder,
                 shape = ScheduleRowShape,
             )
-            .onFocusChanged { isFocused = it.isFocused },
+            .onFocusChanged {
+                isFocused = it.isFocused
+                if (it.isFocused) onFocused()
+            },
     ) {
         Row(
             modifier = Modifier
