@@ -94,6 +94,8 @@ fun HomeHeader(
     showLabels: Boolean,
     isVisualFocusEnabled: Boolean = true,
     modifier: Modifier = Modifier,
+    onContinueWatching: (() -> Unit)? = null,
+    isContinuingWatching: Boolean = false,
 ) {
     val visibleModes = remember(availableModes) {
         buildList {
@@ -108,6 +110,10 @@ fun HomeHeader(
     val firstModeRequester = if (hasModeToggle) modeFocusRequesters[visibleModes.first()] else null
     val lastModeRequester = if (hasModeToggle) modeFocusRequesters[visibleModes.last()] else null
     val hasUpdate = !updateVersionText.isNullOrBlank()
+    val continueRequester = remember { FocusRequester() }
+    val afterContinue = if (hasUpdate) updateFocusRequester else settingsFocusRequester
+    val afterHistory = if (onContinueWatching != null) continueRequester else afterContinue
+    val beforeUpdate = if (onContinueWatching != null) continueRequester else historyFocusRequester
     val updateActionLabel = when {
         isUpdateDownloading && updateDownloadProgress != null -> "Скачивание $updateDownloadProgress%"
         isUpdateDownloading -> "Скачивание"
@@ -231,11 +237,36 @@ fun HomeHeader(
                     .focusRequester(historyFocusRequester)
                     .focusProperties {
                         up = searchFocusRequester
-                        down = if (hasUpdate) updateFocusRequester else settingsFocusRequester
+                        down = afterHistory
                         left = FocusRequester.Cancel
                         right = downTarget ?: FocusRequester.Default
                     },
             )
+            if (onContinueWatching != null) {
+                HomeHeaderActionButton(
+                    label = if (isContinuingWatching) "Загружаем серию…" else "Продолжить просмотр",
+                    subtitle = "",
+                    leadingIcon = HeaderActionIcon.Play,
+                    onClick = onContinueWatching,
+                    onInteraction = onHeaderInteraction,
+                    onBackClick = onBackToContent,
+                    isVisualFocusEnabled = isVisualFocusEnabled,
+                    minWidth = if (showLabels) ExpandedMenuWidth - 36.dp else CollapsedMenuWidth - 20.dp,
+                    hideSubtitle = true,
+                    showLabel = showLabels,
+                    wrapLabel = true,
+                    modifier = Modifier
+                        .then(if (showLabels) Modifier.fillMaxWidth() else Modifier.width(CollapsedMenuWidth - 20.dp))
+                        .testTag("home-action-continue")
+                        .focusRequester(continueRequester)
+                        .focusProperties {
+                            up = historyFocusRequester
+                            down = afterContinue
+                            left = FocusRequester.Cancel
+                            right = downTarget ?: FocusRequester.Default
+                        },
+                )
+            }
             if (hasUpdate) {
                 HomeHeaderActionButton(
                     label = updateActionLabel,
@@ -259,7 +290,7 @@ fun HomeHeader(
                         .testTag("home-action-update")
                         .focusRequester(updateFocusRequester)
                         .focusProperties {
-                            up = historyFocusRequester
+                            up = beforeUpdate
                             down = settingsFocusRequester
                             left = FocusRequester.Cancel
                             right = downTarget ?: FocusRequester.Default
@@ -288,7 +319,7 @@ fun HomeHeader(
                     .testTag("home-action-settings")
                     .focusRequester(settingsFocusRequester)
                     .focusProperties {
-                        up = if (hasUpdate) updateFocusRequester else historyFocusRequester
+                        up = if (hasUpdate) updateFocusRequester else beforeUpdate
                         down = firstModeRequester ?: scheduleFocusRequester
                         left = FocusRequester.Cancel
                         right = downTarget ?: FocusRequester.Default
@@ -462,6 +493,7 @@ private enum class HeaderActionIcon {
     Search,
     Calendar,
     History,
+    Play,
     Refresh,
     Settings,
 }
@@ -484,6 +516,7 @@ private fun HomeHeaderActionButton(
     leadingIcon: HeaderActionIcon? = null,
     showLabel: Boolean = true,
     isVisualFocusEnabled: Boolean = true,
+    wrapLabel: Boolean = false,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val showFocusedStyle = isFocused && isVisualFocusEnabled
@@ -546,9 +579,10 @@ private fun HomeHeaderActionButton(
                 Text(
                     text = label,
                     color = textColor,
-                    fontSize = if (compact) 14.sp else 15.sp,
+                    fontSize = if (compact || wrapLabel) 14.sp else 15.sp,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 1,
+                    maxLines = if (wrapLabel) 2 else 1,
+                    lineHeight = if (wrapLabel) 14.sp else androidx.compose.ui.unit.TextUnit.Unspecified,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -593,6 +627,15 @@ private fun HeaderVectorIcon(icon: HeaderActionIcon, color: Color) {
         HeaderActionIcon.Search -> SearchIcon(color = color)
         HeaderActionIcon.Calendar -> CalendarIcon(color = color)
         HeaderActionIcon.History -> HistoryIcon(color = color)
+        HeaderActionIcon.Play -> androidx.compose.foundation.Canvas(modifier = Modifier.size(24.dp)) {
+            val triangle = androidx.compose.ui.graphics.Path().apply {
+                moveTo(size.width * .28f, size.height * .17f)
+                lineTo(size.width * .82f, size.height * .50f)
+                lineTo(size.width * .28f, size.height * .83f)
+                close()
+            }
+            drawPath(triangle, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx()))
+        }
         HeaderActionIcon.Refresh -> RefreshIcon(color = color)
         HeaderActionIcon.Settings -> SettingsLineIcon(color = color)
     }

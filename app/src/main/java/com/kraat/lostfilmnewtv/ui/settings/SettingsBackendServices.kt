@@ -6,6 +6,7 @@ import com.kraat.lostfilmnewtv.data.db.TmdbPosterDao
 import com.kraat.lostfilmnewtv.data.repository.LostFilmRepository
 import com.kraat.lostfilmnewtv.data.model.PageState
 import com.kraat.lostfilmnewtv.platform.torrserve.TorrServeAvailabilityChecker
+import com.kraat.lostfilmnewtv.playback.PlaybackPreferencesStore
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -13,13 +14,17 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 data class TorrServeEndpointCheck(
     val normalizedBaseUrl: String?,
     val isAppInstalled: Boolean,
     val isEndpointReachable: Boolean,
+    val requiresAuthentication: Boolean = false,
+    val credentialsRejected: Boolean = false,
 )
 
 interface TorrServeEndpointChecker {
@@ -29,35 +34,46 @@ interface TorrServeEndpointChecker {
 class OkHttpTorrServeEndpointChecker(
     private val okHttpClient: OkHttpClient,
     private val availabilityChecker: TorrServeAvailabilityChecker,
+    private val preferences: PlaybackPreferencesStore,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : TorrServeEndpointChecker {
     override suspend fun check(baseUrl: String): TorrServeEndpointCheck = withContext(ioDispatcher) {
         val normalized = normalizeTorrServeBaseUrl(baseUrl)
         val appInstalled = availabilityChecker.isAvailable()
-        val endpointReachable = normalized?.let(::isReachable).orFalse()
+        val headers = if (normalized != null && normalized == normalizeTorrServeBaseUrl(preferences.readTorrServeBaseUrl())) {
+            preferences.torrServeHeaders()
+        } else {
+            emptyMap()
+        }
+        val responseCode = normalized?.let { checkAccess(it, headers) }
+        val authenticationFailed = responseCode == 401 || responseCode == 403
         TorrServeEndpointCheck(
             normalizedBaseUrl = normalized,
             isAppInstalled = appInstalled,
-            isEndpointReachable = endpointReachable,
+            isEndpointReachable = responseCode != null && responseCode in 200..299,
+            requiresAuthentication = authenticationFailed && headers.isEmpty(),
+            credentialsRejected = authenticationFailed && headers.isNotEmpty(),
         )
     }
 
-    private fun isReachable(baseUrl: String): Boolean {
+    private fun checkAccess(baseUrl: String, headers: Map<String, String>): Int? {
         val client = okHttpClient.newBuilder()
             .connectTimeout(2, TimeUnit.SECONDS)
             .readTimeout(2, TimeUnit.SECONDS)
             .callTimeout(3, TimeUnit.SECONDS)
+            .followRedirects(false)
             .build()
-        val echoUrl = baseUrl.trimEnd('/') + "/echo"
-        val request = Request.Builder().url(echoUrl).get().build()
+        val request = Request.Builder()
+            .url(baseUrl.trimEnd('/') + "/torrents")
+            .apply { headers.forEach { (name, value) -> header(name, value) } }
+            .post("""{"action":"list"}""".toRequestBody("application/json".toMediaType()))
+            .build()
         return try {
-            client.newCall(request).execute().use { response ->
-                response.isSuccessful
-            }
+            client.newCall(request).execute().use { it.code }
         } catch (error: IOException) {
-            false
+            null
         } catch (error: IllegalArgumentException) {
-            false
+            null
         }
     }
 }
@@ -98,5 +114,3 @@ fun normalizeLostFilmHost(raw: String): String? {
         .toString()
         .trimEnd('/')
 }
-
-private fun Boolean?.orFalse(): Boolean = this == true

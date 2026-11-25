@@ -100,6 +100,8 @@ fun HomeScreen(
     savedAppUpdate: SavedAppUpdate? = null,
     isUpdateDownloading: Boolean = false,
     updateDownloadProgress: Int? = null,
+    onContinueWatching: (() -> Unit)? = null,
+    isContinuingWatching: Boolean = false,
 ) {
     val focusState by if (focusStateFlow != null) {
         focusStateFlow.collectAsStateWithLifecycle()
@@ -312,6 +314,8 @@ fun HomeScreen(
                 onSearchClick = onSearchClick,
                 onScheduleClick = onScheduleClick,
                 onHistoryClick = onHistoryClick,
+                onContinueWatching = onContinueWatching,
+                isContinuingWatching = isContinuingWatching,
                 onSettingsClick = onSettingsClick,
                 onUpdateClick = if (savedAppUpdate != null) onUpdateClick else onRetry,
                 selectedNavItem = selectedNavItem,

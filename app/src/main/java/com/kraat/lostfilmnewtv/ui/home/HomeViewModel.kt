@@ -7,9 +7,19 @@ import com.kraat.lostfilmnewtv.data.model.FavoriteReleasesResult
 import com.kraat.lostfilmnewtv.data.model.FavoriteSeriesResult
 import com.kraat.lostfilmnewtv.data.model.PageState
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
+import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
+import com.kraat.lostfilmnewtv.data.repository.DetailsResult
+import com.kraat.lostfilmnewtv.data.repository.SeriesGuideResult
 import com.kraat.lostfilmnewtv.data.repository.LostFilmRepository
 import com.kraat.lostfilmnewtv.data.repository.FavoritesRepository
 import com.kraat.lostfilmnewtv.playback.PlaybackPreferencesStore
+import com.kraat.lostfilmnewtv.playback.WatchedMarkingMode
+import com.kraat.lostfilmnewtv.playback.history.ContinueWatchingResult
+import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryEntry
+import com.kraat.lostfilmnewtv.playback.history.latestSeriesEpisode
+import com.kraat.lostfilmnewtv.playback.history.nextUnwatchedEpisode
+import com.kraat.lostfilmnewtv.ui.details.resolvePreferredTorrentRow
+import com.kraat.lostfilmnewtv.ui.details.toTorrentRows
 import com.kraat.lostfilmnewtv.updates.AppUpdateCoordinator
 import com.kraat.lostfilmnewtv.updates.SavedAppUpdate
 import com.kraat.lostfilmnewtv.tvchannel.HomeChannelSyncManager
@@ -27,6 +37,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val FOCUS_KEY = "home.focused_item_key"
 private const val HOME_RESUME_REFRESH_INTERVAL_MS = 30 * 60 * 1000L
@@ -265,6 +276,43 @@ class HomeViewModel @Inject constructor(
         _selectedNavItem.update { item }
     }
 
+    internal suspend fun prepareContinueWatching(
+        history: List<PlaybackHistoryEntry>,
+        supportsSource: (String) -> Boolean,
+    ): ContinueWatchingResult = withContext(ioDispatcher) {
+        val anchor = history.latestSeriesEpisode()
+            ?: return@withContext ContinueWatchingResult.Unavailable("В истории пока нет сериалов")
+        val guide = when (val result = repository.loadSeriesGuide(anchor.detailsUrl)) {
+            is SeriesGuideResult.Success -> result.guide
+            is SeriesGuideResult.Error -> return@withContext ContinueWatchingResult.Unavailable(result.message)
+        }
+        val episode = guide.nextUnwatchedEpisode(anchor, history)
+            ?: return@withContext ContinueWatchingResult.Unavailable("Следующая непросмотренная серия пока недоступна")
+        val loaded = when (val result = repository.loadDetails(episode.detailsUrl)) {
+            is DetailsResult.Success -> result.details
+            is DetailsResult.Error -> return@withContext ContinueWatchingResult.Unavailable(result.message)
+        }
+        val details = if (loaded.torrentLinks.isEmpty()) {
+            (repository.refreshDetailsExtras(loaded) as? DetailsResult.Success)?.details ?: loaded
+        } else loaded
+        val torrent = resolvePreferredTorrentRow(
+            preferencesStore.readDefaultQuality(),
+            details.toTorrentRows().filter { supportsSource(it.url) },
+        ) ?: return@withContext ContinueWatchingResult.Unavailable("Для этой серии пока нет раздачи")
+        ContinueWatchingResult.Ready(details, torrent.url)
+    }
+
+    internal fun onContinuedEpisodeLaunched(details: ReleaseDetails) {
+        val episodeId = details.playEpisodeId ?: return
+        if (preferencesStore.readWatchedMarkingMode() != WatchedMarkingMode.AUTO) return
+        viewModelScope.launch(ioDispatcher) {
+            if (repository.setEpisodeWatched(details.detailsUrl, episodeId, targetWatched = true) == true) {
+                onItemWatchedStateChanged(details.detailsUrl, true)
+                homeChannelSyncManager.syncNow()
+            }
+        }
+    }
+
     fun onItemWatchedStateChanged(detailsUrl: String, isWatched: Boolean) {
         _uiState.update { state ->
             state.updateModes(
@@ -333,6 +381,12 @@ class HomeViewModel @Inject constructor(
 
     fun onFavoriteContentInvalidated() {
         if (!started) return
+        favoriteSeriesLoadJob?.cancel()
+        _uiState.update { state ->
+            state.copy(favoriteSeriesCount = null).updateMode(HomeFeedMode.FavoriteSeries) { md ->
+                md.copy(items = emptyList(), contentState = HomeModeContentState.Loading)
+            }.resolveSelection()
+        }
         if (_uiState.value.isFavoritesRailVisible) loadFavoriteReleases()
         if (_uiState.value.isFavoriteSeriesModeVisible) loadFavoriteSeries()
     }
@@ -375,7 +429,12 @@ class HomeViewModel @Inject constructor(
                 resolved
             }
         }
-        if (started) loadSelectedCatalog()
+        if (started) {
+            loadSelectedCatalog()
+            if (mode == HomeFeedMode.FavoriteSeries && favoriteSeriesLoadJob?.isActive != true) {
+                loadFavoriteSeries()
+            }
+        }
     }
 
     private fun loadSelectedCatalog() {
@@ -703,41 +762,45 @@ class HomeViewModel @Inject constructor(
         favoriteSeriesLoadJob?.cancel()
         _uiState.update { state ->
             state.updateMode(HomeFeedMode.FavoriteSeries) { md ->
-                md.copy(contentState = HomeModeContentState.Loading)
+                if (md.contentState is HomeModeContentState.Content || md.contentState == HomeModeContentState.Empty) {
+                    md
+                } else {
+                    md.copy(contentState = HomeModeContentState.Loading)
+                }
             }
         }
         favoriteSeriesLoadJob = viewModelScope.launch(ioDispatcher) {
-            when (val result = favoritesRepository.loadFavoriteSeries()) {
-                is FavoriteSeriesResult.Success -> {
-                    val seriesState = if (result.items.isEmpty()) {
-                        HomeModeContentState.Empty
-                    } else {
-                        HomeModeContentState.Content(result.items)
-                    }
-                    _uiState.update { state ->
-                        state.copy(
+            favoritesRepository.observeFavoriteSeries().collect { result ->
+                _uiState.update { state ->
+                    when (result) {
+                        is FavoriteSeriesResult.Success -> state.copy(
                             favoriteSeriesCount = result.items.size,
                         ).updateMode(HomeFeedMode.FavoriteSeries) { md ->
                             md.copy(
                                 items = result.items,
-                                contentState = seriesState,
+                                contentState = if (result.items.isEmpty()) HomeModeContentState.Empty
+                                else HomeModeContentState.Content(result.items),
                             )
                         }.resolveSelection()
-                    }
-                }
-                is FavoriteSeriesResult.Unavailable -> {
-                    val seriesState = when {
-                        result.message.isNullOrBlank() -> HomeModeContentState.Error("Не удалось загрузить избранные сериалы")
-                        result.message.contains("Войдите", ignoreCase = true) -> HomeModeContentState.LoginRequired(result.message)
-                        else -> HomeModeContentState.Error(result.message)
-                    }
-                    _uiState.update { state ->
-                        state.updateMode(HomeFeedMode.FavoriteSeries) { md ->
-                            md.copy(
-                                items = emptyList(),
-                                contentState = seriesState,
-                            )
-                        }.resolveSelection()
+
+                        is FavoriteSeriesResult.Unavailable -> {
+                            val needsLogin = result.message?.contains("Войдите", ignoreCase = true) == true
+                            state.updateMode(HomeFeedMode.FavoriteSeries) { md ->
+                                when {
+                                    needsLogin -> md.copy(
+                                        items = emptyList(),
+                                        contentState = HomeModeContentState.LoginRequired(result.message.orEmpty()),
+                                    )
+                                    md.contentState is HomeModeContentState.Content -> md
+                                    else -> md.copy(
+                                        items = emptyList(),
+                                        contentState = HomeModeContentState.Error(
+                                            result.message ?: "Не удалось загрузить избранные сериалы",
+                                        ),
+                                    )
+                                }
+                            }.resolveSelection()
+                        }
                     }
                 }
             }

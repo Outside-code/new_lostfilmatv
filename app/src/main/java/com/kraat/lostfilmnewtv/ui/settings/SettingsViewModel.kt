@@ -253,22 +253,42 @@ class SettingsViewModel @Inject constructor(
 
     fun onCheckTorrServeClick() {
         if (torrServeCheckJob?.isActive == true) return
+        val draft = _uiState.value
+        val address = normalizeTorrServeBaseUrl(draft.torrServeBaseUrl)
+        if (address == null) {
+            _uiState.update { it.copy(torrServeStatusText = "Неверный адрес TorrServe") }
+            return
+        }
+        if (address != normalizeTorrServeBaseUrl(preferencesStore.readTorrServeBaseUrl()) ||
+            draft.torrServeUsername.trim() != preferencesStore.readTorrServeUsername() ||
+            draft.torrServePassword != preferencesStore.readTorrServePassword()
+        ) {
+            _uiState.update { it.copy(torrServeStatusText = "Сохраните настройки TorrServe перед проверкой") }
+            return
+        }
         torrServeCheckJob = viewModelScope.launch(ioDispatcher) {
             _uiState.update { it.copy(isCheckingTorrServe = true, torrServeStatusText = "Проверяем TorrServe...") }
             val result = runCatching {
-                torrServeEndpointChecker.check(_uiState.value.torrServeBaseUrl)
+                torrServeEndpointChecker.check(address)
             }.getOrNull()
             _uiState.update {
+                if (normalizeTorrServeBaseUrl(it.torrServeBaseUrl) != address ||
+                    it.torrServeUsername != draft.torrServeUsername ||
+                    it.torrServePassword != draft.torrServePassword
+                ) {
+                    return@update it.copy(isCheckingTorrServe = false, torrServeStatusText = null)
+                }
                 val message = when {
                     result == null -> "Не удалось проверить TorrServe"
                     result.normalizedBaseUrl == null -> "Неверный адрес TorrServe"
+                    result.requiresAuthentication -> "TorrServe требует логин и пароль"
+                    result.credentialsRejected -> "TorrServe отклонил сохранённый логин или пароль"
                     result.isAppInstalled && result.isEndpointReachable -> "TorrServe доступен"
                     result.isAppInstalled -> "Приложение найдено, HTTP недоступен"
                     result.isEndpointReachable -> "HTTP доступен, приложение не найдено"
                     else -> "TorrServe недоступен"
                 }
                 it.copy(
-                    torrServeBaseUrl = result?.normalizedBaseUrl ?: it.torrServeBaseUrl,
                     torrServeStatusText = message,
                     isCheckingTorrServe = false,
                 )

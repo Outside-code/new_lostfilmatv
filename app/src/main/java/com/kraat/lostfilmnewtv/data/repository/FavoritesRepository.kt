@@ -29,6 +29,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
@@ -42,28 +44,31 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.concurrent.ConcurrentHashMap
-import javax.inject.Inject
 
 private const val TAG = "FavoritesRepository"
 private const val FAVORITE_RELEASES_MAX_EPISODES_PER_SEASON = Int.MAX_VALUE
 private const val FAVORITE_RELEASES_PAGE_SIZE = 30
 private const val FAVORITE_RELEASES_MAX_SEASONS_PER_SERIES = 1
 private const val FAVORITE_RELEASES_CACHE_TTL_MS = 2 * 60 * 1000L
+private const val FAVORITE_SERIES_CACHE_TTL_MS = 2 * 60 * 1000L
 private const val FAVORITE_RELEASES_ROOM_FRESH_MS = 15 * 60 * 1000L
 
 interface FavoritesRepository {
     fun observeFavoriteReleases(pageNumber: Int = 1): Flow<FavoriteReleasesResult>
     suspend fun loadFavoriteSeries(): FavoriteSeriesResult
+    fun observeFavoriteSeries(): Flow<FavoriteSeriesResult> = flow { emit(loadFavoriteSeries()) }
     suspend fun setFavorite(detailsUrl: String, targetFavorite: Boolean): FavoriteMutationResult
     suspend fun invalidateCache()
 }
 
-class FavoritesRepositoryImpl @Inject constructor(
+class FavoritesRepositoryImpl(
     private val httpClient: LostFilmHttpClient,
     private val releaseDao: ReleaseDao,
     private val tmdbEnrichmentService: TmdbEnrichmentService,
     private val hasAuthenticatedSession: suspend () -> Boolean,
     private val clock: () -> Long = { System.currentTimeMillis() },
+    private val favoriteSeriesCache: FavoriteSeriesCache? = null,
+    private val activeSessionKey: suspend () -> String? = { null },
 ) : FavoritesRepository {
 
     private val favoriteSeriesParser = LostFilmFavoriteSeriesParser()
@@ -72,6 +77,9 @@ class FavoritesRepositoryImpl @Inject constructor(
 
     private val favoriteReleasesCacheMutex = Mutex()
     private var favoriteReleasesCache: FavoriteReleasesCache? = null
+
+    private val favoriteSeriesMutex = Mutex()
+    private var favoriteSeriesRevision = 0L
 
     private val favoriteSeriesRoute = "/my/type_1"
     private fun seriesFavoritePageRegex() = Regex("""${Regex.escape(BASE_URL)}/series/([^/]+)/season_\d+/episode_\d+/?""")
@@ -370,25 +378,83 @@ class FavoritesRepositoryImpl @Inject constructor(
         releaseDao.replaceFavoriteReleasesCache(cacheEntities, metadata)
     }
 
-    override suspend fun loadFavoriteSeries(): FavoriteSeriesResult {
-        if (!hasAuthenticatedSession()) {
-            return FavoriteSeriesResult.Unavailable("Войдите в LostFilm")
+    override suspend fun loadFavoriteSeries(): FavoriteSeriesResult = observeFavoriteSeries().last()
+
+    override fun observeFavoriteSeries(): Flow<FavoriteSeriesResult> = flow {
+        val sessionKey = activeSessionKey()
+        if (sessionKey == null && (favoriteSeriesCache != null || !hasAuthenticatedSession())) {
+            emit(FavoriteSeriesResult.Unavailable("Войдите в LostFilm"))
+            return@flow
         }
 
-        return try {
-            val fetchedAt = clock()
-            val favoritesHtml = httpClient.fetchAccountPage(favoriteSeriesRoute)
-            val items = favoriteSeriesParser.parse(favoritesHtml)
-                .mapIndexed { index, series -> series.toFavoriteSeriesSummary(index, fetchedAt) }
-            val enrichedItems = tmdbEnrichmentService.enrichSummaries(
-                items = items,
-                persistToCache = false,
-            )
+        val (cached, revision) = favoriteSeriesMutex.withLock {
+            sessionKey?.let { favoriteSeriesCache?.read(it) } to favoriteSeriesRevision
+        }
 
-            FavoriteSeriesResult.Success(enrichedItems)
+        suspend fun publish(items: List<ReleaseSummary>, fetchedAt: Long): Boolean {
+            val isCurrent = favoriteSeriesMutex.withLock {
+                if (favoriteSeriesRevision != revision || activeSessionKey() != sessionKey) {
+                    false
+                } else {
+                    if (sessionKey != null) {
+                        favoriteSeriesCache?.write(FavoriteSeriesCache.Snapshot(sessionKey, fetchedAt, items))
+                    }
+                    true
+                }
+            }
+            if (isCurrent) emit(FavoriteSeriesResult.Success(items))
+            return isCurrent
+        }
+
+        if (cached != null) emit(FavoriteSeriesResult.Success(cached.items))
+        var hasSnapshot = cached != null
+        try {
+            val now = clock()
+            val isFresh = cached != null && cached.fetchedAt > 0 &&
+                now - cached.fetchedAt in 0 until FAVORITE_SERIES_CACHE_TTL_MS
+            val items = if (cached != null && isFresh) {
+                cached.items
+            } else {
+                val previous = cached?.items.orEmpty().associateBy { it.id }
+                favoriteSeriesParser.parse(httpClient.fetchAccountPage(favoriteSeriesRoute))
+                    .mapIndexed { index, series ->
+                        previous[series.seriesUrl]?.copy(
+                            titleRu = series.titleRu,
+                            positionInPage = index,
+                            fetchedAt = now,
+                        ) ?: series.toFavoriteSeriesSummary(index, now)
+                    }
+            }
+            val fetchedAt = if (cached != null && isFresh) cached.fetchedAt else now
+            if (!isFresh && !publish(items, fetchedAt)) {
+                if (cached == null) emit(FavoriteSeriesResult.Unavailable())
+                return@flow
+            }
+
+            hasSnapshot = true
+            val updated = items.associateByTo(LinkedHashMap()) { it.detailsUrl }
+            tmdbEnrichmentService.enrichCatalogProgressively(items).collect { item ->
+                if (updated[item.detailsUrl] != item) {
+                    updated[item.detailsUrl] = item
+                    publish(updated.values.toList(), fetchedAt)
+                }
+            }
         } catch (e: IOException) {
-            Log.w(TAG, "Failed to load favorite series list", e)
-            FavoriteSeriesResult.Unavailable()
+            Log.w(TAG, "Failed to refresh favorite series list", e)
+            if (!hasSnapshot) emit(FavoriteSeriesResult.Unavailable())
+        }
+    }
+
+    private suspend fun updateFavoriteSeriesCache(detailsUrl: String, isFavorite: Boolean) {
+        val seriesUrl = seriesRootUrlRegex().matchEntire(detailsUrl)?.groupValues?.get(1) ?: return
+        favoriteSeriesMutex.withLock {
+            favoriteSeriesRevision++
+            val sessionKey = activeSessionKey() ?: return
+            val cached = favoriteSeriesCache?.read(sessionKey) ?: return
+            val items = if (isFavorite) cached.items else cached.items.filterNot {
+                seriesRootUrlRegex().matchEntire(it.detailsUrl)?.groupValues?.get(1) == seriesUrl
+            }
+            favoriteSeriesCache.write(cached.copy(fetchedAt = 0, items = items))
         }
     }
 
@@ -432,6 +498,7 @@ class FavoritesRepositoryImpl @Inject constructor(
             }
 
             if (effectiveFavoriteState == targetFavorite) {
+                updateFavoriteSeriesCache(normalizedDetailsUrl, targetFavorite)
                 invalidateFavoriteReleasesCache()
                 FavoriteMutationResult.Updated
             } else {

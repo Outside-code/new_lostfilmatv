@@ -1419,6 +1419,43 @@ class LostFilmRepositoryTest {
     }
 
     @Test
+    fun favoriteSeriesReopensFromDiskBeforeNetworkAndKeepsTheListOffline() = runTest {
+        var accountRequests = 0
+        var now = NOW
+        var sessionKey: String? = "first-session"
+        fun setUpRepository() = createRepository(
+            pageHandler = { error("Unexpected release page request") },
+            accountPageHandler = {
+                accountRequests++
+                if (accountRequests > 1) throw IOException("Offline")
+                favoriteSeriesAccountPageHtml()
+            },
+            isAuthenticated = true,
+            favoriteSeriesCache = FavoriteSeriesCache(ApplicationProvider.getApplicationContext()),
+            activeSessionKey = { sessionKey },
+            favoriteSeriesClock = { now },
+        )
+
+        setUpRepository()
+        val original = favoritesRepository.loadFavoriteSeries() as FavoriteSeriesResult.Success
+        assertEquals(listOf("Alpha", "Beta"), original.items.map { it.titleRu })
+        assertEquals(1, accountRequests)
+
+        now += SIX_HOURS_MS
+        setUpRepository()
+        val fromDisk = favoritesRepository.observeFavoriteSeries().first()
+        assertEquals(original, fromDisk)
+        assertEquals(1, accountRequests)
+        assertEquals(original, favoritesRepository.loadFavoriteSeries())
+        assertEquals(2, accountRequests)
+
+        sessionKey = "different-session"
+        assertEquals(FavoriteSeriesResult.Unavailable(), favoritesRepository.loadFavoriteSeries())
+        sessionKey = null
+        assertEquals(FavoriteSeriesResult.Unavailable("Войдите в LostFilm"), favoritesRepository.loadFavoriteSeries())
+    }
+
+    @Test
     fun loadFavoriteSeries_returnsUnavailable_withoutSession() = runTest {
         val repository = createRepository(
             pageHandler = { fixture("new-page-1.html") },
@@ -2665,6 +2702,9 @@ class LostFilmRepositoryTest {
         isAuthenticated: Boolean = false,
         tmdbResolver: TmdbPosterResolver = createFakeTmdbResolver(),
         catalogPosterIndex: CatalogPosterIndex? = null,
+        favoriteSeriesCache: FavoriteSeriesCache? = null,
+        activeSessionKey: suspend () -> String? = { null },
+        favoriteSeriesClock: () -> Long = { NOW },
     ): LostFilmRepository {
         val fakeHttpClient = FakeLostFilmHttpClient(
             pageHandler = pageHandler,
@@ -2685,7 +2725,9 @@ class LostFilmRepositoryTest {
             releaseDao = releaseDao,
             tmdbEnrichmentService = tmdbEnrichmentService,
             hasAuthenticatedSession = { isAuthenticated },
-            clock = { NOW },
+            clock = favoriteSeriesClock,
+            favoriteSeriesCache = favoriteSeriesCache,
+            activeSessionKey = activeSessionKey,
         )
         return LostFilmRepositoryImpl(
             httpClient = fakeHttpClient,

@@ -22,6 +22,7 @@ import com.kraat.lostfilmnewtv.data.poster.TmdbPosterResolver
 import com.kraat.lostfilmnewtv.data.poster.TmdbPosterResolverImpl
 import com.kraat.lostfilmnewtv.data.poster.TmdbEnrichmentService
 import com.kraat.lostfilmnewtv.data.poster.TmdbEnrichmentServiceImpl
+import com.kraat.lostfilmnewtv.data.repository.FavoriteSeriesCache
 import com.kraat.lostfilmnewtv.data.repository.FavoritesRepository
 import com.kraat.lostfilmnewtv.data.repository.FavoritesRepositoryImpl
 import com.kraat.lostfilmnewtv.data.repository.LostFilmRepository
@@ -34,6 +35,7 @@ import dagger.hilt.components.SingletonComponent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Singleton
 import okhttp3.OkHttpClient
+import okio.ByteString.Companion.encodeUtf8
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -87,6 +89,7 @@ object DataModule {
         releaseDao: ReleaseDao,
         tmdbEnrichmentService: TmdbEnrichmentService,
         sessionStore: EncryptedSessionStore,
+        favoriteSeriesCache: FavoriteSeriesCache,
     ): FavoritesRepository = FavoritesRepositoryImpl(
         httpClient = httpClient,
         releaseDao = releaseDao,
@@ -94,6 +97,11 @@ object DataModule {
         hasAuthenticatedSession = {
             val session = sessionStore.read()
             session != null && !sessionStore.isExpired()
+        },
+        favoriteSeriesCache = favoriteSeriesCache,
+        activeSessionKey = {
+            sessionStore.read()?.takeIf { !sessionStore.isExpired() }
+                ?.toCookieString()?.encodeUtf8()?.sha256()?.hex()
         },
     )
 

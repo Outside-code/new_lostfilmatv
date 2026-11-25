@@ -64,6 +64,7 @@ class SeasonPlaybackCoordinator @Inject constructor(
         val episodes = season.playbackEpisodes()
         if (episodes.isEmpty()) throw IOException("В этом сезоне ещё нет доступных серий")
         val baseUrl = preferences.readTorrServeBaseUrl().trimEnd('/')
+        val headers = preferences.torrServeHeaders()
         val quality = preferences.readDefaultQuality()
         val items = episodes.mapIndexed { index, episode ->
             progress("Готовим серию ${index + 1} из ${episodes.size}")
@@ -97,8 +98,12 @@ class SeasonPlaybackCoordinator @Inject constructor(
                 }.toString().toRequestBody("application/json".toMediaType())
             }
             val endpoint = if (prepared.startsWith("content://")) "/torrent/upload" else "/torrents"
-            val result = client.newCall(Request.Builder().url(baseUrl + endpoint).apply { preferences.torrServeHeaders().forEach { (key, value) -> header(key, value) } }.post(body).build()).execute().use { response ->
-                if (response.code == 401) throw IOException("Укажите логин и пароль TorrServe в настройках приложения")
+            val result = client.newCall(Request.Builder().url(baseUrl + endpoint).apply { headers.forEach { (key, value) -> header(key, value) } }.post(body).build()).execute().use { response ->
+                if (response.code == 401 || response.code == 403) {
+                    val message = if (headers.isEmpty()) "Укажите логин и пароль TorrServe в настройках приложения"
+                    else "TorrServe отклонил сохранённый логин или пароль"
+                    throw IOException(message)
+                }
                 if (!response.isSuccessful) throw IOException("TorrServe не принял серию ${episode.episodeNumber}: HTTP ${response.code}")
                 response.body?.string() ?: throw IOException("TorrServe вернул пустой ответ")
             }

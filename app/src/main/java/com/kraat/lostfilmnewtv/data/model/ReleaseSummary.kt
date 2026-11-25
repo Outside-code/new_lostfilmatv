@@ -1,5 +1,8 @@
 package com.kraat.lostfilmnewtv.data.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class ReleaseSummary(
     val id: String,
     val kind: ReleaseKind,

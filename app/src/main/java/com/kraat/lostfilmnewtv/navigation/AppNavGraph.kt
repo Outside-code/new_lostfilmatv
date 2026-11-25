@@ -1,6 +1,7 @@
 package com.kraat.lostfilmnewtv.navigation
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -18,6 +19,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dagger.hilt.android.EntryPointAccessors
 import com.kraat.lostfilmnewtv.di.AppGraphEntryPoint
+import com.kraat.lostfilmnewtv.platform.torrserve.TorrServeOpenResult
+import com.kraat.lostfilmnewtv.playback.history.ContinueWatchingResult
+import com.kraat.lostfilmnewtv.playback.history.latestSeriesEpisode
+import com.kraat.lostfilmnewtv.playback.history.toPlaybackHistoryEntry
 import com.kraat.lostfilmnewtv.ui.auth.AuthScreen
 import com.kraat.lostfilmnewtv.ui.auth.AuthUiState
 import com.kraat.lostfilmnewtv.ui.auth.AuthViewModel
@@ -33,6 +38,7 @@ import com.kraat.lostfilmnewtv.ui.home.NavItem
 import com.kraat.lostfilmnewtv.ui.schedule.ScheduleRoute
 import com.kraat.lostfilmnewtv.ui.settings.SettingsRoute
 import com.kraat.lostfilmnewtv.ui.settings.SettingsViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -72,6 +78,48 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
             val state by homeViewModel.uiState.collectAsStateWithLifecycle()
             val savedAppUpdate by homeViewModel.savedAppUpdate.collectAsStateWithLifecycle()
             val selectedNavItem by homeViewModel.selectedNavItem.collectAsStateWithLifecycle()
+            val historyStore = appGraphEntryPoint.playbackHistoryStore()
+            val playbackHistory by historyStore.entries.collectAsStateWithLifecycle()
+            val homeScope = rememberCoroutineScope()
+            var isContinuingWatching by remember { mutableStateOf(false) }
+            val continueWatching: () -> Unit = continueWatching@{
+                if (isContinuingWatching) return@continueWatching
+                if (!isAuthenticated) {
+                    navController.navigate(AppDestination.Auth.createRoute(autoStart = true))
+                    return@continueWatching
+                }
+                isContinuingWatching = true
+                homeScope.launch {
+                    val message = try {
+                        when (val next = homeViewModel.prepareContinueWatching(
+                            playbackHistory, appGraphEntryPoint.torrServeLinkBuilder()::supportsSource,
+                        )) {
+                            is ContinueWatchingResult.Unavailable -> next.message
+                            is ContinueWatchingResult.Ready -> {
+                                val details = next.details
+                                when (appGraphEntryPoint.torrServeActionHandler().open(
+                                    context, next.torrentUrl, details.titleRu, details.posterUrl,
+                                )) {
+                                    TorrServeOpenResult.Success -> {
+                                        historyStore.recordLaunch(details.toPlaybackHistoryEntry(System.currentTimeMillis()))
+                                        homeViewModel.onContinuedEpisodeLaunched(details)
+                                        null
+                                    }
+                                    TorrServeOpenResult.Unavailable -> "Не удалось подключиться к TorrServe"
+                                    TorrServeOpenResult.LaunchError -> "Не удалось открыть TorrServe"
+                                }
+                            }
+                        }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        "Не удалось запустить следующую серию"
+                    } finally {
+                        isContinuingWatching = false
+                    }
+                    if (message != null) Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+            }
             var updateInstallJob by remember { mutableStateOf<Job?>(null) }
             var isUpdateDownloading by remember { mutableStateOf(false) }
             var updateDownloadProgress by remember { mutableStateOf<Int?>(null) }
@@ -153,6 +201,8 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 onSearchClick = { navController.navigate(AppDestination.Search.route) },
                 onScheduleClick = { navController.navigate(AppDestination.Schedule.route) },
                 onHistoryClick = { navController.navigate(AppDestination.PlaybackHistory.route) },
+                onContinueWatching = continueWatching.takeIf { playbackHistory.latestSeriesEpisode() != null },
+                isContinuingWatching = isContinuingWatching,
                 onSettingsClick = { navController.navigate(AppDestination.Settings.createRoute()) },
                 onUpdateClick = {
                     val apkUrl = savedAppUpdate?.apkUrl

@@ -104,7 +104,8 @@ object AppModule {
     fun provideTorrServeEndpointChecker(
         okHttpClient: OkHttpClient,
         probe: TorrServeAvailabilityProbe,
-    ): TorrServeEndpointChecker = OkHttpTorrServeEndpointChecker(okHttpClient, probe)
+        preferences: PlaybackPreferencesStore,
+    ): TorrServeEndpointChecker = OkHttpTorrServeEndpointChecker(okHttpClient, probe, preferences)
 
     @Provides
     @Singleton

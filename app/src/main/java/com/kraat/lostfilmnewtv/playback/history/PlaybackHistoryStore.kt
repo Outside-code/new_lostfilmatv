@@ -26,7 +26,7 @@ data class PlaybackHistoryEntry(
         get() = detailsUrl.releaseKey()
 }
 
-private fun String.releaseKey(): String =
+internal fun String.releaseKey(): String =
     toHttpUrlOrNull()?.encodedPath?.trimEnd('/')
         ?.takeIf { it.startsWith("/series/") || it.startsWith("/movies/") }
         ?: this

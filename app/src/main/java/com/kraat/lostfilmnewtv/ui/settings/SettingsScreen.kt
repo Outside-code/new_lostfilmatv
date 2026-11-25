@@ -560,7 +560,7 @@ fun SettingsScreen(
                                     }
                                     SettingsRowButton(
                                         title = "Проверить подключение",
-                                        description = "Отправить запрос на /echo для проверки доступности.",
+                                        description = "Проверить подключение с сохранённым логином и паролем.",
                                         value = if (isCheckingTorrServe) "Проверяем..." else "Проверить",
                                         onClick = onCheckTorrServeClick,
                                         enabled = !isCheckingTorrServe,
