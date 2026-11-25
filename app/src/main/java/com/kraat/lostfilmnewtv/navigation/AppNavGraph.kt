@@ -123,7 +123,7 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                                     TorrServeOpenResult.Success -> {
                                         historyStore.recordLaunch(
                                             details.toPlaybackHistoryEntry(System.currentTimeMillis())
-                                                .copy(positionMs = next.positionMs),
+                                                .copy(positionMs = next.positionMs.takeIf { it > 0 }),
                                         )
                                         "Открыто во внешнем плеере. Продолжение зависит от его истории."
                                     }

@@ -288,7 +288,7 @@ class HomeViewModel @Inject constructor(
             preferencesStore.readDefaultQuality(),
             details.toTorrentRows().filter { supportsSource(it.url) },
         ) ?: return@withContext ContinueWatchingResult.Unavailable("Для этой серии пока нет раздачи")
-        ContinueWatchingResult.Ready(details, torrent, entry.positionMs)
+        ContinueWatchingResult.Ready(details, torrent, entry.positionMs?.coerceAtLeast(0) ?: 0L)
     }
 
     fun onItemWatchedStateChanged(detailsUrl: String, isWatched: Boolean) {

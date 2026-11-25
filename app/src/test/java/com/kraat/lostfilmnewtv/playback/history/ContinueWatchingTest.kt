@@ -52,7 +52,8 @@ class ContinueWatchingTest {
         val entry = history(episode(2, 4).detailsUrl + "/?from=history")
         assertEquals("S02E04 · 18:42", entry.copy(positionMs = 1_122_500).episodeAndPositionLabel())
         assertEquals("S02E04 · 1:01:02", entry.copy(positionMs = 3_662_000).episodeAndPositionLabel())
-        assertEquals("S02E04 · 0:00", entry.episodeAndPositionLabel())
+        assertEquals("S02E04", entry.episodeAndPositionLabel())
+        assertEquals("S02E04", entry.copy(positionMs = 0).episodeAndPositionLabel())
         assertNull(history("https://example.org/movies/a-film").episodeAndPositionLabel())
     }
 

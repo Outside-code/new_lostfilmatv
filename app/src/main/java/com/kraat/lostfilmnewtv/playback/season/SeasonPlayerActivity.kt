@@ -1,5 +1,6 @@
 package com.kraat.lostfilmnewtv.playback.season
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -10,6 +11,7 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -61,10 +63,34 @@ class SeasonPlayerActivity : ComponentActivity() {
     private val detailsUrls by lazy { intent.getStringArrayListExtra("detailsUrls").orEmpty() }
     private val episodeIds by lazy { intent.getStringArrayListExtra("episodeIds").orEmpty() }
 
+    private var waitingForViMu = false
+    private var attemptedViMu = false
+    private val viMuLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        when (result.resultCode) {
+            ViMuPlayback.COMPLETED -> {
+                markCompleted(index)
+                playNextEpisode(index)
+            }
+            ViMuPlayback.FAILED -> {
+                waitingForViMu = false
+                lastPlayingIndex = null
+                startBuiltInPlayer()
+            }
+            else -> {
+                ViMuPlayback.positionOnExit(result.resultCode, result.data)?.let { positionMs ->
+                    detailsUrls.getOrNull(index)?.let { history.savePosition(it, positionMs) }
+                }
+                finish()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (urls.isEmpty()) { finish(); return }
         index = savedInstanceState?.getInt("index") ?: 0
+        waitingForViMu = savedInstanceState?.getBoolean("waitingForViMu") ?: false
+        attemptedViMu = savedInstanceState?.getBoolean("attemptedViMu") ?: false
         position = savedInstanceState?.getLong("position") ?: intent.getLongExtra("startPositionMs", 0L)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -96,7 +122,31 @@ class SeasonPlayerActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        if (urls.isEmpty()) return
+        if (urls.isEmpty() || isFinishing || waitingForViMu) return
+        if (autoAdvance && urls.size == 1 && !attemptedViMu && launchViMu()) return
+        startBuiltInPlayer()
+    }
+
+    private fun launchViMu(): Boolean {
+        attemptedViMu = true
+        val streamUrl = urls.single()
+        for (playerPackage in ViMuPlayback.packages) {
+            val playerIntent = ViMuPlayback.intent(streamUrl, titles.firstOrNull().orEmpty(), playerPackage) ?: return false
+            if (playerIntent.resolveActivity(packageManager) == null) continue
+            try {
+                viMuLauncher.launch(playerIntent)
+            } catch (_: ActivityNotFoundException) {
+                continue
+            }
+            waitingForViMu = true
+            recordPlayingEpisode(index, positionMs = null)
+            return true
+        }
+        return false
+    }
+
+    private fun startBuiltInPlayer() {
+        if (player != null || urls.isEmpty() || isFinishing) return
         val http = androidx.media3.datasource.DefaultHttpDataSource.Factory()
             .setDefaultRequestProperties(preferences.torrServeHeaders())
         val sources = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
@@ -169,7 +219,7 @@ class SeasonPlayerActivity : ComponentActivity() {
         ).joinToString(" · ")
     }
 
-    private fun recordPlayingEpisode(index: Int, positionMs: Long) {
+    private fun recordPlayingEpisode(index: Int, positionMs: Long?) {
         if (lastPlayingIndex == index) return
         val url = detailsUrls.getOrNull(index)?.takeIf { it.isNotBlank() } ?: return
         val title = seriesTitle.ifBlank { titles.getOrNull(index).orEmpty() }
@@ -180,7 +230,7 @@ class SeasonPlayerActivity : ComponentActivity() {
             subtitle = episodeLabels.getOrNull(index).orEmpty(),
             posterUrl = intent.getStringExtra("posterUrl").orEmpty(),
             startedAt = System.currentTimeMillis(),
-            positionMs = positionMs.coerceAtLeast(0L),
+            positionMs = positionMs?.coerceAtLeast(0L),
         ))
     }
 
@@ -201,6 +251,7 @@ class SeasonPlayerActivity : ComponentActivity() {
                 val next = playback.prepareNextEpisode(url, history.entries.value)
                 if (next == null) {
                     Toast.makeText(this@SeasonPlayerActivity, "Следующей доступной серии пока нет", Toast.LENGTH_LONG).show()
+                    if (waitingForViMu) finish()
                     return@launch
                 }
                 startActivity(createIntent(this@SeasonPlayerActivity, next, autoAdvance = true))
@@ -209,6 +260,7 @@ class SeasonPlayerActivity : ComponentActivity() {
                 throw error
             } catch (_: Exception) {
                 Toast.makeText(this@SeasonPlayerActivity, "Не удалось запустить следующую серию", Toast.LENGTH_LONG).show()
+                if (waitingForViMu) finish()
             }
         }
     }
@@ -216,7 +268,21 @@ class SeasonPlayerActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("index", player?.currentMediaItemIndex ?: index)
         outState.putLong("position", player?.currentPosition ?: position)
+        outState.putBoolean("waitingForViMu", waitingForViMu)
+        outState.putBoolean("attemptedViMu", attemptedViMu)
         super.onSaveInstanceState(outState)
+    }
+
+    private fun saveInterruptedPosition(current: Player) {
+        val playingIndex = current.currentMediaItemIndex
+        if (lastPlayingIndex == playingIndex && current.playbackState != Player.STATE_ENDED) {
+            detailsUrls.getOrNull(playingIndex)?.let { history.savePosition(it, current.currentPosition) }
+        }
+    }
+
+    override fun onPause() {
+        player?.let(::saveInterruptedPosition)
+        super.onPause()
     }
 
     override fun onStop() {
@@ -225,9 +291,7 @@ class SeasonPlayerActivity : ComponentActivity() {
             index = current.currentMediaItemIndex
             position = current.currentPosition
             resumePlayback = current.playWhenReady
-            if (lastPlayingIndex == index && current.playbackState != Player.STATE_ENDED) {
-                detailsUrls.getOrNull(index)?.let { history.savePosition(it, position) }
-            }
+            saveInterruptedPosition(current)
             current.release()
         }
         player = null

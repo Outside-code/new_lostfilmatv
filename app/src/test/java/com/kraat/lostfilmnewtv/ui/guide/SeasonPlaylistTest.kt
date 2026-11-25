@@ -2,9 +2,11 @@ package com.kraat.lostfilmnewtv.ui.guide
 
 import com.kraat.lostfilmnewtv.data.model.SeriesGuideEpisode
 import com.kraat.lostfilmnewtv.data.model.SeriesGuideSeason
+import com.kraat.lostfilmnewtv.playback.season.awaitTorrentStreamUrl
 import com.kraat.lostfilmnewtv.playback.season.playbackEpisodes
 import com.kraat.lostfilmnewtv.playback.season.torrentStreamUrl
 import java.io.IOException
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -31,4 +33,19 @@ class SeasonPlaylistTest {
     @Test(expected = IOException::class) fun missingVideoDoesNotProduceUnplayableLink() {
         torrentStreamUrl("http://127.0.0.1:8090", """{"hash":"1234567890123456789012345678901234567890","file_stats":[]}""")
     }
+
+    @Test fun waitsForFilesWhenTorrServeReturnsOnlyTheHashAtFirst() = runTest {
+        val hash = "1234567890123456789012345678901234567890"
+        val added = """{"hash":"$hash","file_stats":[]}"""
+        val ready = """{"hash":"$hash","file_stats":[{"id":1,"path":"episode.mkv","length":200000}]}"""
+        val requests = mutableListOf<String>()
+        val url = awaitTorrentStreamUrl("http://127.0.0.1:8090", added) { requested ->
+            requests += requested
+            if (requests.size == 1) added else ready
+        }
+
+        assertEquals(listOf(hash, hash), requests)
+        assertTrue(url.contains("/stream/episode.mkv"))
+    }
+
 }

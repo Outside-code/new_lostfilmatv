@@ -3,6 +3,7 @@ package com.kraat.lostfilmnewtv.playback.history
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,7 +59,20 @@ class PlaybackHistoryStoreTest {
 
         val completed = PlaybackHistoryStore(context).entries.value.first()
         assertTrue(completed.completed)
-        assertEquals(0L, completed.positionMs)
+        assertNull(completed.positionMs)
+    }
+    @Test
+    fun launchWithoutAPositionKeepsTheSavedTimeUntilThePlayerReturnsARealPosition() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val url = "https://www.lostfilm.today/series/example/season_1/episode_3/"
+        val entry = PlaybackHistoryEntry(url, "Сериал", startedAt = 1L, positionMs = 145_000)
+        val store = PlaybackHistoryStore(context)
+        store.recordLaunch(entry)
+        store.recordLaunch(entry.copy(startedAt = 2L, positionMs = null))
+
+        assertEquals(145_000L, store.entries.value.first().positionMs)
+        store.savePosition(url, 0)
+        assertEquals(0L, store.entries.value.first().positionMs)
     }
 
 }

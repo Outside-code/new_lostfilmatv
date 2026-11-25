@@ -103,12 +103,13 @@ class SeasonPlayerActivityTest {
             awaitPosition(scenario, 120_000)
         }
         val entry = history.entries.value.first { it.detailsUrl == url }
-        assertTrue(entry.positionMs in 120_000L..130_000L)
+        val savedPosition = checkNotNull(entry.positionMs)
+        assertTrue(savedPosition in 120_000L..130_000L)
         assertTrue(!entry.completed)
 
-        val resumed = SeasonPlayerActivity.createIntent(context, playlist, startPositionMs = entry.positionMs, autoAdvance = true)
+        val resumed = SeasonPlayerActivity.createIntent(context, playlist, startPositionMs = savedPosition, autoAdvance = true)
         ActivityScenario.launch<SeasonPlayerActivity>(resumed).use { scenario ->
-            awaitPosition(scenario, entry.positionMs)
+            awaitPosition(scenario, savedPosition)
         }
     }
 

@@ -20,7 +20,7 @@ data class PlaybackHistoryEntry(
     val posterUrl: String = "",
     val startedAt: Long,
     val completed: Boolean = false,
-    val positionMs: Long = 0,
+    val positionMs: Long? = null,
 ) {
     // The same release can be opened through different LostFilm mirrors.
     val key: String
@@ -43,7 +43,11 @@ class PlaybackHistoryStore @Inject constructor(@ApplicationContext context: Cont
         if (entry.detailsUrl.isBlank() || entry.title.isBlank()) return
         val key = entry.key
         val existing = state.value.firstOrNull { it.key == key }
-        val latest = entry.copy(completed = entry.completed || existing?.completed == true)
+        val completed = entry.completed || existing?.completed == true
+        val latest = entry.copy(
+            completed = completed,
+            positionMs = if (completed) null else entry.positionMs ?: existing?.positionMs,
+        )
         val next = listOf(latest) + state.value.filterNot { it.key == key }
         save(next.take(200))
     }
@@ -61,7 +65,7 @@ class PlaybackHistoryStore @Inject constructor(@ApplicationContext context: Cont
         val key = detailsUrl.releaseKey()
         val entry = state.value.firstOrNull { it.key == key } ?: return
         if (entry.completed) return
-        save(state.value.map { if (it.key == key) it.copy(completed = true, positionMs = 0) else it })
+        save(state.value.map { if (it.key == key) it.copy(completed = true, positionMs = null) else it })
     }
 
     private fun save(entries: List<PlaybackHistoryEntry>) {

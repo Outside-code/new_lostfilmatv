@@ -20,6 +20,7 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -123,7 +124,7 @@ class SeasonPlaybackCoordinator @Inject constructor(
         } else loaded.details
     }
 
-    private fun prepareItem(
+    private suspend fun prepareItem(
         details: ReleaseDetails,
         torrent: DetailsTorrentRowUiModel,
         title: String,
@@ -151,36 +152,71 @@ class SeasonPlaybackCoordinator @Inject constructor(
             }.toString().toRequestBody("application/json".toMediaType())
         }
         val endpoint = if (prepared.startsWith("content://")) "/torrent/upload" else "/torrents"
-        val result = client.newCall(Request.Builder().url(baseUrl + endpoint).apply { headers.forEach { (key, value) -> header(key, value) } }.post(body).build()).execute().use { response ->
+        val result = postTorrServe(baseUrl + endpoint, body, headers)
+        val streamUrl = awaitTorrentStreamUrl(baseUrl, result) { hash ->
+            val request = buildJsonObject {
+                put("action", "get")
+                put("hash", hash)
+            }.toString().toRequestBody("application/json".toMediaType())
+            postTorrServe("$baseUrl/torrents", request, headers)
+        }
+        return SeasonMediaItem(
+            url = streamUrl, title = episodeTitle,
+            detailsUrl = details.detailsUrl, episodeId = details.playEpisodeId ?: fallbackEpisodeId,
+            episodeLabel = episodeLabel,
+        )
+    }
+
+    private fun postTorrServe(url: String, body: okhttp3.RequestBody, headers: Map<String, String>): String {
+        val request = Request.Builder().url(url).post(body)
+            .apply { headers.forEach { (key, value) -> header(key, value) } }.build()
+        return client.newCall(request).execute().use { response ->
             if (response.code == 401 || response.code == 403) {
                 val message = if (headers.isEmpty()) "Укажите логин и пароль TorrServe в настройках приложения"
                 else "TorrServe отклонил сохранённый логин или пароль"
                 throw IOException(message)
             }
-            if (!response.isSuccessful) throw IOException("TorrServe не принял серию ${details.episodeNumber}: HTTP ${response.code}")
+            if (!response.isSuccessful) throw IOException("Не удалось получить поток TorrServe: HTTP ${response.code}")
             response.body?.string() ?: throw IOException("TorrServe вернул пустой ответ")
         }
-        return SeasonMediaItem(
-            url = torrentStreamUrl(baseUrl, result), title = episodeTitle,
-            detailsUrl = details.detailsUrl, episodeId = details.playEpisodeId ?: fallbackEpisodeId,
-            episodeLabel = episodeLabel,
-        )
     }
 }
 
-internal fun torrentStreamUrl(baseUrl: String, response: String): String {
-    val json = when (val body = Json.parseToJsonElement(response)) {
+internal fun torrentStreamUrl(baseUrl: String, response: String): String =
+    parseTorrentStatus(response).streamUrl(baseUrl) ?: throw IOException("В торренте не найден видеофайл")
+
+internal suspend fun awaitTorrentStreamUrl(
+    baseUrl: String,
+    response: String,
+    loadStatus: suspend (String) -> String,
+): String {
+    val initial = parseTorrentStatus(response)
+    initial.streamUrl(baseUrl)?.let { return it }
+    val hash = initial.torrentHash()
+    repeat(3) { attempt ->
+        delay(500L * (attempt + 1))
+        parseTorrentStatus(loadStatus(hash)).streamUrl(baseUrl)?.let { return it }
+    }
+    throw IOException("В торренте не найден видеофайл")
+}
+
+private fun parseTorrentStatus(response: String): JsonObject =
+    when (val body = Json.parseToJsonElement(response)) {
         is JsonObject -> body
         is JsonArray -> body.singleOrNull() as? JsonObject
         else -> null
     } ?: throw IOException("TorrServe не вернул данные торрента")
-    val hash = json["hash"]?.jsonPrimitive?.content?.takeIf { it.matches(Regex("[a-fA-F0-9]{40}")) }
+
+private fun JsonObject.torrentHash(): String =
+    this["hash"]?.jsonPrimitive?.content?.takeIf { it.matches(Regex("[a-fA-F0-9]{40}")) }
         ?: throw IOException("TorrServe не вернул хеш торрента")
-    val video = json["file_stats"]?.jsonArray.orEmpty().map { it.jsonObject }
+
+private fun JsonObject.streamUrl(baseUrl: String): String? {
+    val hash = torrentHash()
+    val video = this["file_stats"]?.jsonArray.orEmpty().map { it.jsonObject }
         .filter { file -> file["path"]?.jsonPrimitive?.content.orEmpty().substringAfterLast('.').lowercase() in
             setOf("mkv", "mp4", "m4v", "avi", "ts", "webm", "mov") }
-        .maxByOrNull { it["length"]?.jsonPrimitive?.longOrNull ?: 0L }
-        ?: throw IOException("В торренте не найден видеофайл")
+        .maxByOrNull { it["length"]?.jsonPrimitive?.longOrNull ?: 0L } ?: return null
     val id = video["id"]?.jsonPrimitive?.intOrNull ?: throw IOException("TorrServe не вернул номер файла")
     val name = video["path"]!!.jsonPrimitive.content.substringAfterLast('/')
     return baseUrl.toHttpUrl().newBuilder().addPathSegment("stream").addPathSegment(name)
