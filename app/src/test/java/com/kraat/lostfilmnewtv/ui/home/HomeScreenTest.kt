@@ -477,7 +477,7 @@ class HomeScreenTest {
 
     @Test
     @OptIn(ExperimentalTestApi::class)
-    fun homeScreen_posterVerticalKeysStayOnPoster_andBackFocusesMenu() {
+    fun homeScreen_upFromSecondPosterFocusesFilters_andDownRestoresPoster() {
         composeRule.setContent {
             LostFilmTheme {
                 HomeScreen(state = seededState())
@@ -495,14 +495,18 @@ class HomeScreenTest {
         }
 
         composeRule.onNodeWithTag(posterTag(firstDetailsUrl))
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        composeRule.onNodeWithTag(posterTag(secondDetailsUrl)).assertIsFocused()
+
+        composeRule.onNodeWithTag(posterTag(secondDetailsUrl))
             .performKeyInput { pressKey(Key.DirectionUp) }
-        composeRule.onNodeWithTag(posterTag(firstDetailsUrl)).assertIsFocused()
+        composeRule.onNodeWithTag("home-filter-primary").assertIsFocused()
 
-        composeRule.onNodeWithTag(posterTag(firstDetailsUrl))
+        composeRule.onNodeWithTag("home-filter-primary")
             .performKeyInput { pressKey(Key.DirectionDown) }
-        composeRule.onNodeWithTag(posterTag(firstDetailsUrl)).assertIsFocused()
+        composeRule.onNodeWithTag(posterTag(secondDetailsUrl)).assertIsFocused()
 
-        composeRule.onNodeWithTag(posterTag(firstDetailsUrl))
+        composeRule.onNodeWithTag(posterTag(secondDetailsUrl))
             .performKeyInput { pressKey(Key.Back) }
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
@@ -695,7 +699,7 @@ class HomeScreenTest {
 
     @Test
     @OptIn(ExperimentalTestApi::class)
-    fun homeScreen_railUpDownSwitchesModesAndKeepsFocusInRail() {
+    fun homeScreen_downSwitchesModesAndUpFocusesFiltersInCurrentMode() {
         val allModes = listOf(
             HomeFeedMode.AllNew,
             HomeFeedMode.Favorites,
@@ -792,16 +796,8 @@ class HomeScreenTest {
 
         composeRule.onNodeWithTag(favoritePosterTag)
             .performKeyInput { pressKey(Key.DirectionUp) }
-
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            val node = composeRule.onAllNodesWithTag(allNewPosterTag)
-                .fetchSemanticsNodes()
-                .singleOrNull()
-                ?: return@waitUntil false
-            SemanticsProperties.Focused in node.config && node.config[SemanticsProperties.Focused]
-        }
-        composeRule.onNodeWithText("9-1-1").assertExists()
-        composeRule.onNodeWithTag("home-mode-toggle").assertIsNotFocused()
+        composeRule.onNodeWithTag("home-filter-primary").assertIsFocused()
+        assertEquals(HomeFeedMode.Favorites, state.selectedMode)
     }
 
     // Note: homeScreen_serviceInfo_staysAboveBottomEdge removed — flaky in Robolectric

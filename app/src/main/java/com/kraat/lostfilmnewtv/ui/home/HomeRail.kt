@@ -69,7 +69,6 @@ fun HomeRail(
     onItemFocused: (String) -> Unit,
     onRailFocusChanged: (Boolean) -> Unit,
     onOpenDetails: (String) -> Unit,
-    onMoveToPreviousMode: (() -> Unit)? = null,
     onMoveToNextMode: (() -> Unit)? = null,
     onEndReached: () -> Unit,
     modifier: Modifier = Modifier,
@@ -125,8 +124,8 @@ fun HomeRail(
 
     fun handleVerticalNavigation(key: Key): Boolean {
         return when {
-            key == Key.DirectionUp && onMoveToPreviousMode != null -> {
-                onMoveToPreviousMode()
+            key == Key.DirectionUp && upTargetRequester != null -> {
+                upTargetRequester.requestFocus()
                 true
             }
             key == Key.DirectionDown && onMoveToNextMode != null -> {

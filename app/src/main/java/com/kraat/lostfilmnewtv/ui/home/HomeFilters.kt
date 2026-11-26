@@ -1,10 +1,13 @@
 package com.kraat.lostfilmnewtv.ui.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
@@ -21,11 +24,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kraat.lostfilmnewtv.data.model.CatalogSort
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.model.SeriesStatus
+import com.kraat.lostfilmnewtv.ui.theme.FocusBackground
+import com.kraat.lostfilmnewtv.ui.theme.FocusBorder
+import com.kraat.lostfilmnewtv.ui.theme.HomePanelBorder
+import com.kraat.lostfilmnewtv.ui.theme.HomePanelSurfaceStrong
 import com.kraat.lostfilmnewtv.ui.theme.TextPrimary
 
 internal enum class ReleaseWatchFilter(val label: String) {
@@ -53,10 +62,12 @@ internal fun HomeFilterControls(
     menuRequester: FocusRequester,
     contentRequester: FocusRequester?,
 ) {
-    val primary = Modifier.focusRequester(focusRequester).focusProperties {
+    val statusRequester = remember { FocusRequester() }
+    val primary = Modifier.testTag("home-filter-primary").focusRequester(focusRequester).focusProperties {
         up = menuRequester
         left = menuRequester
         contentRequester?.let { down = it }
+        if (state.selectedMode == HomeFeedMode.Series) right = statusRequester
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         when (state.selectedMode) {
@@ -68,7 +79,14 @@ internal fun HomeFilterControls(
                     onSortChanged, primary,
                 )
                 if (isSeries) {
-                    FilterMenu(SeriesStatus.entries, state.seriesStatus, SeriesStatus::label, onStatusChanged)
+                    FilterMenu(
+                        SeriesStatus.entries, state.seriesStatus, SeriesStatus::label, onStatusChanged,
+                        Modifier.testTag("home-filter-status").focusRequester(statusRequester).focusProperties {
+                            up = menuRequester
+                            left = focusRequester
+                            contentRequester?.let { down = it }
+                        },
+                    )
                 }
             }
             HomeFeedMode.AllNew, HomeFeedMode.Favorites ->
@@ -91,28 +109,37 @@ private fun <T> FilterMenu(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var focused by remember { mutableStateOf(false) }
     val selectedOptionFocus = remember { FocusRequester() }
     Box {
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
             OutlinedButton(
                 onClick = { expanded = true },
-                modifier = modifier.height(32.dp),
+                modifier = modifier.height(32.dp).onFocusChanged { focused = it.isFocused },
                 contentPadding = PaddingValues(horizontal = 12.dp),
+                border = BorderStroke(if (focused) 2.dp else 1.dp, if (focused) FocusBorder else HomePanelBorder),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (focused) FocusBackground else HomePanelSurfaceStrong,
+                    contentColor = TextPrimary,
+                ),
             ) {
-                Text(label(selected), color = TextPrimary)
+                Text(label(selected))
+                Text("▾", Modifier.padding(start = 6.dp))
             }
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            LaunchedEffect(selected) { requestFocusWhenReady(selectedOptionFocus) }
-            options.forEach { option ->
-                DropdownMenuItem(
-                    modifier = if (option == selected) Modifier.focusRequester(selectedOptionFocus) else Modifier,
-                    text = { Text(label(option)) },
-                    onClick = {
-                        expanded = false
-                        if (option != selected) onSelected(option)
-                    },
-                )
+        if (expanded) {
+            DropdownMenu(expanded = true, onDismissRequest = { expanded = false }) {
+                LaunchedEffect(selected) { requestFocusWhenReady(selectedOptionFocus) }
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        modifier = if (option == selected) Modifier.focusRequester(selectedOptionFocus) else Modifier,
+                        text = { Text(label(option)) },
+                        onClick = {
+                            expanded = false
+                            if (option != selected) onSelected(option)
+                        },
+                    )
+                }
             }
         }
     }

@@ -255,6 +255,9 @@ fun HomeScreen(
         else -> null
     }
     val railItems = (activeModeState as? HomeModeContentState.Content)?.items ?: activeItems
+    val filterReturnRequester = focusedItemKey
+        ?.let { cardFocusRequesters[homeItemKey(activeRailId, it)] }
+        ?: headerDownTarget
     val focusedItem = railItems.firstOrNull { it.detailsUrl == focusedItemKey }
         ?: state.selectedItem?.takeIf { selected -> railItems.any { it.detailsUrl == selected.detailsUrl } }
         ?: railItems.firstOrNull()
@@ -317,7 +320,7 @@ fun HomeScreen(
                     onStatusChanged = onSeriesStatusChanged,
                     focusRequester = filterFocusRequester,
                     menuRequester = headerPrimaryRequester,
-                    contentRequester = headerDownTarget,
+                    contentRequester = filterReturnRequester,
                 )
             }
 
@@ -458,7 +461,7 @@ fun HomeScreen(
                                     cardFocusRequesters = cardFocusRequesters,
                                     shouldRequestFocus = startupContentFocusPending,
                                     returnFocusRequestVersion = contentReturnFocusRequestVersion,
-                                    upTargetRequester = headerPrimaryRequester,
+                                    upTargetRequester = filterFocusRequester,
                                     leftTargetRequester = headerPrimaryRequester,
                                     firstCardLeftTarget = filterFocusRequester,
                                     downTargetRequester = null,
@@ -483,7 +486,6 @@ fun HomeScreen(
                                     } else {
                                         onOpenDetails
                                     },
-                                    onMoveToPreviousMode = { switchModeFromRail(offset = -1) },
                                     onMoveToNextMode = { switchModeFromRail(offset = 1) },
                                     onEndReached = onEndReached,
                                     nextPage = activeModeData.nextPage.takeIf { activeModeData.hasNextPage },

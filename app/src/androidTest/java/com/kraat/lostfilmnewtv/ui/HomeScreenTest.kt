@@ -56,7 +56,7 @@ class HomeScreenTest {
     }
 
     @Test
-    fun railFocus_keepsVerticalFocusAndBackMovesToModeToggle() {
+    fun railFocus_upEntersFiltersAndDownReturnsToPoster() {
         composeRule.setContent {
             LostFilmTheme {
                 var state by remember { mutableStateOf(seededState()) }
@@ -84,23 +84,13 @@ class HomeScreenTest {
             keyDown(Key.DirectionUp)
             keyUp(Key.DirectionUp)
         }
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(posterTag(firstDetailsUrl)).assertIsFocused()
+        composeRule.onNodeWithTag("home-filter-primary").assertIsFocused()
 
-        composeRule.onNodeWithTag(posterTag(firstDetailsUrl)).performKeyInput {
+        composeRule.onNodeWithTag("home-filter-primary").performKeyInput {
             keyDown(Key.DirectionDown)
             keyUp(Key.DirectionDown)
         }
-        composeRule.waitForIdle()
         composeRule.onNodeWithTag(posterTag(firstDetailsUrl)).assertIsFocused()
-
-        composeRule.onNodeWithTag(posterTag(firstDetailsUrl)).performKeyInput {
-            keyDown(Key.Back)
-            keyUp(Key.Back)
-        }
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag("home-mode-toggle").assertIsFocused()
     }
 
     @Test
