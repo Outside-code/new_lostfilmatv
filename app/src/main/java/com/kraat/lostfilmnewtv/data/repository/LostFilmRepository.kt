@@ -1,5 +1,7 @@
 package com.kraat.lostfilmnewtv.data.repository
 
+import com.kraat.lostfilmnewtv.data.model.CatalogSort
+import com.kraat.lostfilmnewtv.data.model.SeriesStatus
 import com.kraat.lostfilmnewtv.data.model.LostFilmSearchItem
 import com.kraat.lostfilmnewtv.data.model.PageState
 import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
@@ -87,6 +89,11 @@ interface LostFilmRepository {
     fun observePage(pageNumber: Int = 1): Flow<PageState> = flow {
         emit(loadPage(pageNumber))
     }
+
+    fun observeMovies(pageNumber: Int, sort: CatalogSort): Flow<PageState> = observeMovies(pageNumber)
+
+    fun observeSeriesCatalog(pageNumber: Int, sort: CatalogSort, status: SeriesStatus): Flow<PageState> =
+        observeSeriesCatalog(pageNumber)
 
     fun observeMovies(pageNumber: Int): Flow<PageState> = flow {
         emit(PageState.Error(pageNumber = pageNumber, message = "Фильмы недоступны"))

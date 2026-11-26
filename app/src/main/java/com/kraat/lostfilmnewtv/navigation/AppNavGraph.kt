@@ -192,6 +192,8 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 focusStateFlow = homeViewModel.focusState,
                 onItemFocused = homeViewModel::onItemFocused,
                 onModeSelected = homeViewModel::onModeSelected,
+                onCatalogSortChanged = homeViewModel::onCatalogSortChanged,
+                onSeriesStatusChanged = homeViewModel::onSeriesStatusChanged,
                 onOpenDetails = { url ->
                     homeViewModel.onNavItemSelected(NavItem.HOME)
                     navController.navigate(AppDestination.Details.createRoute(url, isAuthenticated))

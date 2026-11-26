@@ -1,5 +1,7 @@
 package com.kraat.lostfilmnewtv.ui.home
 
+import com.kraat.lostfilmnewtv.data.model.CatalogSort
+import com.kraat.lostfilmnewtv.data.model.SeriesStatus
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -367,6 +369,7 @@ class HomeViewModel @Inject constructor(
         }
         if (_uiState.value.isFavoritesRailVisible) loadFavoriteReleases()
         if (_uiState.value.isFavoriteSeriesModeVisible) loadFavoriteSeries()
+        if (_uiState.value.seriesStatus == SeriesStatus.Favorites) loadSeriesCatalog(1, isPagingRequest = false)
     }
 
     fun onFavoriteStateChanged(detailsUrl: String, isFavorite: Boolean) {
@@ -785,11 +788,39 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun loadMovies(pageNumber: Int, isPagingRequest: Boolean) =
-        loadCatalogPage(HomeFeedMode.Movies, pageNumber, isPagingRequest, repository::observeMovies)
+    fun onCatalogSortChanged(sort: CatalogSort) {
+        when (_uiState.value.selectedMode) {
+            HomeFeedMode.Movies -> {
+                if (sort == _uiState.value.movieSort) return
+                _uiState.update { it.copy(movieSort = sort) }
+                loadMovies(pageNumber = 1, isPagingRequest = false)
+            }
+            HomeFeedMode.Series -> {
+                if (sort == _uiState.value.seriesSort) return
+                _uiState.update { it.copy(seriesSort = sort) }
+                loadSeriesCatalog(pageNumber = 1, isPagingRequest = false)
+            }
+            else -> Unit
+        }
+    }
 
-    private fun loadSeriesCatalog(pageNumber: Int, isPagingRequest: Boolean) =
-        loadCatalogPage(HomeFeedMode.Series, pageNumber, isPagingRequest, repository::observeSeriesCatalog)
+    fun onSeriesStatusChanged(status: SeriesStatus) {
+        if (status == _uiState.value.seriesStatus) return
+        _uiState.update { it.copy(seriesStatus = status) }
+        loadSeriesCatalog(pageNumber = 1, isPagingRequest = false)
+    }
+
+    private fun loadMovies(pageNumber: Int, isPagingRequest: Boolean) {
+        val sort = _uiState.value.movieSort
+        loadCatalogPage(HomeFeedMode.Movies, pageNumber, isPagingRequest) { repository.observeMovies(it, sort) }
+    }
+
+    private fun loadSeriesCatalog(pageNumber: Int, isPagingRequest: Boolean) {
+        val state = _uiState.value
+        loadCatalogPage(HomeFeedMode.Series, pageNumber, isPagingRequest) {
+            repository.observeSeriesCatalog(it, state.seriesSort, state.seriesStatus)
+        }
+    }
 
     private fun loadCatalogPage(
         mode: HomeFeedMode,
@@ -862,7 +893,11 @@ class HomeViewModel @Inject constructor(
                                     items = emptyList(),
                                     isPaging = false,
                                     pagingErrorMessage = null,
-                                    contentState = HomeModeContentState.Error(result.message),
+                                    contentState = if (result.loginRequired) {
+                                        HomeModeContentState.LoginRequired(result.message)
+                                    } else {
+                                        HomeModeContentState.Error(result.message)
+                                    },
                                 )
                             }
                         }.resolveSelection()

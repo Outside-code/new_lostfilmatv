@@ -76,6 +76,7 @@ fun HomeRail(
     pageWarmupDistance: Int = 0,
     nextPage: Int? = null,
     seriesWithNewEpisodes: Set<String> = emptySet(),
+    firstCardLeftTarget: FocusRequester? = leftTargetRequester,
 ) {
     val itemKeys = remember(items) { items.map { it.detailsUrl } }
     val targetKey = if (focusedItemKey in itemKeys) {
@@ -181,8 +182,8 @@ fun HomeRail(
                         .focusRequester(cardFocusRequesters.getValue(itemKey))
                         .focusProperties {
                             up = FocusRequester.Cancel
-                            if (leftTargetRequester != null && index == 0) {
-                                left = leftTargetRequester
+                            if (firstCardLeftTarget != null && index == 0) {
+                                left = firstCardLeftTarget
                             }
                             down = FocusRequester.Cancel
                             if (isPaging && index == items.lastIndex) {

@@ -1,5 +1,7 @@
 package com.kraat.lostfilmnewtv.ui.home
 
+import com.kraat.lostfilmnewtv.data.model.CatalogSort
+import com.kraat.lostfilmnewtv.data.model.SeriesStatus
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 
 /**
@@ -30,6 +32,9 @@ data class HomeUiState(
     val isInitialLoading: Boolean = false,
     val fullScreenErrorMessage: String? = null,
     val isHomeMenuLabelsEnabled: Boolean = true,
+    val movieSort: CatalogSort = CatalogSort.Added,
+    val seriesSort: CatalogSort = CatalogSort.Added,
+    val seriesStatus: SeriesStatus = SeriesStatus.All,
 ) {
     // Convenience read accessors — keep existing call sites compiling unchanged
     val items: List<ReleaseSummary> get() = modeData(HomeFeedMode.AllNew).items

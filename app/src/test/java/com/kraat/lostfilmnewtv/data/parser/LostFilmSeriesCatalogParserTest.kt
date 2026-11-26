@@ -62,4 +62,21 @@ class LostFilmSeriesCatalogParserTest {
         assertEquals(2, item.pageNumber)
         assertEquals(43L, item.fetchedAt)
     }
+
+    @Test
+    fun favoritesCatalogSkipsEntriesKnownToBeOutsideFavorites() {
+        val json = """
+            {"data":[
+              {"title":"Избранный","link":"/series/Favorite","not_favorited":false},
+              {"title":"Другой","link":"/series/Other","not_favorited":true}
+            ]}
+        """.trimIndent()
+        val parser = LostFilmSeriesCatalogParser()
+
+        assertEquals(2, parser.parseSearchJson(json, pageNumber = 1).size)
+        assertEquals(
+            "Избранный",
+            parser.parseSearchJson(json, pageNumber = 1, favoritesOnly = true).single().titleRu,
+        )
+    }
 }

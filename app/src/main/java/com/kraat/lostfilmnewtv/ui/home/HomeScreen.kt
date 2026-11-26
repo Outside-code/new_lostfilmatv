@@ -1,5 +1,7 @@
 package com.kraat.lostfilmnewtv.ui.home
 import androidx.activity.compose.BackHandler
+import com.kraat.lostfilmnewtv.data.model.CatalogSort
+import com.kraat.lostfilmnewtv.data.model.SeriesStatus
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -83,6 +85,8 @@ fun HomeScreen(
     focusStateFlow: StateFlow<HomeFocusState>? = null,
     onItemFocused: (String) -> Unit = {},
     onModeSelected: (HomeFeedMode) -> Unit = {},
+    onCatalogSortChanged: (CatalogSort) -> Unit = {},
+    onSeriesStatusChanged: (SeriesStatus) -> Unit = {},
     onOpenDetails: (String) -> Unit = {},
     onOpenSeriesOverview: (String) -> Unit = onOpenDetails,
     onOpenSeriesGuide: (String) -> Unit = onOpenSeriesOverview,
@@ -126,11 +130,32 @@ fun HomeScreen(
         emptySet()
     }
     val activeModeData = state.modeData(state.selectedMode)
-    val activeModeState = activeModeData.contentState
+    var newWatchFilter by rememberSaveable { mutableStateOf(ReleaseWatchFilter.All) }
+    var favoriteWatchFilter by rememberSaveable { mutableStateOf(ReleaseWatchFilter.All) }
+    var newFavoritesOnly by rememberSaveable { mutableStateOf(false) }
+    val watchFilter = if (state.selectedMode == HomeFeedMode.Favorites) favoriteWatchFilter else newWatchFilter
+    val activeItems = remember(activeModeData.items, state.selectedMode, watchFilter, newFavoritesOnly, seriesWithNewEpisodes) {
+        when (state.selectedMode) {
+            HomeFeedMode.AllNew, HomeFeedMode.Favorites -> watchFilter.apply(activeModeData.items)
+            HomeFeedMode.FavoriteSeries -> if (newFavoritesOnly) {
+                activeModeData.items.filter { it.detailsUrl.seriesSlug() in seriesWithNewEpisodes }
+            } else activeModeData.items
+            else -> activeModeData.items
+        }
+    }
+    val activeModeState = when (val content = activeModeData.contentState) {
+        is HomeModeContentState.Content ->
+            if (activeItems.isEmpty()) HomeModeContentState.Empty else HomeModeContentState.Content(activeItems)
+        else -> content
+    }
+    val canFilter = activeModeState !is HomeModeContentState.Loading
+    val filterFocusRequester = remember { FocusRequester() }
+    val nextPageRequester = remember { FocusRequester() }
+    val filteredPageIsEmpty = activeModeState is HomeModeContentState.Empty && activeModeData.items.isNotEmpty()
+    val showNextPage = filteredPageIsEmpty && activeModeData.hasNextPage
     val isAllNewMode by remember(state.selectedMode) {
         derivedStateOf { state.selectedMode == HomeFeedMode.AllNew }
     }
-    val activeItems = activeModeData.items
     val modeSwitchOrder = remember(state.availableModes) {
         HomeFeedMode.entries.filter { it in state.availableModes }
     }
@@ -226,11 +251,12 @@ fun HomeScreen(
         is HomeModeContentState.Content -> newestContentRequester ?: contentEntryRequester
         is HomeModeContentState.Error -> retryActionRequester
         is HomeModeContentState.LoginRequired -> loginActionRequester
+        HomeModeContentState.Empty -> nextPageRequester.takeIf { showNextPage }
         else -> null
     }
     val railItems = (activeModeState as? HomeModeContentState.Content)?.items ?: activeItems
     val focusedItem = railItems.firstOrNull { it.detailsUrl == focusedItemKey }
-        ?: state.selectedItem
+        ?: state.selectedItem?.takeIf { selected -> railItems.any { it.detailsUrl == selected.detailsUrl } }
         ?: railItems.firstOrNull()
     fun switchModeFromRail(offset: Int) {
         val currentIndex = modeSwitchOrder.indexOf(state.selectedMode)
@@ -278,6 +304,22 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(26.dp),
         ) {
             val headerPrimaryRequester = modeFocusRequesters.getValue(state.selectedMode)
+            val filters: @Composable () -> Unit = {
+                HomeFilterControls(
+                    state = state,
+                    watchFilter = watchFilter,
+                    onWatchFilterChanged = {
+                        if (state.selectedMode == HomeFeedMode.Favorites) favoriteWatchFilter = it else newWatchFilter = it
+                    },
+                    newFavoritesOnly = newFavoritesOnly,
+                    onNewFavoritesOnlyChanged = { newFavoritesOnly = it },
+                    onSortChanged = onCatalogSortChanged,
+                    onStatusChanged = onSeriesStatusChanged,
+                    focusRequester = filterFocusRequester,
+                    menuRequester = headerPrimaryRequester,
+                    contentRequester = headerDownTarget,
+                )
+            }
 
             BackHandler(enabled = isContentRailFocused) {
                 focusScope.launch {
@@ -345,7 +387,7 @@ fun HomeScreen(
                 historyFocusRequester = historyRequester,
                 updateFocusRequester = updateRequester,
                 settingsFocusRequester = settingsRequester,
-                downTarget = headerDownTarget,
+                downTarget = headerDownTarget ?: filterFocusRequester.takeIf { canFilter },
                 showLabels = shouldShowHomeMenuLabels,
                 isVisualFocusEnabled = !isSwitchingModeFromRail,
                 modifier = Modifier.fillMaxHeight(),
@@ -391,6 +433,9 @@ fun HomeScreen(
                                 .weight(1f),
                             verticalArrangement = Arrangement.spacedBy(7.dp),
                     ) {
+                        if (canFilter && activeModeState !is HomeModeContentState.Content) {
+                            filters()
+                        }
                         when (activeModeState) {
                             is HomeModeContentState.Content -> {
                                 HomeHeroStage(
@@ -400,6 +445,7 @@ fun HomeScreen(
                                 HomeRailSectionHeader(
                                     selectedMode = state.selectedMode,
                                     favoriteSeriesCount = state.favoriteSeriesCount,
+                                    filters = filters,
                                 )
                                 HomeRail(
                                     railId = activeRailId,
@@ -414,6 +460,7 @@ fun HomeScreen(
                                     returnFocusRequestVersion = contentReturnFocusRequestVersion,
                                     upTargetRequester = headerPrimaryRequester,
                                     leftTargetRequester = headerPrimaryRequester,
+                                    firstCardLeftTarget = filterFocusRequester,
                                     downTargetRequester = null,
                                     isPaging = activeModeData.isPaging,
                                     onItemFocused = { detailsUrl ->
@@ -448,13 +495,17 @@ fun HomeScreen(
                             }
                             HomeModeContentState.Empty -> {
                                 HomeActionPanel(
-                                    message = when (state.selectedMode) {
+                                    message = if (filteredPageIsEmpty) "По этому фильтру ничего не найдено"
+                                    else when (state.selectedMode) {
                                         HomeFeedMode.Favorites -> "Пока нет новых релизов в избранном"
                                         HomeFeedMode.FavoriteSeries -> "Пока нет избранных сериалов"
                                         HomeFeedMode.Movies -> "Пока нет фильмов"
                                         HomeFeedMode.AllNew -> "Пока нет новых релизов"
                                         HomeFeedMode.Series -> "Пока нет сериалов"
                                     },
+                                    actionLabel = "Следующая страница".takeIf { showNextPage },
+                                    actionFocusRequester = nextPageRequester,
+                                    onAction = onEndReached,
                                     modifier = Modifier.fillMaxWidth().weight(1f),
                                 )
                             }
@@ -658,6 +709,7 @@ private fun ReleaseSummary?.episodeOverviewSourceLabel(): String? {
 private fun HomeRailSectionHeader(
     selectedMode: HomeFeedMode,
     favoriteSeriesCount: Int?,
+    filters: @Composable () -> Unit = {},
 ) {
     val title = when (selectedMode) {
         HomeFeedMode.AllNew -> "Свежие релизы"
@@ -692,6 +744,7 @@ private fun HomeRailSectionHeader(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        filters()
     }
 }
 

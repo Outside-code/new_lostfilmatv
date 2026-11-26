@@ -1,5 +1,7 @@
 package com.kraat.lostfilmnewtv.data.network
 
+import com.kraat.lostfilmnewtv.data.model.CatalogSort
+import com.kraat.lostfilmnewtv.data.model.SeriesStatus
 import android.util.Log
 import com.kraat.lostfilmnewtv.data.parser.BASE_URL
 import com.kraat.lostfilmnewtv.data.parser.resolveUrl
@@ -22,6 +24,13 @@ interface LostFilmHttpClient {
     suspend fun fetchMoviesPage(pageNumber: Int = 1): String = fetchDetails(moviesPageUrl(pageNumber))
 
     suspend fun fetchSeriesCatalogPage(pageNumber: Int = 1): String = fetchDetails(seriesCatalogPageUrl(pageNumber))
+
+    suspend fun fetchMoviesPage(pageNumber: Int, sort: CatalogSort): String =
+        if (sort == CatalogSort.Added) fetchMoviesPage(pageNumber) else fetchDetails(moviesPageUrl(pageNumber, sort))
+
+    suspend fun fetchSeriesCatalogPage(pageNumber: Int, sort: CatalogSort, status: SeriesStatus): String =
+        if (sort == CatalogSort.Added && status == SeriesStatus.All) fetchSeriesCatalogPage(pageNumber)
+        else fetchDetails(seriesCatalogPageUrl(pageNumber, sort, status))
 
     suspend fun fetchSchedulePage(): String = fetchDetails(schedulePageUrl())
 
@@ -75,6 +84,12 @@ class OkHttpLostFilmHttpClient(
     override suspend fun fetchSeriesCatalogPage(pageNumber: Int): String = withContext(Dispatchers.IO) {
         executeSeriesCatalogSearch(pageNumber)
     }
+
+    override suspend fun fetchSeriesCatalogPage(
+        pageNumber: Int,
+        sort: CatalogSort,
+        status: SeriesStatus,
+    ): String = withContext(Dispatchers.IO) { executeSeriesCatalogSearch(pageNumber, sort, status) }
 
     override suspend fun fetchSchedulePage(): String = withContext(Dispatchers.IO) {
         executeLostFilm(schedulePageUrl())
@@ -176,7 +191,11 @@ class OkHttpLostFilmHttpClient(
         }
     }
 
-    private suspend fun executeSeriesCatalogSearch(pageNumber: Int): String {
+    private suspend fun executeSeriesCatalogSearch(
+        pageNumber: Int,
+        sort: CatalogSort = CatalogSort.Added,
+        status: SeriesStatus = SeriesStatus.All,
+    ): String {
         val offset = ((pageNumber.coerceAtLeast(1) - 1) * SERIES_CATALOG_PAGE_SIZE).coerceAtLeast(0)
         val ajaxUrl = requireLostFilmUrl("$BASE_URL/ajaxik.php")
         val cookieHeader = sessionStore?.read()?.toCookieString()?.takeIf { it.isNotBlank() }
@@ -190,8 +209,8 @@ class OkHttpLostFilmHttpClient(
                     .add("act", "serial")
                     .add("type", "search")
                     .add("o", offset.toString())
-                    .add("s", "6")
-                    .add("t", "0")
+                    .add("s", sort.queryValue.toString())
+                    .add("t", status.queryValue.toString())
                     .build(),
             )
 
@@ -214,21 +233,25 @@ class OkHttpLostFilmHttpClient(
 
 private const val SERIES_CATALOG_PAGE_SIZE = 20
 
-private fun moviesPageUrl(pageNumber: Int): String {
+private fun moviesPageUrl(pageNumber: Int, sort: CatalogSort = CatalogSort.Added): String {
     val offset = ((pageNumber.coerceAtLeast(1) - 1) * 20).coerceAtLeast(0)
     return if (offset == 0) {
-        "$BASE_URL/movies/?type=search&s=6&t=0"
+        "$BASE_URL/movies/?type=search&s=${sort.queryValue}&t=0"
     } else {
-        "$BASE_URL/movies/?type=search&s=6&t=0&o=$offset"
+        "$BASE_URL/movies/?type=search&s=${sort.queryValue}&t=0&o=$offset"
     }
 }
 
-private fun seriesCatalogPageUrl(pageNumber: Int): String {
+private fun seriesCatalogPageUrl(
+    pageNumber: Int,
+    sort: CatalogSort = CatalogSort.Added,
+    status: SeriesStatus = SeriesStatus.All,
+): String {
     val offset = ((pageNumber.coerceAtLeast(1) - 1) * SERIES_CATALOG_PAGE_SIZE).coerceAtLeast(0)
     return if (offset == 0) {
-        "$BASE_URL/series/?type=search&s=6&t=0"
+        "$BASE_URL/series/?type=search&s=${sort.queryValue}&t=${status.queryValue}"
     } else {
-        "$BASE_URL/series/?type=search&s=6&t=0&o=$offset"
+        "$BASE_URL/series/?type=search&s=${sort.queryValue}&t=${status.queryValue}&o=$offset"
     }
 }
 

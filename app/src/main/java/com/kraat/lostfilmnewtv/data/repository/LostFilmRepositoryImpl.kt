@@ -1,5 +1,7 @@
 package com.kraat.lostfilmnewtv.data.repository
 
+import com.kraat.lostfilmnewtv.data.model.CatalogSort
+import com.kraat.lostfilmnewtv.data.model.SeriesStatus
 import com.kraat.lostfilmnewtv.data.db.PageCacheMetadataEntity
 import com.kraat.lostfilmnewtv.data.db.ReleaseDao
 import com.kraat.lostfilmnewtv.data.db.ReleaseDetailsEntity
@@ -239,17 +241,28 @@ class LostFilmRepositoryImpl(
     }
 
     override fun observeMovies(pageNumber: Int): Flow<PageState> =
-        observeCatalogPage(pageNumber, ReleaseKind.MOVIE) { loadMoviesPage(pageNumber) }
+        observeMovies(pageNumber, CatalogSort.Added)
 
     override fun observeSeriesCatalog(pageNumber: Int): Flow<PageState> =
-        observeCatalogPage(pageNumber, ReleaseKind.SERIES) { loadSeriesPage(pageNumber) }
+        observeSeriesCatalog(pageNumber, CatalogSort.Added, SeriesStatus.All)
+
+    override fun observeMovies(pageNumber: Int, sort: CatalogSort): Flow<PageState> =
+        observeCatalogPage(pageNumber, ReleaseKind.MOVIE, useIndex = sort == CatalogSort.Added) {
+            loadMoviesPage(pageNumber, sort)
+        }
+
+    override fun observeSeriesCatalog(pageNumber: Int, sort: CatalogSort, status: SeriesStatus): Flow<PageState> =
+        observeCatalogPage(pageNumber, ReleaseKind.SERIES, useIndex = sort == CatalogSort.Added && status == SeriesStatus.All) {
+            loadSeriesPage(pageNumber, sort, status)
+        }
 
     private fun observeCatalogPage(
         pageNumber: Int,
         kind: ReleaseKind,
+        useIndex: Boolean,
         load: suspend () -> PageState,
     ): Flow<PageState> = flow {
-        if (pageNumber == 1 && catalogPosterIndex != null) {
+        if (pageNumber == 1 && useIndex && catalogPosterIndex != null) {
             val snapshot = withContext(Dispatchers.IO) { catalogPosterIndex.firstPage(kind, clock()) }
             if (snapshot.isNotEmpty()) emit(PageState.Content(1, snapshot, hasNextPage = false, isStale = true))
         }
@@ -277,12 +290,12 @@ class LostFilmRepositoryImpl(
             }
     }
 
-    private suspend fun loadMoviesPage(pageNumber: Int): PageState {
+    private suspend fun loadMoviesPage(pageNumber: Int, sort: CatalogSort): PageState {
         cleanupExpiredDataIfNeeded()
 
         return try {
             val fetchedAt = clock()
-            val html = anonymousHttpClient.fetchMoviesPage(pageNumber)
+            val html = anonymousHttpClient.fetchMoviesPage(pageNumber, sort)
             val parsedItems = withContext(Dispatchers.Default) {
                 listParser.parse(
                     html = html,
@@ -310,15 +323,21 @@ class LostFilmRepositoryImpl(
         }
     }
 
-    private suspend fun loadSeriesPage(pageNumber: Int): PageState {
+    private suspend fun loadSeriesPage(pageNumber: Int, sort: CatalogSort, status: SeriesStatus): PageState {
         return try {
             val fetchedAt = clock()
-            val json = anonymousHttpClient.fetchSeriesCatalogPage(pageNumber)
+            val favoritesOnly = status == SeriesStatus.Favorites
+            if (favoritesOnly && !hasAuthenticatedSession()) {
+                return PageState.Error(pageNumber, "Войдите в LostFilm, чтобы увидеть избранные сериалы", loginRequired = true)
+            }
+            val client = if (favoritesOnly) httpClient else anonymousHttpClient
+            val json = client.fetchSeriesCatalogPage(pageNumber, sort, status)
             val parsedItems = withContext(Dispatchers.Default) {
                 seriesCatalogParser.parseSearchJson(
                     json = json,
                     pageNumber = pageNumber,
                     fetchedAt = fetchedAt,
+                    favoritesOnly = favoritesOnly,
                 )
             }
             PageState.Content(
