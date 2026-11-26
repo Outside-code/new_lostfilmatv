@@ -2649,6 +2649,35 @@ class LostFilmRepositoryTest {
         assertEquals(listOf("https://www.lostfilm.today/schedule/my_0/type_0"), requestedUrls)
     }
 
+    @Test
+    fun observeSchedule_reopensFromDiskWithPostersAndRefreshesWithoutBlocking() = runTest {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        var now = NOW
+        var requests = 0
+        val initial = createRepository(
+            pageHandler = { error("Unexpected feed request") },
+            detailsHandler = { requests++; fixture("schedule-list.html") },
+            tmdbResolver = PosterTmdbResolver(),
+            scheduleCache = ScheduleCache(context),
+            repositoryClock = { now },
+        )
+        val populated = initial.observeSchedule().toList().last() as ScheduleResult.Success
+        assertTrue(populated.schedule.days.flatMap { it.items }.all { it.posterUrl != null })
+
+        val reopened = createRepository(
+            pageHandler = { error("Unexpected feed request") },
+            detailsHandler = { requests++; throw IOException("No connection") },
+            scheduleCache = ScheduleCache(context),
+            repositoryClock = { now },
+        )
+        assertEquals(listOf(populated), reopened.observeSchedule().toList())
+        assertEquals(1, requests)
+
+        now += 6 * 60 * 1000L
+        assertEquals(listOf(populated), reopened.observeSchedule().toList())
+        assertEquals(2, requests)
+    }
+
     private suspend fun Job.joinWithin5s() {
         assertTrue(
             "Коллектор observePage не завершился за 5 секунд",
@@ -2705,6 +2734,8 @@ class LostFilmRepositoryTest {
         favoriteSeriesCache: FavoriteSeriesCache? = null,
         activeSessionKey: suspend () -> String? = { null },
         favoriteSeriesClock: () -> Long = { NOW },
+        scheduleCache: ScheduleCache? = null,
+        repositoryClock: () -> Long = { NOW },
     ): LostFilmRepository {
         val fakeHttpClient = FakeLostFilmHttpClient(
             pageHandler = pageHandler,
@@ -2741,8 +2772,9 @@ class LostFilmRepositoryTest {
             tmdbResolver = tmdbResolver,
             tmdbEnrichmentService = tmdbEnrichmentService,
             favoritesRepository = dagger.internal.DoubleCheck.lazy { favoritesRepository },
-            clock = { NOW },
+            clock = repositoryClock,
             catalogPosterIndex = catalogPosterIndex,
+            scheduleCache = scheduleCache,
         )
     }
 }

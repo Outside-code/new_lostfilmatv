@@ -11,6 +11,8 @@ import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.data.model.SeriesGuide
+import com.kraat.lostfilmnewtv.data.model.ScheduleItem
+import com.kraat.lostfilmnewtv.data.model.ScheduleMonth
 import com.kraat.lostfilmnewtv.data.network.LostFilmConcurrencyLimits.SEARCH_ENRICHMENT_CONCURRENCY
 import com.kraat.lostfilmnewtv.data.network.LostFilmConcurrencyLimits.WATCHED_MARKS_LOAD_CONCURRENCY
 import com.kraat.lostfilmnewtv.data.network.LostFilmHttpClient
@@ -39,6 +41,7 @@ import android.util.Log
 import java.io.IOException
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +59,12 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 
+private fun ScheduleItem.seriesOrMovieRoot(): String =
+    if (kind == ReleaseKind.SERIES) targetUrl.substringBefore("/season_").trimEnd('/') else targetUrl.trimEnd('/')
+
+private fun ScheduleMonth.mapScheduleItems(transform: (ScheduleItem) -> ScheduleItem): ScheduleMonth =
+    copy(days = days.map { day -> day.copy(items = day.items.map(transform)) })
+
 private const val TAG = "LostFilmRepository"
 private const val FRESH_WINDOW_MS = 6 * 60 * 60 * 1000L
 private const val RETENTION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000L
@@ -63,6 +72,7 @@ private const val RETENTION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000L
 // How long the Room-persisted page 1 cache stays fresh. While the cache is fresh,
 // observePage skips the network request and serves data directly from Room.
 private const val NEW_RELEASES_ROOM_FRESH_MS = 10 * 60 * 1000L
+private const val SCHEDULE_CACHE_FRESH_MS = 5 * 60 * 1000L
 private const val MOVIES_PAGE_SIZE = 20
 private const val SERIES_CATALOG_PAGE_SIZE = 20
 private const val CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000L
@@ -96,6 +106,7 @@ class LostFilmRepositoryImpl(
     private val hasAuthenticatedSession: suspend () -> Boolean,
     private val clock: () -> Long = { System.currentTimeMillis() },
     private val catalogPosterIndex: CatalogPosterIndex? = null,
+    private val scheduleCache: ScheduleCache? = null,
 ) : LostFilmRepository {
     private val cleanupMutex = Mutex()
     private var lastCleanupAt = 0L
@@ -651,36 +662,60 @@ class LostFilmRepositoryImpl(
     }
 
     override fun observeSchedule(): Flow<ScheduleResult> = channelFlow {
-        val loaded = loadSchedule()
-        if (loaded !is ScheduleResult.Success) { send(loaded); return@channelFlow }
-        // Site schedule icons are thumbnails. Never enlarge them while waiting for TMDB.
-        var schedule = loaded.schedule.copy(days = loaded.schedule.days.map { day ->
-            day.copy(items = day.items.map { it.copy(posterUrl = null) })
-        })
-        send(ScheduleResult.Success(schedule))
-        fun root(item: com.kraat.lostfilmnewtv.data.model.ScheduleItem) =
-            if (item.kind == ReleaseKind.SERIES) item.targetUrl.substringBefore("/season_").trimEnd('/')
-            else item.targetUrl.trimEnd('/')
-        val unique = schedule.days.flatMap { it.items }.distinctBy(::root)
+        val server = BASE_URL
+        val today = LocalDate.now()
+        val fetchedAt = clock()
+        val cached = scheduleCache?.read(server, today)
+        if (cached != null) send(ScheduleResult.Success(cached.schedule))
+
+        val isFresh = cached != null && fetchedAt - cached.fetchedAt in 0 until SCHEDULE_CACHE_FRESH_MS
+        val snapshot = if (isFresh) {
+            checkNotNull(cached)
+        } else {
+            val loaded = loadSchedule()
+            if (loaded !is ScheduleResult.Success) {
+                if (cached == null) send(loaded)
+                return@channelFlow
+            }
+            if (BASE_URL != server) return@channelFlow
+            val savedPosters = cached?.schedule?.days.orEmpty().flatMap { it.items }
+                .mapNotNull { item -> item.posterUrl?.let { item.seriesOrMovieRoot() to it } }
+                .toMap()
+            // Site schedule icons are thumbnails. Restore only previously resolved artwork.
+            val fresh = loaded.schedule.mapScheduleItems { item ->
+                item.copy(posterUrl = savedPosters[item.seriesOrMovieRoot()])
+            }
+            ScheduleCache.Snapshot(server, today.toEpochDay(), fetchedAt, fresh).also {
+                if (fresh != cached?.schedule) send(ScheduleResult.Success(fresh))
+                scheduleCache?.write(it)
+            }
+        }
+
+        var schedule = snapshot.schedule
+        val unique = schedule.days.flatMap { day -> day.items.filter { it.posterUrl == null } }
+            .distinctBy(ScheduleItem::seriesOrMovieRoot)
+        if (unique.isEmpty()) return@channelFlow
         val semaphore = Semaphore(4)
         val mutex = Mutex()
         coroutineScope {
             unique.map { item -> async {
+                val key = item.seriesOrMovieRoot()
                 val poster = semaphore.withPermit {
                     try {
-                        tmdbResolver.resolve(root(item), item.title, item.kind, null)?.posterUrl?.takeIf { it.isNotBlank() }
+                        tmdbResolver.resolve(key, item.title, item.kind, null)?.posterUrl?.takeIf { it.isNotBlank() }
                     } catch (error: CancellationException) { throw error }
                     catch (_: Exception) { null }
                 } ?: return@async
                 mutex.withLock {
-                    schedule = schedule.copy(days = schedule.days.map { day ->
-                        day.copy(items = day.items.map { current ->
-                            if (root(current) == root(item)) current.copy(posterUrl = poster) else current
-                        })
-                    })
+                    schedule = schedule.mapScheduleItems { current ->
+                        if (current.seriesOrMovieRoot() == key) current.copy(posterUrl = poster) else current
+                    }
                     send(ScheduleResult.Success(schedule))
                 }
             } }.awaitAll()
+        }
+        if (BASE_URL == server && schedule != snapshot.schedule) {
+            scheduleCache?.write(snapshot.copy(schedule = schedule))
         }
     }
 

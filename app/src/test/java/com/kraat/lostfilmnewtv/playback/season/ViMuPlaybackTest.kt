@@ -25,15 +25,33 @@ class ViMuPlaybackTest {
     }
 
     @Test
-    fun interruptedPlaybackReturnsTheActualPositionInMilliseconds() {
-        val data = Intent("net.gtvbox.videoplayer.result")
-            .putExtra("position", 742_500).putExtra("duration", 2_700_000)
-        assertEquals(742_500L, ViMuPlayback.positionOnExit(Activity.RESULT_CANCELED, data))
-        assertNull(ViMuPlayback.positionOnExit(Activity.RESULT_CANCELED, null))
-        assertNull(ViMuPlayback.positionOnExit(Activity.RESULT_CANCELED, Intent()))
-        assertNull(ViMuPlayback.positionOnExit(Activity.RESULT_CANCELED, data.putExtra("position", 3_000_000)))
-        assertNull(ViMuPlayback.positionOnExit(ViMuPlayback.COMPLETED, data))
+    fun goingBackPartwaySavesProgressWithoutAdvancing() {
+        val data = position(742_500)
+        val interrupted = ViMuPlayback.Result.Interrupted(742_500)
+        assertEquals(interrupted, ViMuPlayback.playbackResult(Activity.RESULT_CANCELED, data))
+        assertEquals(interrupted, ViMuPlayback.playbackResult(2, data))
+        assertEquals(ViMuPlayback.Result.Interrupted(), ViMuPlayback.playbackResult(Activity.RESULT_CANCELED, null))
+        assertEquals(
+            ViMuPlayback.Result.Interrupted(),
+            ViMuPlayback.playbackResult(Activity.RESULT_CANCELED, position(3_000_000)),
+        )
     }
+
+    @Test
+    fun recognizesEndOfEpisodeAcrossViMuVersions() {
+        val completed = ViMuPlayback.Result.Completed
+        assertEquals(completed, ViMuPlayback.playbackResult(Activity.RESULT_FIRST_USER, null))
+        assertEquals(completed, ViMuPlayback.playbackResult(2, position(2_699_600)))
+        assertEquals(completed, ViMuPlayback.playbackResult(Activity.RESULT_CANCELED, position(2_700_000)))
+        assertEquals(
+            ViMuPlayback.Result.Interrupted(2_699_600),
+            ViMuPlayback.playbackResult(Activity.RESULT_CANCELED, position(2_699_600)),
+        )
+        assertEquals(ViMuPlayback.Result.Failed, ViMuPlayback.playbackResult(4, null))
+    }
+
+    private fun position(positionMs: Int) = Intent("net.gtvbox.videoplayer.result")
+        .putExtra("position", positionMs).putExtra("duration", 2_700_000)
 
     @Test
     fun doesNotPassCredentialsInTheStreamUrl() {

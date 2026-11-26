@@ -27,6 +27,7 @@ import com.kraat.lostfilmnewtv.data.repository.FavoritesRepository
 import com.kraat.lostfilmnewtv.data.repository.FavoritesRepositoryImpl
 import com.kraat.lostfilmnewtv.data.repository.LostFilmRepository
 import com.kraat.lostfilmnewtv.data.repository.LostFilmRepositoryImpl
+import com.kraat.lostfilmnewtv.data.repository.ScheduleCache
 import dagger.Lazy
 import dagger.Module
 import dagger.Provides
@@ -117,6 +118,7 @@ object DataModule {
         favoritesRepository: Lazy<FavoritesRepository>,
         sessionStore: EncryptedSessionStore,
         catalogPosterIndex: CatalogPosterIndex,
+        scheduleCache: ScheduleCache,
     ): LostFilmRepository = LostFilmRepositoryImpl(
         httpClient = httpClient,
         anonymousHttpClient = anonymousHttpClient,
@@ -132,6 +134,7 @@ object DataModule {
         tmdbEnrichmentService = tmdbEnrichmentService,
         favoritesRepository = favoritesRepository,
         catalogPosterIndex = catalogPosterIndex,
+        scheduleCache = scheduleCache,
         hasAuthenticatedSession = {
             val session = sessionStore.read()
             session != null && !sessionStore.isExpired()

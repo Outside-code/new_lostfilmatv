@@ -66,22 +66,32 @@ class SeasonPlayerActivity : ComponentActivity() {
     private var waitingForViMu = false
     private var attemptedViMu = false
     private val viMuLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        when (result.resultCode) {
-            ViMuPlayback.COMPLETED -> {
-                markCompleted(index)
-                playNextEpisode(index)
-            }
-            ViMuPlayback.FAILED -> {
+        when (val outcome = ViMuPlayback.playbackResult(result.resultCode, result.data)) {
+            ViMuPlayback.Result.Completed -> onViMuEpisodeCompleted()
+            ViMuPlayback.Result.Failed -> {
                 waitingForViMu = false
                 lastPlayingIndex = null
                 startBuiltInPlayer()
             }
-            else -> {
-                ViMuPlayback.positionOnExit(result.resultCode, result.data)?.let { positionMs ->
-                    detailsUrls.getOrNull(index)?.let { history.savePosition(it, positionMs) }
-                }
+            is ViMuPlayback.Result.Interrupted -> {
+                val url = detailsUrls.getOrNull(index)
+                if (url != null && outcome.positionMs != null) history.savePosition(url, outcome.positionMs)
                 finish()
             }
+        }
+    }
+
+    private fun onViMuEpisodeCompleted() {
+        markCompleted(index)
+        when {
+            index < urls.lastIndex -> {
+                index++
+                position = 0L
+                waitingForViMu = false
+                if (!launchViMu()) startBuiltInPlayer()
+            }
+            autoAdvance -> playNextEpisode(index)
+            else -> finish()
         }
     }
 
@@ -123,15 +133,15 @@ class SeasonPlayerActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         if (urls.isEmpty() || isFinishing || waitingForViMu) return
-        if (autoAdvance && urls.size == 1 && !attemptedViMu && launchViMu()) return
+        if (!attemptedViMu && launchViMu()) return
         startBuiltInPlayer()
     }
 
     private fun launchViMu(): Boolean {
         attemptedViMu = true
-        val streamUrl = urls.single()
+        val streamUrl = urls.getOrNull(index) ?: return false
         for (playerPackage in ViMuPlayback.packages) {
-            val playerIntent = ViMuPlayback.intent(streamUrl, titles.firstOrNull().orEmpty(), playerPackage) ?: return false
+            val playerIntent = ViMuPlayback.intent(streamUrl, titles.getOrNull(index).orEmpty(), playerPackage) ?: return false
             if (playerIntent.resolveActivity(packageManager) == null) continue
             try {
                 viMuLauncher.launch(playerIntent)
