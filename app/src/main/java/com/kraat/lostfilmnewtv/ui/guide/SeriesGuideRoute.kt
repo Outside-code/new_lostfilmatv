@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import com.kraat.lostfilmnewtv.playback.season.SeasonPlayerActivity
+import com.kraat.lostfilmnewtv.playback.season.openSeriesTrailer
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -41,5 +42,9 @@ fun SeriesGuideRoute(
         onEpisodeClick = onOpenDetails,
         onPlaySeason = routeViewModel::onPlaySeasonClick,
         onFavoriteClick = routeViewModel::onFavoriteClick,
+        onTrailerClick = {
+            val guide = state.value
+            openSeriesTrailer(context, guide.title, guide.trailerUrl)
+        },
     )
 }

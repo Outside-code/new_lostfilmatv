@@ -62,6 +62,8 @@ import coil.compose.AsyncImage
 import com.kraat.lostfilmnewtv.ui.components.TvBackdrop
 import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.ui.components.PosterImage
+import com.kraat.lostfilmnewtv.ui.components.PosterRatingBadge
+import com.kraat.lostfilmnewtv.ui.components.tmdbPosterRating
 import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
 import com.kraat.lostfilmnewtv.data.model.ReleaseKind
 import com.kraat.lostfilmnewtv.data.model.TmdbEpisodeOverviewSource
@@ -926,6 +928,11 @@ private fun PosterCard(details: ReleaseDetails?) {
                     ),
                 ),
         )
+        if (details != null) {
+            tmdbPosterRating(details.tmdbRating, details.posterUrl)?.let { rating ->
+                PosterRatingBadge(rating, Modifier.align(Alignment.TopEnd))
+            }
+        }
     }
 }
 

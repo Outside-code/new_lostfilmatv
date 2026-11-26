@@ -7,6 +7,8 @@ data class SeriesGuide(
     val seasons: List<SeriesGuideSeason>,
     val seriesUrl: String = "",
     val isFavorite: Boolean? = null,
+    val trailerUrl: String? = null,
+    val tmdbRating: String? = null,
 )
 
 data class SeriesGuideSeason(

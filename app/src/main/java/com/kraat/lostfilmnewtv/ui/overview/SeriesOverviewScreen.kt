@@ -88,6 +88,7 @@ private data class OverviewSectionBlock(
 fun SeriesOverviewScreen(
     state: SeriesOverviewUiState,
     onRetry: () -> Unit,
+    onTrailerClick: () -> Unit = {},
 ) {
     Box(
         modifier = Modifier
@@ -103,7 +104,7 @@ fun SeriesOverviewScreen(
                 onRetry = onRetry,
             )
             state.overview == null -> OverviewEmptyState()
-            else -> OverviewContent(overview = state.overview)
+            else -> OverviewContent(overview = state.overview, onTrailerClick = onTrailerClick)
         }
     }
 }
@@ -251,7 +252,7 @@ private fun OverviewCenteredStatePanel(
 }
 
 @Composable
-private fun OverviewContent(overview: SeriesOverview?) {
+private fun OverviewContent(overview: SeriesOverview?, onTrailerClick: () -> Unit) {
     val safeOverview = overview ?: return
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -403,6 +404,11 @@ private fun OverviewContent(overview: SeriesOverview?) {
                         )
                     }
                     OverviewChipRow(safeOverview)
+                    OverviewActionButton(
+                        label = if (safeOverview.trailerUrl != null) "Трейлер" else "Трейлер в YouTube",
+                        subtitle = if (safeOverview.trailerUrl != null) "Видео LostFilm" else "Поиск трейлера",
+                        onClick = onTrailerClick,
+                    )
                 }
             }
         }

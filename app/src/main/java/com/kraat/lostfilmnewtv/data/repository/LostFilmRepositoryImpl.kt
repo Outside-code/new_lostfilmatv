@@ -30,6 +30,7 @@ import com.kraat.lostfilmnewtv.data.parser.LostFilmSeasonEpisodesParser
 import com.kraat.lostfilmnewtv.data.parser.extractYear
 import com.kraat.lostfilmnewtv.data.parser.normalizeText
 import com.kraat.lostfilmnewtv.data.parser.resolveUrl
+import com.kraat.lostfilmnewtv.data.parser.seriesTrailerUrl
 import com.kraat.lostfilmnewtv.data.parser.textOrEmpty
 import com.kraat.lostfilmnewtv.data.parser.toEntity
 import com.kraat.lostfilmnewtv.data.parser.toSummaryEntities
@@ -595,6 +596,8 @@ class LostFilmRepositoryImpl(
                     seriesTitleRu = seriesTitleRu,
                     seriesUrl = seriesRootUrl,
                     isFavorite = detailsParser.parseFavoriteMetadata(seriesRootHtml)?.isFavorite,
+                    trailerUrl = Jsoup.parse(seriesRootHtml).seriesTrailerUrl(),
+                    tmdbRating = tmdbUrls?.rating,
                     posterUrl = posterUrl,
                     selectedEpisodeDetailsUrl = normalizedDetailsUrl,
                     seasons = seasonEpisodesParser.parseGuide(

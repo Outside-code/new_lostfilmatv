@@ -17,5 +17,7 @@ data class SeriesGuideUiState(
     val actionMessage: String? = null,
     val isPreparingSeason: Boolean = false,
     val requiresLogin: Boolean = false,
+    val trailerUrl: String? = null,
+    val tmdbRating: String? = null,
     val seasonPlaylist: com.kraat.lostfilmnewtv.playback.season.SeasonPlaylist? = null,
 )

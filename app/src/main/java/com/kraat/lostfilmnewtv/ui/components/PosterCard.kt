@@ -2,7 +2,10 @@ package com.kraat.lostfilmnewtv.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,6 +28,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Card
@@ -58,7 +63,6 @@ fun PosterCard(
 ) {
     val shape = RoundedCornerShape(12.dp)
     val overlayColor = if (isFocused) FocusBackground.copy(alpha = 0.82f) else HomePanelSurface.copy(alpha = 0.62f)
-    val watchedBadgeColor = if (isFocused) HomeAccentGoldGlow.copy(alpha = 0.86f) else HomePanelSurfaceStrong.copy(alpha = 0.86f)
     val requestForPoster = rememberPosterRequestFactory()
     val posterRequest = remember(item.posterUrl, requestForPoster) {
         item.posterUrl.takeIf { it.isNotBlank() }?.let(requestForPoster)
@@ -138,43 +142,62 @@ fun PosterCard(
                 }
             }
 
-            val badgeLabel = if (hasNewEpisode) "Новая серия" else item.availabilityLabel
-            badgeLabel?.takeIf { it.isNotBlank() }?.let { label ->
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(6.dp)
-                        .background(BadgeSurface, RoundedCornerShape(999.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = label,
-                        color = HomeAccentGoldGlow,
-                        fontSize = 10.sp,
-                        lineHeight = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                    )
-                }
-            }
+            PosterBadges(
+                status = if (hasNewEpisode) "Новая серия" else item.availabilityLabel,
+                rating = tmdbPosterRating(item.tmdbRating, item.posterUrl),
+                isWatched = item.isWatched,
+                isFocused = isFocused,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
+        }
+    }
+}
 
-            if (item.isWatched) {
-                Box(
+@Composable
+private fun PosterBadges(
+    status: String?,
+    rating: String?,
+    isWatched: Boolean,
+    isFocused: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (status.isNullOrBlank() && rating == null && !isWatched) return
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Box(Modifier.weight(1f).padding(start = 6.dp, top = 6.dp)) {
+            if (!status.isNullOrBlank()) {
+                Text(
+                    text = status,
+                    color = HomeAccentGoldGlow,
+                    fontSize = 10.sp,
+                    lineHeight = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.background(BadgeSurface, RoundedCornerShape(999.dp))
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                )
+            }
+        }
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (rating != null) PosterRatingBadge(rating)
+            if (isWatched) {
+                val badgeColor = if (isFocused) HomeAccentGoldGlow else HomePanelSurfaceStrong
+                Text(
+                    text = "✓",
+                    color = if (isFocused) Color(0xFF0D1930) else HomeAccentGoldGlow,
+                    fontSize = 8.25.sp,
+                    lineHeight = 8.25.sp,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .background(watchedBadgeColor, RoundedCornerShape(999.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "✓",
-                        color = if (isFocused) Color(0xFF0D1930) else HomeAccentGoldGlow,
-                        fontSize = 11.sp,
-                        lineHeight = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-                    )
-                }
+                        .padding(top = if (rating == null) 6.dp else 0.dp, end = 6.dp)
+                        .background(badgeColor.copy(alpha = 0.86f), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 4.5.dp, vertical = 2.25.dp),
+                )
             }
         }
     }

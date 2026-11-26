@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.ui.components.PosterImage
+import com.kraat.lostfilmnewtv.ui.components.PosterRatingBadge
+import com.kraat.lostfilmnewtv.ui.components.tmdbPosterRating
 import com.kraat.lostfilmnewtv.data.model.SeriesGuideEpisode
 import com.kraat.lostfilmnewtv.data.model.SeriesGuideSeason
 import com.kraat.lostfilmnewtv.ui.components.ShimmerSkeletonBox
@@ -83,7 +85,9 @@ fun SeriesGuideScreen(
     onEpisodeClick: (String) -> Unit,
     onPlaySeason: () -> Unit = {},
     onFavoriteClick: () -> Unit = {},
+    onTrailerClick: () -> Unit = {},
 ) {
+    val trailerLabel = if (state.trailerUrl != null) "Трейлер" else "Трейлер в YouTube"
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -102,7 +106,11 @@ fun SeriesGuideScreen(
             }
 
             state.seasons.isEmpty() -> {
-                GuideEmptyState(onRetry = onRetry)
+                GuideEmptyState(
+                    onRetry = onRetry,
+                    trailerLabel = trailerLabel.takeIf { state.title.isNotBlank() },
+                    onTrailerClick = onTrailerClick,
+                )
             }
 
             else -> {
@@ -110,6 +118,8 @@ fun SeriesGuideScreen(
                     actions = state,
                     onPlaySeason = onPlaySeason,
                     onFavoriteClick = onFavoriteClick,
+                    onTrailerClick = onTrailerClick,
+                    trailerLabel = trailerLabel,
                     title = state.title,
                     posterUrl = state.posterUrl,
                     seasons = state.seasons,
@@ -234,7 +244,11 @@ private fun GuideErrorState(
 }
 
 @Composable
-private fun GuideEmptyState(onRetry: () -> Unit) {
+private fun GuideEmptyState(
+    onRetry: () -> Unit,
+    trailerLabel: String?,
+    onTrailerClick: () -> Unit,
+) {
     val retryRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -259,6 +273,9 @@ private fun GuideEmptyState(onRetry: () -> Unit) {
                 modifier = Modifier.focusRequester(retryRequester),
                 isPrimary = true,
             )
+            if (trailerLabel != null) {
+                GuideTrailerButton(trailerLabel, onTrailerClick)
+            }
         }
     }
 }
@@ -286,6 +303,8 @@ private fun GuideContent(
     actions: SeriesGuideUiState,
     onPlaySeason: () -> Unit,
     onFavoriteClick: () -> Unit,
+    onTrailerClick: () -> Unit,
+    trailerLabel: String,
     title: String,
     posterUrl: String?,
     seasons: List<SeriesGuideSeason>,
@@ -320,7 +339,7 @@ private fun GuideContent(
             .padding(start = 48.dp, top = 24.dp, end = 48.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        GuideHeroSection(title = title, posterUrl = posterUrl, seasons = seasons)
+        GuideHeroSection(title, posterUrl, actions.tmdbRating, seasons)
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
@@ -334,6 +353,7 @@ private fun GuideContent(
                 colors = ButtonDefaults.buttonColors(containerColor = DetailsSurfaceSoft, contentColor = TextPrimary),
                 modifier = Modifier.testTag("series-guide-favorite"),
             ) { Text(when { actions.isFavoriteBusy -> "Сохраняем…"; actions.isFavorite == true -> "♥ В избранном"; else -> "♡ В избранное" }) }
+            GuideTrailerButton(trailerLabel, onTrailerClick)
         }
         actions.actionMessage?.let { Text(it, color = DetailsTextSecondary, fontSize = 13.sp) }
 
@@ -406,9 +426,19 @@ private fun GuideContent(
 }
 
 @Composable
+private fun GuideTrailerButton(label: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(containerColor = DetailsSurfaceSoft, contentColor = TextPrimary),
+        modifier = Modifier.testTag("series-guide-trailer"),
+    ) { Text(label) }
+}
+
+@Composable
 private fun GuideHeroSection(
     title: String,
     posterUrl: String?,
+    rating: String?,
     seasons: List<SeriesGuideSeason>,
 ) {
     val context = LocalContext.current
@@ -447,6 +477,9 @@ private fun GuideHeroSection(
                     modifier = Modifier.fillMaxSize(),
                     alpha = 0.94f,
                 )
+                tmdbPosterRating(rating, posterUrl)?.let { value ->
+                    PosterRatingBadge(value, Modifier.align(Alignment.TopEnd))
+                }
             } else {
                 PosterImage(
                     model = null,

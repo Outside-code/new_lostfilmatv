@@ -111,6 +111,8 @@ class SeriesGuideViewModel @Inject constructor(
                         seriesUrl = result.guide.seriesUrl,
                         isFavorite = result.guide.isFavorite,
                         posterUrl = result.guide.posterUrl,
+                        trailerUrl = result.guide.trailerUrl,
+                        tmdbRating = result.guide.tmdbRating,
                         seasons = result.guide.seasons,
                         selectedEpisodeDetailsUrl = result.guide.selectedEpisodeDetailsUrl,
                         isLoading = false,

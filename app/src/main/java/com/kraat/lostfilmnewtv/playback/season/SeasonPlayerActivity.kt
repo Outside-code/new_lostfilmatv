@@ -63,6 +63,7 @@ class SeasonPlayerActivity : ComponentActivity() {
     private val detailsUrls by lazy { intent.getStringArrayListExtra("detailsUrls").orEmpty() }
     private val episodeIds by lazy { intent.getStringArrayListExtra("episodeIds").orEmpty() }
 
+    private val isTrailer by lazy { intent.getBooleanExtra("isTrailer", false) }
     private var waitingForViMu = false
     private var attemptedViMu = false
     private val viMuLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -133,7 +134,7 @@ class SeasonPlayerActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         if (urls.isEmpty() || isFinishing || waitingForViMu) return
-        if (!attemptedViMu && launchViMu()) return
+        if (!isTrailer && !attemptedViMu && launchViMu()) return
         startBuiltInPlayer()
     }
 
@@ -201,11 +202,22 @@ class SeasonPlayerActivity : ComponentActivity() {
             }
             override fun onPlayerError(error: PlaybackException) {
                 android.app.AlertDialog.Builder(this@SeasonPlayerActivity)
-                    .setTitle("Не удалось воспроизвести серию")
-                    .setMessage("Проверьте подключение к TorrServe. Можно повторить загрузку или перейти к следующей серии.")
                     .setPositiveButton("Повторить") { _, _ -> current.prepare(); current.play() }
-                    .setNeutralButton("Следующая серия") { _, _ ->
-                        if (current.hasNextMediaItem()) { current.seekToNextMediaItem(); current.prepare(); current.play() }
+                    .apply {
+                        if (isTrailer) {
+                            setTitle("Не удалось воспроизвести трейлер")
+                            setMessage("Проверьте подключение к интернету и попробуйте ещё раз.")
+                        } else {
+                            setTitle("Не удалось воспроизвести серию")
+                            setMessage("Проверьте подключение к TorrServe. Можно повторить загрузку или перейти к следующей серии.")
+                            setNeutralButton("Следующая серия") { _, _ ->
+                                if (current.hasNextMediaItem()) {
+                                    current.seekToNextMediaItem()
+                                    current.prepare()
+                                    current.play()
+                                }
+                            }
+                        }
                     }
                     .setNegativeButton("Закрыть") { _, _ -> finish() }.show()
             }
@@ -310,6 +322,15 @@ class SeasonPlayerActivity : ComponentActivity() {
     }
 
     companion object {
+        fun createTrailerIntent(context: Context, url: String, seriesTitle: String): Intent =
+            createIntent(
+                context,
+                SeasonPlaylist(
+                    items = listOf(SeasonMediaItem(url, seriesTitle, detailsUrl = "", episodeId = null)),
+                    seriesTitle = seriesTitle,
+                ),
+            ).putExtra("isTrailer", true)
+
         fun createIntent(
             context: Context,
             playlist: SeasonPlaylist,

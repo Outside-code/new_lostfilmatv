@@ -43,6 +43,7 @@ class LostFilmSeriesOverviewParser {
                 ?.normalizeOverviewText(),
             descriptionRu = descriptionRu,
             plotRu = plotRu,
+            trailerUrl = document.seriesTrailerUrl(),
         )
     }
 }

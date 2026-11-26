@@ -16,4 +16,5 @@ data class SeriesOverview(
     val officialSiteUrl: String? = null,
     val descriptionRu: String? = null,
     val plotRu: String? = null,
+    val trailerUrl: String? = null,
 )

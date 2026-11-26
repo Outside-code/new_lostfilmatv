@@ -41,6 +41,8 @@ class TmdbImageFallbackInterceptor(
             PREVIOUS_CACHE_PREFIX,
         )
 
+        internal fun isTmdbArtworkUrl(url: String): Boolean = thumbnailPrefixes.any { url.startsWith(it) }
+
         internal fun thumbnailUrl(url: String, targetWidthPx: Int, displayWidthPx: Int): String {
             if (targetWidthPx > 500) return url
             val size = if (displayWidthPx <= 1920 && targetWidthPx <= 342) "w342" else "w500"
