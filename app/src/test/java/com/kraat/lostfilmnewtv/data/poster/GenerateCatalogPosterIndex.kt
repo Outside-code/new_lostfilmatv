@@ -51,10 +51,16 @@ class GenerateCatalogPosterIndex {
         val index = snapshot.entries.toMutableMap()
         val http = OkHttpClient.Builder().callTimeout(12, TimeUnit.SECONDS).build()
         val lostFilm = OkHttpLostFilmHttpClient(okHttpClient = http)
+        val tmdbBearerToken = System.getenv("TMDB_BEARER_TOKEN").orEmpty().trim()
         val tmdb = object : TmdbPosterClient(
             okHttpClient = http,
             apiKey = "",
-            baseUrl = "https://auth.bazuka.pp.ua/api/tmdb",
+            bearerToken = tmdbBearerToken,
+            baseUrl = if (tmdbBearerToken.isEmpty()) {
+                "https://auth.bazuka.pp.ua/api/tmdb"
+            } else {
+                "https://api.themoviedb.org/3"
+            },
         ) {
             override suspend fun getMovieOverviewRu(tmdbId: Int): String? = null
             override suspend fun getSeriesOverviewRu(tmdbId: Int): String? = null

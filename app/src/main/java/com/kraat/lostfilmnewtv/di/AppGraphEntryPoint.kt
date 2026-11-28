@@ -1,5 +1,6 @@
 package com.kraat.lostfilmnewtv.di
 
+import com.kraat.lostfilmnewtv.data.repository.LostFilmRepository
 import com.kraat.lostfilmnewtv.playback.PlaybackPreferencesStore
 import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryStore
 import com.kraat.lostfilmnewtv.playback.season.SeasonPlaybackCoordinator
@@ -14,6 +15,7 @@ import dagger.hilt.components.SingletonComponent
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 interface AppGraphEntryPoint {
+    fun lostFilmRepository(): LostFilmRepository
     fun playbackPreferencesStore(): PlaybackPreferencesStore
     fun playbackHistoryStore(): PlaybackHistoryStore
     fun seasonPlaybackCoordinator(): SeasonPlaybackCoordinator

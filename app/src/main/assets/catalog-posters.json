@@ -7,6 +7,13 @@
             "rating": "8.0",
             "year": 1968
         },
+        "/movies/28_Years_Later": {
+            "tmdbId": 1100988,
+            "posterPath": "/1GPXjQNumrQp5TSfdWxGvIhxYL9.jpg",
+            "backdropPath": "/2rIPm9RsSwlr3Zpf9uYY266pH1Q.jpg",
+            "rating": "6.6",
+            "year": 2025
+        },
         "/movies/28_Years_Later_The_Bone_Temple": {
             "tmdbId": 1272837,
             "posterPath": "/lCel0uHnVgCGihg4xrWSPzOMnV4.jpg",
@@ -55,6 +62,20 @@
             "backdropPath": "/ka6cSw4jT0LCb1mOwC8db6tnBD.jpg",
             "rating": "6.8",
             "year": 1989
+        },
+        "/movies/American_Beauty": {
+            "tmdbId": 14,
+            "posterPath": "/lusI8lV9eThjA7otUGo3bRmFWk9.jpg",
+            "backdropPath": "/tUNVXYgrpyXIjKMiYWQb174N6AZ.jpg",
+            "rating": "8.0",
+            "year": 1999
+        },
+        "/movies/American_Psycho": {
+            "tmdbId": 1359,
+            "posterPath": "/rdcBdnHY38yC08dVr5aFPChHwMM.jpg",
+            "backdropPath": "/5oaMV2q0qzxkIW2ukU3lldLu5q2.jpg",
+            "rating": "7.4",
+            "year": 2000
         },
         "/movies/Angel_Heart": {
             "tmdbId": 635,
@@ -146,6 +167,13 @@
             "rating": "8.0",
             "year": 1995
         },
+        "/movies/Caught_Stealing": {
+            "tmdbId": 1245993,
+            "posterPath": "/g17M2bvbNMM8QUaUFd1uxAvdGyn.jpg",
+            "backdropPath": "/41043LV7mfluH8iXEUPVseCDAv5.jpg",
+            "rating": "6.8",
+            "year": 2025
+        },
         "/movies/Clayface": {
             "tmdbId": 1400940,
             "posterPath": "/r2ib7b2QRLRlb8g7K2QI2rfFgeA.jpg",
@@ -221,6 +249,13 @@
             "backdropPath": "/uUadv1aCIGT0ctexlExEmKUen1P.jpg",
             "rating": "7.5",
             "year": 1999
+        },
+        "/movies/F1": {
+            "tmdbId": 911430,
+            "posterPath": "/XDDweAK5vyUwCoX1NYbu9HlwFK.jpg",
+            "backdropPath": "/wuDt7vuWeEB8Y3qAMLmvt98fVBl.jpg",
+            "rating": "7.8",
+            "year": 2025
         },
         "/movies/First_Blood": {
             "tmdbId": 1368,
@@ -320,6 +355,20 @@
             "rating": "6.1",
             "year": 2025
         },
+        "/movies/Judge_Dredd": {
+            "tmdbId": 9482,
+            "posterPath": "/wxYYoXRYO6lXvtfknBsmmYV7gGn.jpg",
+            "backdropPath": "/wfUj0ezAZ4CJXsR2KMhdaqemJch.jpg",
+            "rating": "5.9",
+            "year": 1995
+        },
+        "/movies/K_PAX": {
+            "tmdbId": 167,
+            "posterPath": "/ihonuG7ED6wOmAgIch9MTDni2y2.jpg",
+            "backdropPath": "/x4PHYDbbNfWkJfVggEnSsIy7WYb.jpg",
+            "rating": "7.2",
+            "year": 2001
+        },
         "/movies/L_A_Confidential": {
             "tmdbId": 2118,
             "posterPath": "/egK9WwQ1UL9YmftX5RiRHVZqizQ.jpg",
@@ -333,6 +382,20 @@
             "backdropPath": "/rk56vslwBXUCcNlQ74s6gmpJqxa.jpg",
             "rating": "7.1",
             "year": 1990
+        },
+        "/movies/Life_Is_Beautiful": {
+            "tmdbId": 637,
+            "posterPath": "/seSip2zebLmHzDHfLstRF6yyqqq.jpg",
+            "backdropPath": "/oc8RJGVXUCTqaixXxcf2BqeVEaf.jpg",
+            "rating": "8.4",
+            "year": 1997
+        },
+        "/movies/Lilo_and_Stitch": {
+            "tmdbId": 552524,
+            "posterPath": "/8jZyQNg3CPdR6wMncMJ6BxYzYb7.jpg",
+            "backdropPath": "/kTEPacRlpsTJXqpJIFkK7NFRgIS.jpg",
+            "rating": "7.2",
+            "year": 2025
         },
         "/movies/Lola_rennt": {
             "tmdbId": 104,
@@ -383,6 +446,13 @@
             "rating": "7.0",
             "year": 2021
         },
+        "/movies/Mortal_Kombat_2": {
+            "tmdbId": 931285,
+            "posterPath": "/4WgJ5Dk0JhPdCdJkwHNVyJyQYdH.jpg",
+            "backdropPath": "/4EAAwpylq313qrDqpCxulUrXBNF.jpg",
+            "rating": "7.7",
+            "year": 2026
+        },
         "/movies/Night_on_Earth": {
             "tmdbId": 339,
             "posterPath": "/hACZl79SHvJha7iRAf7BgTJTLW8.jpg",
@@ -424,6 +494,13 @@
             "backdropPath": "/3JRrqzjxskXM1E8KB5OaFVj6waY.jpg",
             "rating": "7.2",
             "year": 1991
+        },
+        "/movies/Predator_Badlands": {
+            "tmdbId": 1242898,
+            "posterPath": "/pu5Aj7nyx9ISKMcmWvUjZv68GLs.jpg",
+            "backdropPath": "/82lM4GJ9uuNvNDOEpxFy77uv4Ak.jpg",
+            "rating": "7.8",
+            "year": 2025
         },
         "/movies/Project_Hail_Mary": {
             "tmdbId": 687163,
@@ -578,6 +655,13 @@
             "rating": "8.3",
             "year": 1941
         },
+        "/movies/The_Machinist": {
+            "tmdbId": 4553,
+            "posterPath": "/nZNHIBIIwTfgN9GVI7VoTm46LSX.jpg",
+            "backdropPath": "/hi3lxLd93iKwCmVAfhMV9m1k2jr.jpg",
+            "rating": "7.5",
+            "year": 2004
+        },
         "/movies/The_Man_with_the_Bag": {
             "tmdbId": 1137888,
             "posterPath": "/yvAMpaQA1BeQkODdcqhml6MnwMI.jpg",
@@ -598,11 +682,25 @@
             "rating": "8.0",
             "year": 2026
         },
+        "/movies/The_Parent_Trap": {
+            "tmdbId": 9820,
+            "posterPath": "/uDb93tKRd6gZqwBTH4bLKTR9Ppu.jpg",
+            "backdropPath": "/816cLhBPIEihAzzP8kGkGwAwep5.jpg",
+            "rating": "7.2",
+            "year": 1998
+        },
         "/movies/The_Rats_A_Witcher_Tale": {
             "tmdbId": 1571470,
             "posterPath": "/bQgiWhp73usqcUoE514Ntfge8jR.jpg",
             "backdropPath": "/en0NbTEjf3qKokHvwGeaq9DBPIP.jpg",
             "rating": "5.4",
+            "year": 2025
+        },
+        "/movies/The_Running_Man_2025": {
+            "tmdbId": 798645,
+            "posterPath": "/40Mxw7P1l9KwkQipHgzVNHFMfVC.jpg",
+            "backdropPath": "/aHj7d7wSLqrg5cjAcgHhiGr97Ih.jpg",
+            "rating": "6.7",
             "year": 2025
         },
         "/movies/The_Sixth_Sense": {
@@ -619,6 +717,13 @@
             "rating": "7.3",
             "year": 1974
         },
+        "/movies/The_Thursday_Murder_Club": {
+            "tmdbId": 744653,
+            "posterPath": "/A0WRDCWsJTbQK8mjoz4X2YCdKYD.jpg",
+            "backdropPath": "/4KN06gns94rQFoYQWDGunK7Cob4.jpg",
+            "rating": "6.6",
+            "year": 2025
+        },
         "/movies/The_Way_of_the_Dragon": {
             "tmdbId": 9462,
             "posterPath": "/hXv2ssDOMBkYu4EtjE155n7sIXS.jpg",
@@ -633,12 +738,26 @@
             "rating": "7.3",
             "year": 1988
         },
+        "/movies/Thursday": {
+            "tmdbId": 9812,
+            "posterPath": "/4E43zfX1OXJngR5B0PvECh4H0tv.jpg",
+            "backdropPath": "/8uOojWAFdm1E1DITAjx1i6y3Gmw.jpg",
+            "rating": "6.9",
+            "year": 1998
+        },
         "/movies/Tom_Clancys_Jack_Ryan_Ghost_War": {
             "tmdbId": 1380291,
             "posterPath": "/c5O6qPKEiSIuPKiYPtIovS2fQOT.jpg",
             "backdropPath": "/dd31qJxOarrHyGZwYsCzOjobQzP.jpg",
             "rating": "6.9",
             "year": 2026
+        },
+        "/movies/Tombstone": {
+            "tmdbId": 11969,
+            "posterPath": "/hSHheD5v8esxZqF9lOT1wnEseY1.jpg",
+            "backdropPath": "/djPXXv9pPyTLGl9kMPCTyiBmIA5.jpg",
+            "rating": "7.6",
+            "year": 1993
         },
         "/movies/Total_Recall": {
             "tmdbId": 861,
@@ -654,6 +773,13 @@
             "rating": "8.2",
             "year": 2026
         },
+        "/movies/Tron_Ares": {
+            "tmdbId": 533533,
+            "posterPath": "/3YMaZ7A8wKs0gngDdexs0pLkAnR.jpg",
+            "backdropPath": "/pUNfHmVqfwRdILhCkU8TdysVOXo.jpg",
+            "rating": "6.4",
+            "year": 2025
+        },
         "/movies/Universal_Soldier": {
             "tmdbId": 9349,
             "posterPath": "/eWqDb2QFgqWvDjCfUWAFZuZUS4K.jpg",
@@ -668,12 +794,26 @@
             "rating": "7.0",
             "year": 2005
         },
+        "/movies/Wag_the_Dog": {
+            "tmdbId": 586,
+            "posterPath": "/tYR2kpTmlWFY0Zy612A7qW3muwV.jpg",
+            "backdropPath": "/8KM1KWQt434blaRMbDOJ8ZZ3K3W.jpg",
+            "rating": "6.9",
+            "year": 1997
+        },
         "/movies/War_Machine": {
             "tmdbId": 1265609,
             "posterPath": "/eB863opfwAn0kV6SSWkfVUEzs2n.jpg",
             "backdropPath": "/sjTcE7p4apDPCKuclXphaCgnKic.jpg",
             "rating": "7.5",
             "year": 2026
+        },
+        "/movies/Weapons": {
+            "tmdbId": 1078605,
+            "posterPath": "/iIUK6jA6ZmJ4mxZsolYFsWONd2A.jpg",
+            "backdropPath": "/8VyTWJrNEyV2MTWvniDVp0MpOAe.jpg",
+            "rating": "7.3",
+            "year": 2025
         },
         "/movies/Zootopia": {
             "tmdbId": 269149,
@@ -703,12 +843,40 @@
             "rating": "8.4",
             "year": 2026
         },
+        "/series/A_Thousand_Blows": {
+            "tmdbId": 208851,
+            "posterPath": "/lTZkU6R6iDnMoRCXp1S3m83DZk6.jpg",
+            "backdropPath": "/wSGkPylFW731ZPAMP6XMAzJ5CcJ.jpg",
+            "rating": "6.7",
+            "year": 2025
+        },
+        "/series/Adolescence": {
+            "tmdbId": 249042,
+            "posterPath": "/cl9l35nu9UQxB5sSGRncBuWUqHA.jpg",
+            "backdropPath": "/llZodlkVKRkTdUsiRxvn8h80hhx.jpg",
+            "rating": "7.8",
+            "year": 2025
+        },
         "/series/Agatha_Christies_Seven_Dials": {
             "tmdbId": 250505,
             "posterPath": "/eSZHhn6mIfugdtOT4y2nllwG7WS.jpg",
             "backdropPath": "/eVEbRtSOrczWlYnVmwM195AnX86.jpg",
             "rating": "6.2",
             "year": 2026
+        },
+        "/series/Alien_Earth": {
+            "tmdbId": 157239,
+            "posterPath": "/elQ2kta4RH7WU23aIBGF9568jGj.jpg",
+            "backdropPath": "/sVxit4vKQZnrHejeQupBYadP22g.jpg",
+            "rating": "7.3",
+            "year": 2025
+        },
+        "/series/American_Primeval": {
+            "tmdbId": 215866,
+            "posterPath": "/2VZsZ7P1Q5wkNqoZjtwGNE9CDsn.jpg",
+            "backdropPath": "/1FxG2lmDYsCM1svJf7H79HNNwu2.jpg",
+            "rating": "7.7",
+            "year": 2025
         },
         "/series/Avatar_Seven_Havens": {
             "tmdbId": 284833,
@@ -798,6 +966,13 @@
             "rating": "7.4",
             "year": 2025
         },
+        "/series/Citadel_Honey_Bunny": {
+            "tmdbId": 154084,
+            "posterPath": "/fzNF8O7Sde2A2kb9LtHSS1xdn8p.jpg",
+            "backdropPath": "/c1zX0L9X2UXeOemCg8FSDReMO6G.jpg",
+            "rating": "6.6",
+            "year": 2024
+        },
         "/series/Common_Side_Effects": {
             "tmdbId": 228878,
             "posterPath": "/s42PAPE7p08C7JIUUEU4wTNstwm.jpg",
@@ -824,6 +999,13 @@
             "backdropPath": "/wxiBsKFEOOFK8eQStWOykNORlXY.jpg",
             "rating": "8.5",
             "year": 2026
+        },
+        "/series/Daredevil_Born_Again": {
+            "tmdbId": 202555,
+            "posterPath": "/8OS0LOOZfHNp5QkerhGrZWzDYgT.jpg",
+            "backdropPath": "/qrTAc0ZtQ859Qu5O8cixJzNJpQs.jpg",
+            "rating": "8.2",
+            "year": 2025
         },
         "/series/Dept_Q": {
             "tmdbId": 245703,
@@ -867,6 +1049,13 @@
             "rating": "7.4",
             "year": 2025
         },
+        "/series/Euphoria": {
+            "tmdbId": 85552,
+            "posterPath": "/yJz0VPfztciUt8cYulEOnk7wQhs.jpg",
+            "backdropPath": "/aJN0VtMbtYndK0M0XoaoKBoAzPu.jpg",
+            "rating": "8.3",
+            "year": 2019
+        },
         "/series/Eyes_of_Wakanda": {
             "tmdbId": 241388,
             "posterPath": "/f0E7Sy8ODC8R4aa81jizmQ4SnCk.jpg",
@@ -879,6 +1068,13 @@
             "posterPath": "/mvRoY83EjWRaYHHfbeCNViNbWmU.jpg",
             "backdropPath": "/4rBugdmBu7ZgrWnh5Gp5qgwvdQ.jpg",
             "year": 2026
+        },
+        "/series/Griselda": {
+            "tmdbId": 137893,
+            "posterPath": "/7HTpFiHEXmQ91B4DPtgxtPsw1Iu.jpg",
+            "backdropPath": "/nj06Yo0yVzI7jx6novjyGOyNQKC.jpg",
+            "rating": "7.2",
+            "year": 2024
         },
         "/series/Harry_Potter": {
             "tmdbId": 224377,
@@ -899,6 +1095,13 @@
             "backdropPath": "/n4hJLZmBG8kZccNn7bNgBDsVQ6a.jpg",
             "year": 2026
         },
+        "/series/House_of_David": {
+            "tmdbId": 243881,
+            "posterPath": "/wBziqow2SzjBjXv1Z9UlhxufU4M.jpg",
+            "backdropPath": "/eEOmHMRqcInSYkdqo7yJwQUy9EE.jpg",
+            "rating": "8.4",
+            "year": 2025
+        },
         "/series/House_of_Guinness": {
             "tmdbId": 250988,
             "posterPath": "/o0xTJkuD0JelQoRXQ2vCuGZkUf6.jpg",
@@ -918,6 +1121,20 @@
             "posterPath": "/jK0FZcOdDXhNK9wqJBODkZd5Ipv.jpg",
             "backdropPath": "/wWleS7DxsoGCkOPisNf8OZ2udiD.jpg",
             "rating": "7.5",
+            "year": 2025
+        },
+        "/series/Ironheart": {
+            "tmdbId": 114471,
+            "posterPath": "/i0uo6Cq4Eb0JQFmaNBy2HUc7Y6c.jpg",
+            "backdropPath": "/vno2LrEQr3lTOk3U1G1ihZsy64b.jpg",
+            "rating": "5.3",
+            "year": 2025
+        },
+        "/series/It_Welcome_to_Derry": {
+            "tmdbId": 200875,
+            "posterPath": "/omSIgPmFZx557xYo1PvQVUebaGe.jpg",
+            "backdropPath": "/akKP4lSFtQ60eFWrZtVMfAgMxEk.jpg",
+            "rating": "8.3",
             "year": 2025
         },
         "/series/Jo_Nesbos_Detective_Hole": {
@@ -1018,6 +1235,13 @@
             "rating": "7.3",
             "year": 2025
         },
+        "/series/MobLand": {
+            "tmdbId": 247718,
+            "posterPath": "/vuKwmIVw6lClfzOtGzakhl47mjA.jpg",
+            "backdropPath": "/h0OC7ouop8YLwbAVfS3UUE2Lw4T.jpg",
+            "rating": "8.7",
+            "year": 2025
+        },
         "/series/Mr_and_Mrs_Smith": {
             "tmdbId": 118642,
             "posterPath": "/vw2z9SJ4yA1rVPkpaHwjjCZYhbt.jpg",
@@ -1032,6 +1256,13 @@
             "rating": "7.3",
             "year": 2025
         },
+        "/series/Nautilus": {
+            "tmdbId": 131835,
+            "posterPath": "/1kbDurEoHMVIUi6fsVeBUxnFrFL.jpg",
+            "backdropPath": "/biThcmII4ICSvEx1zLMaf70Noxy.jpg",
+            "rating": "6.8",
+            "year": 2024
+        },
         "/series/Neagley": {
             "tmdbId": 273207,
             "posterPath": "/xliq5WeRKoNC2LxSYKNe0Dc0eDY.jpg",
@@ -1044,6 +1275,13 @@
             "posterPath": "/hij19Awqg2cvc4LvX3I7dUU1Mg.jpg",
             "backdropPath": "/19g5kMCsjQpJi2MfRuba4WQjfAJ.jpg",
             "rating": "6.7",
+            "year": 2025
+        },
+        "/series/Nine_Bodies_in_a_Mexican_Morgue": {
+            "tmdbId": 248330,
+            "posterPath": "/qb9f9EXiGzgJP0HLpcykcoB7H01.jpg",
+            "backdropPath": "/zRzjtzQkIGNHe3ZmeqlTXnGTowx.jpg",
+            "rating": "6.5",
             "year": 2025
         },
         "/series/Nocturne": {
@@ -1121,6 +1359,13 @@
             "backdropPath": "/oHnlulBoE3XbI3HIYWY0dZfh5RH.jpg",
             "rating": "6.4",
             "year": 2026
+        },
+        "/series/Side_Quest": {
+            "tmdbId": 216412,
+            "posterPath": "/iZmOwZbijgOus5uy1RKnGG9hFLS.jpg",
+            "backdropPath": "/7EPrReIWySBf7Yzt7GFOWdmouOQ.jpg",
+            "rating": "5.7",
+            "year": 2025
         },
         "/series/Smoke": {
             "tmdbId": 215995,
@@ -1233,6 +1478,13 @@
             "rating": "6.6",
             "year": 2026
         },
+        "/series/The_Bondsman": {
+            "tmdbId": 229711,
+            "posterPath": "/hOH1JUTHNCig2wfAtLJIr4E1Ste.jpg",
+            "backdropPath": "/rnzRg5jVxhY6qeBAA7rYNiW0xT2.jpg",
+            "rating": "7.2",
+            "year": 2025
+        },
         "/series/The_Boroughs": {
             "tmdbId": 224941,
             "posterPath": "/826WiB3FY5dsfCC1gwUpJXGkwkm.jpg",
@@ -1246,6 +1498,13 @@
             "backdropPath": "/5bi3jjbbDOM6Cp0QCJMzLaWmZqb.jpg",
             "rating": "6.5",
             "year": 2025
+        },
+        "/series/The_Day_of_the_Jackal": {
+            "tmdbId": 222766,
+            "posterPath": "/uFdIebgylj64d9ze6y1C5jsHUZZ.jpg",
+            "backdropPath": "/enVrO8TRkdT8dmYXTfI4sEjR5Kp.jpg",
+            "rating": "8.2",
+            "year": 2024
         },
         "/series/The_Dinosaurs": {
             "tmdbId": 313298,
@@ -1294,6 +1553,13 @@
             "posterPath": "/qNABFhduyxg5gvzFuuSPFRh2uls.jpg",
             "backdropPath": "/z3BkMbCy5ajZPMyKEUwsPHuz2cV.jpg",
             "rating": "8.7",
+            "year": 2025
+        },
+        "/series/The_Studio": {
+            "tmdbId": 247767,
+            "posterPath": "/96MNoAn7jQmXBsq5HhjGGTDIWsN.jpg",
+            "backdropPath": "/23rku5cZH9aZ80DVfdhZaCTK81D.jpg",
+            "rating": "7.8",
             "year": 2025
         },
         "/series/The_Terminal_List_Dark_Wolf": {
@@ -1366,16 +1632,35 @@
             "rating": "7.8",
             "year": 2026
         },
+        "/series/Your_Friendly_Neighborhood_Spider_Man": {
+            "tmdbId": 138503,
+            "posterPath": "/qCWnsUhO5YyrOWp9grrSq9QZMux.jpg",
+            "backdropPath": "/kkT2B2gmynoh9kZMo1gromLNeqy.jpg",
+            "rating": "7.8",
+            "year": 2025
+        },
         "/series/Your_Friends_and_Neighbors": {
             "tmdbId": 241609,
             "posterPath": "/wr6dsSOfht23oiym1TcAlMN7R3k.jpg",
             "backdropPath": "/jUpFwJLfa36Xd89Ma2lNAR7HCoO.jpg",
             "rating": "7.7",
             "year": 2025
+        },
+        "/series/Zero_Day": {
+            "tmdbId": 216082,
+            "posterPath": "/vErLmhbhTt9QqpEHwfAmh8yKTCp.jpg",
+            "backdropPath": "/t4JPNpET4aEmMA4Fg7Bfc7tI6jQ.jpg",
+            "rating": "7.0",
+            "year": 2025
         }
     },
-    "generatedAt": 1795552757092,
+    "generatedAt": 1795850192097,
     "movies": [
+        {
+            "path": "/movies/Wag_the_Dog",
+            "title": "Плутовство",
+            "year": 1997
+        },
         {
             "path": "/movies/The_Further_Mis_Adventures_of_Cliff_Booth",
             "title": "Новые похождения Клиффа Бута",
@@ -1475,11 +1760,6 @@
         {
             "path": "/movies/Batman_Knightfall_Part_1",
             "title": "Бэтмен: Падение рыцаря. Часть первая",
-            "year": 2026
-        },
-        {
-            "path": "/movies/Avatar_Aang_The_Last_Airbender",
-            "title": "Аватар Аанг: Последний маг воздуха",
             "year": 2026
         }
     ],

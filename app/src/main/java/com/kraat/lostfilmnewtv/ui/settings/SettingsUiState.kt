@@ -32,4 +32,7 @@ data class SettingsUiState(
     val isDownloadingUpdate: Boolean = false,
     val installDownloadProgress: Int? = null,
     val installUrl: String? = null,
+    val isBackupBusy: Boolean = false,
+    val backupStatusText: String? = null,
+    val backupConfirmation: String? = null,
 )

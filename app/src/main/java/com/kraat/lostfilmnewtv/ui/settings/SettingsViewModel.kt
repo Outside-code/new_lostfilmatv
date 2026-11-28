@@ -3,7 +3,9 @@ package com.kraat.lostfilmnewtv.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kraat.lostfilmnewtv.BuildConfig
+import com.kraat.lostfilmnewtv.data.auth.AuthRepositoryContract
 import com.kraat.lostfilmnewtv.playback.PlaybackPreferencesStore
+import com.kraat.lostfilmnewtv.playback.SettingsBackup
 import com.kraat.lostfilmnewtv.data.parser.LostFilmBaseUrl
 import com.kraat.lostfilmnewtv.playback.PlaybackQualityPreference
 import com.kraat.lostfilmnewtv.playback.WatchedMarkingMode
@@ -19,6 +21,7 @@ import com.kraat.lostfilmnewtv.updates.SavedAppUpdate
 import com.kraat.lostfilmnewtv.updates.UpdateCheckMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,6 +35,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -43,6 +47,7 @@ class SettingsViewModel @Inject constructor(
     private val releaseApkLauncher: ReleaseApkLauncher,
     private val torrServeEndpointChecker: TorrServeEndpointChecker,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val authRepository: AuthRepositoryContract? = null,
 ) : ViewModel() {
 
     private var debounceIntervalMs: Long = DEFAULT_DEBOUNCE_INTERVAL_MS
@@ -54,6 +59,7 @@ class SettingsViewModel @Inject constructor(
     private var torrServeCheckJob: Job? = null
     private var refreshRequestToken: Long = 0
     private var lastCheckTimestamp = 0L
+    private var pendingBackup: SettingsBackup? = null
 
     private val initialSavedUpdate = savedUpdateState.value
 
@@ -117,6 +123,120 @@ class SettingsViewModel @Inject constructor(
         val section = SettingsSection.entries.firstOrNull { it.name == sectionName }
             ?: if (sectionName == "QUALITY") SettingsSection.PLAYBACK else return
         _uiState.update { it.copy(currentSection = section) }
+    }
+
+    fun onSaveSettingsBackup(write: (String) -> String) = runBackupOperation("Не удалось сохранить копию") {
+        val location = withContext(ioDispatcher) { write(preferencesStore.settingsBackup().encode()) }
+        _uiState.update { it.copy(backupStatusText = "Сохранено в $location") }
+    }
+
+    fun onReadSettingsBackup(read: () -> String?) = runBackupOperation("Не удалось прочитать копию LostFilm.TV") {
+        val backup = withContext(ioDispatcher) { read()?.let(SettingsBackup::decode) }
+        if (backup == null) {
+            _uiState.update { it.copy(backupStatusText = "Копия в папке «Загрузки» не найдена") }
+        } else {
+            pendingBackup = backup
+            _uiState.update {
+                it.copy(backupConfirmation = listOf(
+                    "Качество ${backup.quality}",
+                    "Сервер LostFilm ${backup.lostFilmUrl}",
+                    "TorrServe ${backup.torrServeUrl}",
+                ).joinToString("\n"))
+            }
+        }
+    }
+
+    fun onCancelSettingsRestore() {
+        pendingBackup = null
+        _uiState.update { it.copy(backupConfirmation = null) }
+    }
+
+    fun onConfirmSettingsRestore() {
+        val backup = pendingBackup ?: return
+        onCancelSettingsRestore()
+        runBackupOperation("Не удалось восстановить настройки") {
+            val restored = withContext(ioDispatcher) {
+                if (backup.lostFilmUrl != preferencesStore.readLostFilmBaseUrl() && authRepository?.hasSavedSession() == true) {
+                    false
+                } else {
+                    preferencesStore.restoreSettingsBackup(backup)
+                    LostFilmBaseUrl.set(preferencesStore.readLostFilmBaseUrl())
+                    true
+                }
+            }
+            if (!restored) {
+                _uiState.update { it.copy(backupStatusText = "Чтобы изменить сервер из копии, выйдите из LostFilm") }
+                return@runBackupOperation
+            }
+            applyRestoredSettings()
+        }
+    }
+
+    fun onBackupPickerUnavailable() {
+        _uiState.update { it.copy(backupStatusText = "На устройстве нет приложения для выбора файлов") }
+    }
+
+    private fun runBackupOperation(failure: String, operation: suspend () -> Unit) {
+        if (_uiState.value.isBackupBusy || pendingBackup != null) return
+        _uiState.update { it.copy(isBackupBusy = true, backupStatusText = null) }
+        viewModelScope.launch {
+            try {
+                operation()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _uiState.update { it.copy(backupStatusText = failure) }
+            } finally {
+                _uiState.update { it.copy(isBackupBusy = false) }
+            }
+        }
+    }
+
+    private fun applyRestoredSettings() {
+        val previous = _uiState.value
+        val updated = previous.copy(
+            playbackQuality = preferencesStore.readDefaultQuality(),
+            updateMode = preferencesStore.readUpdateCheckMode(),
+            channelMode = preferencesStore.readAndroidTvChannelMode(),
+            isHomeFavoritesRailEnabled = preferencesStore.readHomeFavoritesRailEnabled(),
+            isHomeFavoriteSeriesEnabled = preferencesStore.readHomeFavoriteSeriesEnabled(),
+            isHomeMoviesEnabled = preferencesStore.readHomeMoviesEnabled(),
+            isHomeSeriesEnabled = preferencesStore.readHomeSeriesEnabled(),
+            isHomeMenuLabelsEnabled = preferencesStore.readHomeMenuLabelsEnabled(),
+            watchedMarkingMode = preferencesStore.readWatchedMarkingMode(),
+            torrServeBaseUrl = preferencesStore.readTorrServeBaseUrl(),
+            torrServeUsername = preferencesStore.readTorrServeUsername(),
+            torrServePassword = preferencesStore.readTorrServePassword(),
+            lostFilmHost = preferencesStore.readLostFilmBaseUrl(),
+            lostFilmHostStatusText = null,
+            torrServeStatusText = null,
+            isCheckingTorrServe = false,
+            backupStatusText = "Настройки восстановлены",
+        )
+        torrServeCheckJob?.cancel()
+        _uiState.value = updated
+        if (previous.isHomeFavoritesRailEnabled != updated.isHomeFavoritesRailEnabled) {
+            _railVisibilityEvents.tryEmit(updated.isHomeFavoritesRailEnabled)
+        }
+        if (previous.isHomeFavoriteSeriesEnabled != updated.isHomeFavoriteSeriesEnabled) {
+            _homeModeVisibilityEvents.tryEmit(HomeFeedMode.FavoriteSeries to updated.isHomeFavoriteSeriesEnabled)
+        }
+        if (previous.isHomeMoviesEnabled != updated.isHomeMoviesEnabled) {
+            _homeModeVisibilityEvents.tryEmit(HomeFeedMode.Movies to updated.isHomeMoviesEnabled)
+        }
+        if (previous.isHomeSeriesEnabled != updated.isHomeSeriesEnabled) {
+            _homeModeVisibilityEvents.tryEmit(HomeFeedMode.Series to updated.isHomeSeriesEnabled)
+        }
+        if (previous.isHomeMenuLabelsEnabled != updated.isHomeMenuLabelsEnabled) {
+            _homeMenuLabelsVisibilityEvents.tryEmit(updated.isHomeMenuLabelsEnabled)
+        }
+        if (previous.updateMode != updated.updateMode) appUpdateBackgroundScheduler.syncForCurrentMode()
+        if (previous.channelMode != updated.channelMode) {
+            viewModelScope.launch(ioDispatcher) {
+                homeChannelBackgroundScheduler.syncForCurrentMode()
+                homeChannelSyncManager.syncNow()
+            }
+        }
     }
 
     fun onPlaybackQualitySelected(quality: PlaybackQualityPreference) {

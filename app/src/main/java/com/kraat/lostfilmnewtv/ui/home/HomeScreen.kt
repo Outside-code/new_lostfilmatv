@@ -110,6 +110,7 @@ fun HomeScreen(
     onContinueWatching: (() -> Unit)? = null,
     isContinuingWatching: Boolean = false,
     playbackHistory: List<PlaybackHistoryEntry> = emptyList(),
+    onPosterActionsClick: ((ReleaseSummary) -> Unit)? = null,
 ) {
     val focusState by if (focusStateFlow != null) {
         focusStateFlow.collectAsStateWithLifecycle()
@@ -486,6 +487,7 @@ fun HomeScreen(
                                     } else {
                                         onOpenDetails
                                     },
+                                    onPosterActionsClick = onPosterActionsClick,
                                     onMoveToNextMode = { switchModeFromRail(offset = 1) },
                                     onEndReached = onEndReached,
                                     nextPage = activeModeData.nextPage.takeIf { activeModeData.hasNextPage },

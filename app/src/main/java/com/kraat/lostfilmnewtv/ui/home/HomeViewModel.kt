@@ -5,19 +5,16 @@ import com.kraat.lostfilmnewtv.data.model.SeriesStatus
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kraat.lostfilmnewtv.data.model.FavoriteMutationResult
 import com.kraat.lostfilmnewtv.data.model.FavoriteReleasesResult
 import com.kraat.lostfilmnewtv.data.model.FavoriteSeriesResult
 import com.kraat.lostfilmnewtv.data.model.PageState
 import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
+import com.kraat.lostfilmnewtv.data.parser.resolveUrl
 import com.kraat.lostfilmnewtv.data.repository.DetailsResult
 import com.kraat.lostfilmnewtv.data.repository.LostFilmRepository
 import com.kraat.lostfilmnewtv.data.repository.FavoritesRepository
 import com.kraat.lostfilmnewtv.playback.PlaybackPreferencesStore
-import com.kraat.lostfilmnewtv.playback.history.ContinueWatchingResult
-import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryEntry
-import com.kraat.lostfilmnewtv.playback.history.latestUnfinishedSeriesEpisode
-import com.kraat.lostfilmnewtv.ui.details.resolvePreferredTorrentRow
-import com.kraat.lostfilmnewtv.ui.details.toTorrentRows
 import com.kraat.lostfilmnewtv.updates.AppUpdateCoordinator
 import com.kraat.lostfilmnewtv.updates.SavedAppUpdate
 import com.kraat.lostfilmnewtv.tvchannel.HomeChannelSyncManager
@@ -273,24 +270,22 @@ class HomeViewModel @Inject constructor(
         _selectedNavItem.update { item }
     }
 
-    internal suspend fun prepareContinueWatching(
-        history: List<PlaybackHistoryEntry>,
-        supportsSource: (String) -> Boolean,
-    ): ContinueWatchingResult = withContext(ioDispatcher) {
-        val entry = history.latestUnfinishedSeriesEpisode()
-            ?: return@withContext ContinueWatchingResult.Unavailable("Нет незавершённой серии")
-        val loaded = when (val result = repository.loadDetails(entry.detailsUrl)) {
-            is DetailsResult.Success -> result.details
-            is DetailsResult.Error -> return@withContext ContinueWatchingResult.Unavailable("Не удалось загрузить серию")
+    internal suspend fun addPosterSeriesToFavorites(detailsUrl: String): FavoriteMutationResult {
+        val slug = detailsUrl.seriesSlug()
+            ?: return FavoriteMutationResult.Error("Не удалось определить сериал")
+        val seriesUrl = resolveUrl("/series/$slug/")
+        val result = withContext(ioDispatcher) {
+            favoritesRepository.setFavorite(seriesUrl, targetFavorite = true)
         }
-        val details = if (loaded.torrentLinks.isEmpty()) {
-            (repository.refreshDetailsExtras(loaded) as? DetailsResult.Success)?.details ?: loaded
-        } else loaded
-        val torrent = resolvePreferredTorrentRow(
-            preferencesStore.readDefaultQuality(),
-            details.toTorrentRows().filter { supportsSource(it.url) },
-        ) ?: return@withContext ContinueWatchingResult.Unavailable("Для этой серии пока нет раздачи")
-        ContinueWatchingResult.Ready(details, torrent, entry.positionMs?.coerceAtLeast(0) ?: 0L)
+        if (result == FavoriteMutationResult.Updated) onFavoriteStateChanged(seriesUrl, true)
+        return result
+    }
+
+    internal suspend fun markPosterEpisodeWatched(detailsUrl: String): Boolean = withContext(ioDispatcher) {
+        val details = (repository.loadDetailsPreview(detailsUrl) as? DetailsResult.Success)?.details
+            ?: return@withContext false
+        val episodeId = details.playEpisodeId ?: return@withContext false
+        repository.setEpisodeWatched(details.detailsUrl, episodeId, targetWatched = true) == true
     }
 
     fun onItemWatchedStateChanged(detailsUrl: String, isWatched: Boolean) {

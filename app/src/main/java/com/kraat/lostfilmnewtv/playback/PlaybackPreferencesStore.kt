@@ -207,6 +207,41 @@ class PlaybackPreferencesStore(
             .apply()
     }
 
+    internal fun settingsBackup(): SettingsBackup = SettingsBackup(
+        version = SettingsBackup.VERSION,
+        format = SettingsBackup.FORMAT,
+        quality = readDefaultQuality().storageValue,
+        updateMode = readUpdateCheckMode().storageValue,
+        channelMode = readAndroidTvChannelMode().storageValue,
+        watchedMode = readWatchedMarkingMode().storageValue,
+        favoriteReleasesEnabled = readHomeFavoritesRailEnabled(),
+        favoriteSeriesEnabled = readHomeFavoriteSeriesEnabled(),
+        moviesEnabled = readHomeMoviesEnabled(),
+        seriesEnabled = readHomeSeriesEnabled(),
+        menuLabelsEnabled = readHomeMenuLabelsEnabled(),
+        torrServeUrl = readTorrServeBaseUrl().withoutUserInfo(),
+        lostFilmUrl = readLostFilmBaseUrl().withoutUserInfo(),
+    )
+
+    internal fun restoreSettingsBackup(backup: SettingsBackup) {
+        val editor = prefs.edit()
+            .putString(KEY_DEFAULT_QUALITY, backup.quality)
+            .putString(KEY_UPDATE_CHECK_MODE, backup.updateMode)
+            .putString(KEY_ANDROID_TV_CHANNEL_MODE, backup.channelMode)
+            .putString(KEY_WATCHED_MARKING_MODE, backup.watchedMode)
+            .putBoolean(KEY_HOME_FAVORITES_RAIL_ENABLED, backup.favoriteReleasesEnabled)
+            .putBoolean(KEY_HOME_FAVORITE_SERIES_ENABLED, backup.favoriteSeriesEnabled)
+            .putBoolean(KEY_HOME_MOVIES_ENABLED, backup.moviesEnabled)
+            .putBoolean(KEY_HOME_SERIES_ENABLED, backup.seriesEnabled)
+            .putBoolean(KEY_HOME_MENU_LABELS_ENABLED, backup.menuLabelsEnabled)
+            .putString(KEY_TORRSERVE_BASE_URL, backup.torrServeUrl)
+            .putString(KEY_LOSTFILM_BASE_URL, backup.lostFilmUrl)
+        if (backup.torrServeUrl != readTorrServeBaseUrl()) {
+            editor.remove("torrserve_username").remove("torrserve_password")
+        }
+        editor.apply()
+    }
+
     private companion object {
         const val DEFAULT_PREFS_NAME = "lostfilm_playback_prefs"
         const val KEY_DEFAULT_QUALITY = "default_quality"

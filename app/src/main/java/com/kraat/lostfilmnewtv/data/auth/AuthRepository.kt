@@ -24,6 +24,8 @@ class AuthRepository(
     @Volatile
     private var currentPairing: PairingSession? = null
 
+    override suspend fun hasSavedSession(): Boolean = sessionStore.read() != null
+
     override suspend fun getAuthState(): AuthState {
         val session = sessionStore.read()
             ?: return AuthState(isAuthenticated = false, session = null)

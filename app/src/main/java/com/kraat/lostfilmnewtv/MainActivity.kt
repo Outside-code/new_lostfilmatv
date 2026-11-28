@@ -1,5 +1,6 @@
 package com.kraat.lostfilmnewtv
 
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import androidx.activity.ComponentActivity
@@ -32,10 +33,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         hideLauncherBars()
         val initialDetailsUrl = AppLaunchTarget.parseDetailsUrl(intent)
+        val backupUri = AppLaunchTarget.parseSettingsBackupUri(intent)
         setContent {
             CompositionLocalProvider(LocalDescriptionTranslator provides descriptionTranslator) {
                 LostFilmTheme {
-                    LostFilmApp(initialDetailsUrl = initialDetailsUrl)
+                    LostFilmApp(initialDetailsUrl = initialDetailsUrl, backupUri = backupUri)
                 }
             }
         }
@@ -81,6 +83,6 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun LostFilmApp(initialDetailsUrl: String? = null) {
-    AppNavGraph(initialDetailsUrl = initialDetailsUrl)
+fun LostFilmApp(initialDetailsUrl: String? = null, backupUri: Uri? = null) {
+    AppNavGraph(initialDetailsUrl = initialDetailsUrl, backupUri = backupUri)
 }

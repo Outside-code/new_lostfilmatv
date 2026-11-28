@@ -56,6 +56,7 @@ import com.kraat.lostfilmnewtv.ui.components.PosterRatingBadge
 import com.kraat.lostfilmnewtv.ui.components.tmdbPosterRating
 import com.kraat.lostfilmnewtv.data.model.SeriesGuideEpisode
 import com.kraat.lostfilmnewtv.data.model.SeriesGuideSeason
+import com.kraat.lostfilmnewtv.playback.season.isYouTubeTrailer
 import com.kraat.lostfilmnewtv.ui.components.ShimmerSkeletonBox
 import com.kraat.lostfilmnewtv.ui.components.rememberShimmerSkeletonBrush
 import com.kraat.lostfilmnewtv.ui.theme.BackgroundPrimary
@@ -86,8 +87,13 @@ fun SeriesGuideScreen(
     onPlaySeason: () -> Unit = {},
     onFavoriteClick: () -> Unit = {},
     onTrailerClick: () -> Unit = {},
+    resumeEpisodeLabel: String? = null,
+    isResumingEpisode: Boolean = false,
+    onResumeEpisode: () -> Unit = {},
 ) {
-    val trailerLabel = if (state.trailerUrl != null) "Трейлер" else "Трейлер в YouTube"
+    val trailerLabel = state.trailerUrl?.let { url ->
+        if (isYouTubeTrailer(url)) "Трейлер в YouTube" else "Трейлер"
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -108,8 +114,11 @@ fun SeriesGuideScreen(
             state.seasons.isEmpty() -> {
                 GuideEmptyState(
                     onRetry = onRetry,
-                    trailerLabel = trailerLabel.takeIf { state.title.isNotBlank() },
+                    trailerLabel = trailerLabel,
                     onTrailerClick = onTrailerClick,
+                    resumeEpisodeLabel = resumeEpisodeLabel,
+                    isResumingEpisode = isResumingEpisode,
+                    onResumeEpisode = onResumeEpisode,
                 )
             }
 
@@ -120,6 +129,9 @@ fun SeriesGuideScreen(
                     onFavoriteClick = onFavoriteClick,
                     onTrailerClick = onTrailerClick,
                     trailerLabel = trailerLabel,
+                    resumeEpisodeLabel = resumeEpisodeLabel,
+                    isResumingEpisode = isResumingEpisode,
+                    onResumeEpisode = onResumeEpisode,
                     title = state.title,
                     posterUrl = state.posterUrl,
                     seasons = state.seasons,
@@ -248,6 +260,9 @@ private fun GuideEmptyState(
     onRetry: () -> Unit,
     trailerLabel: String?,
     onTrailerClick: () -> Unit,
+    resumeEpisodeLabel: String?,
+    isResumingEpisode: Boolean,
+    onResumeEpisode: () -> Unit,
 ) {
     val retryRequester = remember { FocusRequester() }
 
@@ -275,6 +290,9 @@ private fun GuideEmptyState(
             )
             if (trailerLabel != null) {
                 GuideTrailerButton(trailerLabel, onTrailerClick)
+            }
+            if (resumeEpisodeLabel != null) {
+                GuideResumeButton(resumeEpisodeLabel, isResumingEpisode, onResumeEpisode)
             }
         }
     }
@@ -304,7 +322,10 @@ private fun GuideContent(
     onPlaySeason: () -> Unit,
     onFavoriteClick: () -> Unit,
     onTrailerClick: () -> Unit,
-    trailerLabel: String,
+    trailerLabel: String?,
+    resumeEpisodeLabel: String?,
+    isResumingEpisode: Boolean,
+    onResumeEpisode: () -> Unit,
     title: String,
     posterUrl: String?,
     seasons: List<SeriesGuideSeason>,
@@ -342,6 +363,9 @@ private fun GuideContent(
         GuideHeroSection(title, posterUrl, actions.tmdbRating, seasons)
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (resumeEpisodeLabel != null) {
+                GuideResumeButton(resumeEpisodeLabel, isResumingEpisode, onResumeEpisode)
+            }
             Button(
                 onClick = onPlaySeason,
                 enabled = !actions.isPreparingSeason && activeSeason.episodes.any { it.isAvailable },
@@ -353,7 +377,7 @@ private fun GuideContent(
                 colors = ButtonDefaults.buttonColors(containerColor = DetailsSurfaceSoft, contentColor = TextPrimary),
                 modifier = Modifier.testTag("series-guide-favorite"),
             ) { Text(when { actions.isFavoriteBusy -> "Сохраняем…"; actions.isFavorite == true -> "♥ В избранном"; else -> "♡ В избранное" }) }
-            GuideTrailerButton(trailerLabel, onTrailerClick)
+            if (trailerLabel != null) GuideTrailerButton(trailerLabel, onTrailerClick)
         }
         actions.actionMessage?.let { Text(it, color = DetailsTextSecondary, fontSize = 13.sp) }
 
@@ -422,6 +446,18 @@ private fun GuideContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun GuideResumeButton(episode: String, isResuming: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        enabled = !isResuming,
+        colors = ButtonDefaults.buttonColors(containerColor = DetailsAccentBlue, contentColor = Color(0xFF081222)),
+        modifier = Modifier.testTag("series-guide-resume"),
+    ) {
+        Text(if (isResuming) "Загружаем серию…" else "Продолжить $episode", fontWeight = FontWeight.Bold)
     }
 }
 

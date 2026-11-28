@@ -51,6 +51,7 @@ import coil.compose.AsyncImage
 import com.kraat.lostfilmnewtv.ui.components.TvBackdrop
 import coil.request.ImageRequest
 import com.kraat.lostfilmnewtv.data.model.SeriesOverview
+import com.kraat.lostfilmnewtv.playback.season.isYouTubeTrailer
 import com.kraat.lostfilmnewtv.ui.components.PosterImage
 import com.kraat.lostfilmnewtv.ui.components.ShimmerSkeletonBox
 import com.kraat.lostfilmnewtv.ui.components.rememberShimmerSkeletonBrush
@@ -89,6 +90,9 @@ fun SeriesOverviewScreen(
     state: SeriesOverviewUiState,
     onRetry: () -> Unit,
     onTrailerClick: () -> Unit = {},
+    resumeEpisodeLabel: String? = null,
+    isResumingEpisode: Boolean = false,
+    onResumeEpisode: () -> Unit = {},
 ) {
     Box(
         modifier = Modifier
@@ -104,7 +108,13 @@ fun SeriesOverviewScreen(
                 onRetry = onRetry,
             )
             state.overview == null -> OverviewEmptyState()
-            else -> OverviewContent(overview = state.overview, onTrailerClick = onTrailerClick)
+            else -> OverviewContent(
+                overview = state.overview,
+                onTrailerClick = onTrailerClick,
+                resumeEpisodeLabel = resumeEpisodeLabel,
+                isResumingEpisode = isResumingEpisode,
+                onResumeEpisode = onResumeEpisode,
+            )
         }
     }
 }
@@ -252,7 +262,13 @@ private fun OverviewCenteredStatePanel(
 }
 
 @Composable
-private fun OverviewContent(overview: SeriesOverview?, onTrailerClick: () -> Unit) {
+private fun OverviewContent(
+    overview: SeriesOverview?,
+    onTrailerClick: () -> Unit,
+    resumeEpisodeLabel: String?,
+    isResumingEpisode: Boolean,
+    onResumeEpisode: () -> Unit,
+) {
     val safeOverview = overview ?: return
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -404,11 +420,22 @@ private fun OverviewContent(overview: SeriesOverview?, onTrailerClick: () -> Uni
                         )
                     }
                     OverviewChipRow(safeOverview)
-                    OverviewActionButton(
-                        label = if (safeOverview.trailerUrl != null) "Трейлер" else "Трейлер в YouTube",
-                        subtitle = if (safeOverview.trailerUrl != null) "Видео LostFilm" else "Поиск трейлера",
-                        onClick = onTrailerClick,
-                    )
+                    if (resumeEpisodeLabel != null) {
+                        OverviewActionButton(
+                            label = if (isResumingEpisode) "Загружаем серию…" else "Продолжить",
+                            subtitle = resumeEpisodeLabel,
+                            onClick = onResumeEpisode,
+                            enabled = !isResumingEpisode,
+                        )
+                    }
+                    safeOverview.trailerUrl?.let { url ->
+                        val youtube = isYouTubeTrailer(url)
+                        OverviewActionButton(
+                            label = if (youtube) "Трейлер в YouTube" else "Трейлер",
+                            subtitle = if (youtube) "Видео YouTube" else "Видео LostFilm",
+                            onClick = onTrailerClick,
+                        )
+                    }
                 }
             }
         }
@@ -623,9 +650,11 @@ private fun OverviewActionButton(
     label: String,
     subtitle: String,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         colors = ButtonDefaults.buttonColors(
             containerColor = DetailsAccentGold,
             contentColor = Color.Black,

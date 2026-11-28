@@ -48,6 +48,19 @@ class ContinueWatchingTest {
     }
 
     @Test
+    fun seriesCardResumesOnlyItsOwnUnfinishedEpisodeAcrossMirrors() {
+        val other = history("https://example.org/series/a-series-2026/season_1/episode_1")
+        val finished = history(episode(2, 1).detailsUrl, completed = true)
+        val unfinished = history(episode(1, 3).detailsUrl).copy(positionMs = 180_000)
+        val timeline = listOf(other, finished, unfinished)
+
+        assertEquals(other, timeline.latestUnfinishedSeriesEpisode())
+        assertEquals(unfinished, timeline.latestUnfinishedSeriesEpisode("https://mirror.example.org/series/a-series/"))
+        assertNull(timeline.latestUnfinishedSeriesEpisode("https://mirror.example.org/series/never-started/"))
+        assertNull(timeline.latestUnfinishedSeriesEpisode("https://example.org/movies/a-series"))
+    }
+
+    @Test
     fun resumeLabelShowsTheEpisodeAndElapsedPlaybackTime() {
         val entry = history(episode(2, 4).detailsUrl + "/?from=history")
         assertEquals("S02E04 · 18:42", entry.copy(positionMs = 1_122_500).episodeAndPositionLabel())

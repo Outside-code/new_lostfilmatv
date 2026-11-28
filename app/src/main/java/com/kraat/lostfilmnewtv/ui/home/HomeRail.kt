@@ -76,6 +76,7 @@ fun HomeRail(
     nextPage: Int? = null,
     seriesWithNewEpisodes: Set<String> = emptySet(),
     firstCardLeftTarget: FocusRequester? = leftTargetRequester,
+    onPosterActionsClick: ((ReleaseSummary) -> Unit)? = null,
 ) {
     val itemKeys = remember(items) { items.map { it.detailsUrl } }
     val targetKey = if (focusedItemKey in itemKeys) {
@@ -175,6 +176,9 @@ fun HomeRail(
                 PosterCard(
                     item = item,
                     onClick = { onOpenDetails(item.detailsUrl) },
+                    onLongClick = onPosterActionsClick?.takeIf { item.detailsUrl.seriesSlug() != null }?.let { open ->
+                        { open(item) }
+                    },
                     isFocused = focusedCardKey == item.detailsUrl,
                     hasNewEpisode = seriesWithNewEpisodes.isNotEmpty() && item.detailsUrl.seriesSlug() in seriesWithNewEpisodes,
                     modifier = Modifier

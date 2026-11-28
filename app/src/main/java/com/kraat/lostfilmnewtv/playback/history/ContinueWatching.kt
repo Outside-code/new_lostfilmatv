@@ -3,13 +3,52 @@ package com.kraat.lostfilmnewtv.playback.history
 import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
 import com.kraat.lostfilmnewtv.data.model.SeriesGuide
 import com.kraat.lostfilmnewtv.data.model.SeriesGuideEpisode
+import com.kraat.lostfilmnewtv.data.repository.DetailsResult
+import com.kraat.lostfilmnewtv.data.repository.LostFilmRepository
+import com.kraat.lostfilmnewtv.playback.PlaybackPreferencesStore
 import com.kraat.lostfilmnewtv.playback.season.playbackEpisodes
 import com.kraat.lostfilmnewtv.ui.details.DetailsTorrentRowUiModel
+import com.kraat.lostfilmnewtv.ui.details.resolvePreferredTorrentRow
+import com.kraat.lostfilmnewtv.ui.details.toTorrentRows
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val episodePath = Regex("""/series/[^/]+/season_(\d+)/episode_(\d+)""")
+private val seriesPath = Regex("""^/series/[^/]+""")
 
-internal fun List<PlaybackHistoryEntry>.latestUnfinishedSeriesEpisode(): PlaybackHistoryEntry? =
-    firstOrNull { !it.completed && episodePath.matches(it.key) }
+internal fun String.isSeriesEpisodeUrl(): Boolean = episodePath.matches(releaseKey())
+
+internal fun List<PlaybackHistoryEntry>.latestUnfinishedSeriesEpisode(
+    seriesUrl: String? = null,
+): PlaybackHistoryEntry? {
+    val series = seriesUrl?.let { seriesPath.find(it.releaseKey())?.value }
+    if (seriesUrl != null && series == null) return null
+    return firstOrNull { entry ->
+        !entry.completed && episodePath.matches(entry.key) &&
+            (series == null || seriesPath.find(entry.key)?.value == series)
+    }
+}
+
+internal suspend fun LostFilmRepository.prepareEpisodeResume(
+    entry: PlaybackHistoryEntry,
+    preferences: PlaybackPreferencesStore,
+    supportsSource: (String) -> Boolean,
+): ContinueWatchingResult = withContext(Dispatchers.IO) {
+    val loaded = when (val result = loadDetails(entry.detailsUrl)) {
+        is DetailsResult.Success -> result.details
+        is DetailsResult.Error -> return@withContext ContinueWatchingResult.Unavailable("Не удалось загрузить серию")
+    }
+    val details = if (loaded.torrentLinks.isEmpty()) {
+        (refreshDetailsExtras(loaded) as? DetailsResult.Success)?.details ?: loaded
+    } else {
+        loaded
+    }
+    val torrent = resolvePreferredTorrentRow(
+        preferences.readDefaultQuality(),
+        details.toTorrentRows().filter { supportsSource(it.url) },
+    ) ?: return@withContext ContinueWatchingResult.Unavailable("Для этой серии пока нет раздачи")
+    ContinueWatchingResult.Ready(details, torrent, entry.positionMs?.coerceAtLeast(0) ?: 0L)
+}
 
 internal fun PlaybackHistoryEntry.episodeAndPositionLabel(): String? {
     val match = episodePath.matchEntire(key) ?: return null

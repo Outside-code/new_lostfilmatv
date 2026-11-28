@@ -60,6 +60,7 @@ fun PosterCard(
     isFocused: Boolean = false,
     modifier: Modifier = Modifier,
     hasNewEpisode: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val shape = RoundedCornerShape(12.dp)
     val overlayColor = if (isFocused) FocusBackground.copy(alpha = 0.82f) else HomePanelSurface.copy(alpha = 0.62f)
@@ -70,6 +71,7 @@ fun PosterCard(
 
     Card(
         onClick = onClick,
+        onLongClick = onLongClick,
         modifier = modifier
             .size(width = POSTER_CARD_WIDTH, height = POSTER_CARD_HEIGHT)
             .semantics { contentDescription = item.titleRu },

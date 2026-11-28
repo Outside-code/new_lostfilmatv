@@ -116,6 +116,8 @@ interface LostFilmRepository {
     suspend fun loadSeriesOverview(detailsUrl: String): SeriesOverviewResult =
         SeriesOverviewResult.Error("Обзор недоступен")
 
+    suspend fun loadSeriesTrailer(detailsUrl: String): String? = null
+
     suspend fun search(query: String): SearchResultsResult =
         SearchResultsResult.Error(query, "Поиск недоступен")
 

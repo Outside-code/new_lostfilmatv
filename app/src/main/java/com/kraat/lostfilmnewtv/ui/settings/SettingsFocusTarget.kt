@@ -26,6 +26,8 @@ sealed class SettingsFocusTarget {
     data class WatchedMarking(val mode: WatchedMarkingMode) : SettingsFocusTarget()
     data object WatchedMarkingToggle : SettingsFocusTarget()
     data object AccountAuth : SettingsFocusTarget()
+    data object SaveBackup : SettingsFocusTarget()
+    data object RestoreBackup : SettingsFocusTarget()
     data object AboutGitHubLink : SettingsFocusTarget()
 }
 
@@ -60,5 +62,7 @@ fun SettingsFocusTarget.toTag(): String = when (this) {
     }
     SettingsFocusTarget.WatchedMarkingToggle -> "settings-watched-marking-toggle"
     SettingsFocusTarget.AccountAuth -> "settings-account-auth-action"
+    SettingsFocusTarget.SaveBackup -> "settings-backup-save"
+    SettingsFocusTarget.RestoreBackup -> "settings-backup-restore"
     SettingsFocusTarget.AboutGitHubLink -> "settings-about-github-link"
 }

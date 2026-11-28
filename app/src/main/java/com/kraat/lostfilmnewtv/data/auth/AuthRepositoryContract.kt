@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface AuthRepositoryContract {
     suspend fun getAuthState(): AuthState
+    suspend fun hasSavedSession(): Boolean = getAuthState().session != null
     fun observeAuthState(): Flow<AuthState>
     suspend fun startPairing(): PairingSession
     suspend fun pollPairingStatus(): PairingSession?

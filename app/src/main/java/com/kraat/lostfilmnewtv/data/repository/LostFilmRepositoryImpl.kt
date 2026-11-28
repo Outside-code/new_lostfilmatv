@@ -36,6 +36,7 @@ import com.kraat.lostfilmnewtv.data.parser.toEntity
 import com.kraat.lostfilmnewtv.data.parser.toSummaryEntities
 import com.kraat.lostfilmnewtv.data.parser.toSummaryModels
 import com.kraat.lostfilmnewtv.data.poster.CatalogPosterIndex
+import com.kraat.lostfilmnewtv.data.poster.CatalogTrailerIndex
 import com.kraat.lostfilmnewtv.data.poster.TmdbPosterEnricher
 import com.kraat.lostfilmnewtv.data.poster.TmdbPosterResolver
 import com.kraat.lostfilmnewtv.data.poster.TmdbEnrichmentService
@@ -110,6 +111,7 @@ class LostFilmRepositoryImpl(
     private val clock: () -> Long = { System.currentTimeMillis() },
     private val catalogPosterIndex: CatalogPosterIndex? = null,
     private val scheduleCache: ScheduleCache? = null,
+    private val catalogTrailerIndex: CatalogTrailerIndex? = null,
 ) : LostFilmRepository {
     private val cleanupMutex = Mutex()
     private var lastCleanupAt = 0L
@@ -596,7 +598,8 @@ class LostFilmRepositoryImpl(
                     seriesTitleRu = seriesTitleRu,
                     seriesUrl = seriesRootUrl,
                     isFavorite = detailsParser.parseFavoriteMetadata(seriesRootHtml)?.isFavorite,
-                    trailerUrl = Jsoup.parse(seriesRootHtml).seriesTrailerUrl(),
+                    trailerUrl = Jsoup.parse(seriesRootHtml).seriesTrailerUrl()
+                        ?: catalogTrailerIndex?.youtubeUrl(seriesRootUrl),
                     tmdbRating = tmdbUrls?.rating,
                     posterUrl = posterUrl,
                     selectedEpisodeDetailsUrl = normalizedDetailsUrl,
@@ -639,6 +642,7 @@ class LostFilmRepositoryImpl(
                     tmdbRating = tmdbUrls?.rating?.takeIf { it.isNotBlank() } ?: parsedOverview.tmdbRating,
                     descriptionRu = parsedOverview.descriptionRu
                         ?: tmdbUrls?.seriesOverviewRu?.takeIf { it.isNotBlank() },
+                    trailerUrl = parsedOverview.trailerUrl ?: catalogTrailerIndex?.youtubeUrl(seriesRootUrl),
                 ),
             )
         } catch (exception: CancellationException) {
@@ -646,6 +650,16 @@ class LostFilmRepositoryImpl(
         } catch (exception: Exception) {
             SeriesOverviewResult.Error(exception.message ?: "Не удалось загрузить обзор")
         }
+    }
+
+    override suspend fun loadSeriesTrailer(detailsUrl: String): String? {
+        val root = seriesRootUrl(resolveUrl(detailsUrl)) ?: return null
+        val localTrailer = try {
+            Jsoup.parse(anonymousHttpClient.fetchDetails(root)).seriesTrailerUrl()
+        } catch (_: IOException) {
+            null
+        }
+        return localTrailer ?: catalogTrailerIndex?.youtubeUrl(root)
     }
 
     override suspend fun search(query: String): SearchResultsResult {

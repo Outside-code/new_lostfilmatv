@@ -18,6 +18,7 @@ import com.kraat.lostfilmnewtv.data.parser.LostFilmSearchParser
 import com.kraat.lostfilmnewtv.data.parser.LostFilmScheduleParser
 import com.kraat.lostfilmnewtv.data.parser.LostFilmSeasonEpisodesParser
 import com.kraat.lostfilmnewtv.data.poster.CatalogPosterIndex
+import com.kraat.lostfilmnewtv.data.poster.CatalogTrailerIndex
 import com.kraat.lostfilmnewtv.data.poster.TmdbPosterResolver
 import com.kraat.lostfilmnewtv.data.poster.TmdbPosterResolverImpl
 import com.kraat.lostfilmnewtv.data.poster.TmdbEnrichmentService
@@ -60,6 +61,13 @@ object DataModule {
     fun provideCatalogPosterIndex(@ApplicationContext context: Context): CatalogPosterIndex =
         CatalogPosterIndex {
             context.assets.open(CatalogPosterIndex.FILE_NAME).bufferedReader().use { it.readText() }
+        }
+
+    @Provides
+    @Singleton
+    fun provideCatalogTrailerIndex(@ApplicationContext context: Context): CatalogTrailerIndex =
+        CatalogTrailerIndex {
+            context.assets.open(CatalogTrailerIndex.FILE_NAME).bufferedReader().use { it.readText() }
         }
 
     @Provides
@@ -119,6 +127,7 @@ object DataModule {
         sessionStore: EncryptedSessionStore,
         catalogPosterIndex: CatalogPosterIndex,
         scheduleCache: ScheduleCache,
+        catalogTrailerIndex: CatalogTrailerIndex,
     ): LostFilmRepository = LostFilmRepositoryImpl(
         httpClient = httpClient,
         anonymousHttpClient = anonymousHttpClient,
@@ -135,6 +144,7 @@ object DataModule {
         favoritesRepository = favoritesRepository,
         catalogPosterIndex = catalogPosterIndex,
         scheduleCache = scheduleCache,
+        catalogTrailerIndex = catalogTrailerIndex,
         hasAuthenticatedSession = {
             val session = sessionStore.read()
             session != null && !sessionStore.isExpired()

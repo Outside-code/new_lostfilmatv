@@ -21,9 +21,15 @@ import dagger.hilt.android.EntryPointAccessors
 import com.kraat.lostfilmnewtv.di.AppGraphEntryPoint
 import com.kraat.lostfilmnewtv.platform.torrserve.TorrServeOpenResult
 import com.kraat.lostfilmnewtv.playback.history.ContinueWatchingResult
+import com.kraat.lostfilmnewtv.playback.history.PlaybackHistoryEntry
+import com.kraat.lostfilmnewtv.playback.history.latestUnfinishedSeriesEpisode
+import com.kraat.lostfilmnewtv.playback.history.prepareEpisodeResume
 import com.kraat.lostfilmnewtv.playback.history.toPlaybackHistoryEntry
 import com.kraat.lostfilmnewtv.playback.season.SeasonPlayerActivity
+import com.kraat.lostfilmnewtv.playback.season.openSeriesTrailer
+import com.kraat.lostfilmnewtv.data.model.FavoriteMutationResult
 import com.kraat.lostfilmnewtv.data.model.ReleaseDetails
+import com.kraat.lostfilmnewtv.data.model.ReleaseSummary
 import com.kraat.lostfilmnewtv.ui.details.DetailsTorrentRowUiModel
 import com.kraat.lostfilmnewtv.ui.auth.AuthScreen
 import com.kraat.lostfilmnewtv.ui.auth.AuthUiState
@@ -32,6 +38,8 @@ import com.kraat.lostfilmnewtv.ui.details.DetailsRoute
 import com.kraat.lostfilmnewtv.ui.guide.SeriesGuideRoute
 import com.kraat.lostfilmnewtv.ui.history.PlaybackHistoryScreen
 import com.kraat.lostfilmnewtv.ui.home.HomeScreen
+import com.kraat.lostfilmnewtv.ui.home.HomePosterAction
+import com.kraat.lostfilmnewtv.ui.home.HomePosterActionsDialog
 import com.kraat.lostfilmnewtv.ui.overview.MovieOverviewRoute
 import com.kraat.lostfilmnewtv.ui.overview.SeriesOverviewRoute
 import com.kraat.lostfilmnewtv.ui.search.SearchRoute
@@ -39,6 +47,7 @@ import com.kraat.lostfilmnewtv.ui.home.HomeViewModel
 import com.kraat.lostfilmnewtv.ui.home.NavItem
 import com.kraat.lostfilmnewtv.ui.schedule.ScheduleRoute
 import com.kraat.lostfilmnewtv.ui.settings.SettingsRoute
+import com.kraat.lostfilmnewtv.ui.settings.SettingsSection
 import com.kraat.lostfilmnewtv.ui.settings.SettingsViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -50,7 +59,7 @@ private const val HOME_FAVORITE_CHANGED_DETAILS_URL_KEY = "home.favorite_changed
 private const val HOME_FAVORITE_CHANGED_STATE_KEY = "home.favorite_changed_state"
 
 @Composable
-fun AppNavGraph(initialDetailsUrl: String? = null) {
+fun AppNavGraph(initialDetailsUrl: String? = null, backupUri: Uri? = null) {
     val context = LocalContext.current
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
@@ -79,6 +88,60 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
     val authViewModel: AuthViewModel = hiltViewModel()
     val authState by authViewModel.uiState.collectAsStateWithLifecycle()
     val isAuthenticated = authState is AuthUiState.Authenticated
+    val historyStore = appGraphEntryPoint.playbackHistoryStore()
+    var isContinuingWatching by remember { mutableStateOf(false) }
+    var pendingBackupUri by remember(backupUri) { mutableStateOf(backupUri) }
+
+    LaunchedEffect(backupUri) {
+        if (backupUri != null) {
+            navController.navigate(AppDestination.Settings.createRoute(SettingsSection.BACKUP.name)) {
+                launchSingleTop = true
+            }
+        }
+    }
+
+    suspend fun resumeWatching(entry: PlaybackHistoryEntry) {
+        if (isContinuingWatching) return
+        if (authState !is AuthUiState.Authenticated) {
+            navController.navigate(AppDestination.Auth.createRoute(autoStart = true))
+            return
+        }
+        isContinuingWatching = true
+        val message = try {
+            when (val next = appGraphEntryPoint.lostFilmRepository().prepareEpisodeResume(
+                entry,
+                appGraphEntryPoint.playbackPreferencesStore(),
+                appGraphEntryPoint.torrServeLinkBuilder()::supportsSource,
+            )) {
+                is ContinueWatchingResult.Unavailable -> next.message
+                is ContinueWatchingResult.Ready -> {
+                    val details = next.details
+                    if (openEpisodePlayer(details, next.torrent, next.positionMs)) {
+                        null
+                    } else when (appGraphEntryPoint.torrServeActionHandler().open(
+                        context, next.torrent.url, details.titleRu, details.posterUrl,
+                    )) {
+                        TorrServeOpenResult.Success -> {
+                            historyStore.recordLaunch(
+                                details.toPlaybackHistoryEntry(System.currentTimeMillis())
+                                    .copy(positionMs = next.positionMs.takeIf { it > 0 }),
+                            )
+                            "Открыто во внешнем плеере. Продолжение зависит от его истории."
+                        }
+                        TorrServeOpenResult.Unavailable -> "Не удалось подключиться к TorrServe"
+                        TorrServeOpenResult.LaunchError -> "Не удалось открыть TorrServe"
+                    }
+                }
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            "Не удалось продолжить просмотр"
+        } finally {
+            isContinuingWatching = false
+        }
+        if (message != null) Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
 
     LaunchedEffect(initialDetailsUrl) {
         initialDetailsUrl?.takeIf { it.isNotBlank() }?.let { url ->
@@ -96,52 +159,10 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
             val state by homeViewModel.uiState.collectAsStateWithLifecycle()
             val savedAppUpdate by homeViewModel.savedAppUpdate.collectAsStateWithLifecycle()
             val selectedNavItem by homeViewModel.selectedNavItem.collectAsStateWithLifecycle()
-            val historyStore = appGraphEntryPoint.playbackHistoryStore()
             val playbackHistory by historyStore.entries.collectAsStateWithLifecycle()
             val homeScope = rememberCoroutineScope()
-            var isContinuingWatching by remember { mutableStateOf(false) }
-            val continueWatching: () -> Unit = continueWatching@{
-                if (isContinuingWatching) return@continueWatching
-                if (!isAuthenticated) {
-                    navController.navigate(AppDestination.Auth.createRoute(autoStart = true))
-                    return@continueWatching
-                }
-                isContinuingWatching = true
-                homeScope.launch {
-                    val message = try {
-                        when (val next = homeViewModel.prepareContinueWatching(
-                            playbackHistory, appGraphEntryPoint.torrServeLinkBuilder()::supportsSource,
-                        )) {
-                            is ContinueWatchingResult.Unavailable -> next.message
-                            is ContinueWatchingResult.Ready -> {
-                                val details = next.details
-                                if (openEpisodePlayer(details, next.torrent, next.positionMs)) {
-                                    null
-                                } else when (appGraphEntryPoint.torrServeActionHandler().open(
-                                    context, next.torrent.url, details.titleRu, details.posterUrl,
-                                )) {
-                                    TorrServeOpenResult.Success -> {
-                                        historyStore.recordLaunch(
-                                            details.toPlaybackHistoryEntry(System.currentTimeMillis())
-                                                .copy(positionMs = next.positionMs.takeIf { it > 0 }),
-                                        )
-                                        "Открыто во внешнем плеере. Продолжение зависит от его истории."
-                                    }
-                                    TorrServeOpenResult.Unavailable -> "Не удалось подключиться к TorrServe"
-                                    TorrServeOpenResult.LaunchError -> "Не удалось открыть TorrServe"
-                                }
-                            }
-                        }
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (_: Exception) {
-                        "Не удалось продолжить просмотр"
-                    } finally {
-                        isContinuingWatching = false
-                    }
-                    if (message != null) Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                }
-            }
+            var quickActionsItem by remember { mutableStateOf<ReleaseSummary?>(null) }
+            var quickActionJob by remember { mutableStateOf<Job?>(null) }
             var updateInstallJob by remember { mutableStateOf<Job?>(null) }
             var isUpdateDownloading by remember { mutableStateOf(false) }
             var updateDownloadProgress by remember { mutableStateOf<Int?>(null) }
@@ -225,9 +246,16 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 onSearchClick = { navController.navigate(AppDestination.Search.route) },
                 onScheduleClick = { navController.navigate(AppDestination.Schedule.route) },
                 onHistoryClick = { navController.navigate(AppDestination.PlaybackHistory.route) },
-                onContinueWatching = continueWatching,
+                onContinueWatching = {
+                    playbackHistory.latestUnfinishedSeriesEpisode()?.let { entry ->
+                        homeScope.launch { resumeWatching(entry) }
+                    }
+                },
                 playbackHistory = playbackHistory,
                 isContinuingWatching = isContinuingWatching,
+                onPosterActionsClick = { item ->
+                    if (quickActionJob?.isActive != true) quickActionsItem = item
+                },
                 onSettingsClick = { navController.navigate(AppDestination.Settings.createRoute()) },
                 onUpdateClick = {
                     val apkUrl = savedAppUpdate?.apkUrl
@@ -259,6 +287,61 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 isUpdateDownloading = isUpdateDownloading,
                 updateDownloadProgress = updateDownloadProgress,
             )
+
+            quickActionsItem?.let { item ->
+                HomePosterActionsDialog(
+                    item = item,
+                    onDismiss = { quickActionsItem = null },
+                    onAction = { action ->
+                        quickActionsItem = null
+                        if (quickActionJob?.isActive == true) return@HomePosterActionsDialog
+                        if (action != HomePosterAction.OpenTrailer && authState !is AuthUiState.Authenticated) {
+                            navController.navigate(AppDestination.Auth.createRoute(autoStart = true))
+                            return@HomePosterActionsDialog
+                        }
+                        quickActionJob = homeScope.launch {
+                            val message = try {
+                                when (action) {
+                                    HomePosterAction.AddFavorite -> when (val result =
+                                        homeViewModel.addPosterSeriesToFavorites(item.detailsUrl)
+                                    ) {
+                                        FavoriteMutationResult.Updated -> "Добавлено в избранное"
+                                        FavoriteMutationResult.NoOp -> "Сериал уже в избранном"
+                                        is FavoriteMutationResult.RequiresLogin -> {
+                                            navController.navigate(AppDestination.Auth.createRoute(autoStart = true))
+                                            null
+                                        }
+                                        is FavoriteMutationResult.Error -> result.message
+                                    }
+                                    HomePosterAction.OpenTrailer -> {
+                                        val url = appGraphEntryPoint.lostFilmRepository().loadSeriesTrailer(item.detailsUrl)
+                                        if (url == null) {
+                                            "Трейлер пока недоступен"
+                                        } else {
+                                            openSeriesTrailer(context, item.titleRu, url)
+                                            null
+                                        }
+                                    }
+                                    HomePosterAction.MarkWatched -> {
+                                        if (homeViewModel.markPosterEpisodeWatched(item.detailsUrl)) {
+                                            historyStore.markCompleted(item.detailsUrl)
+                                            homeViewModel.onItemWatchedStateChanged(item.detailsUrl, true)
+                                            "Серия отмечена просмотренной"
+                                        } else {
+                                            "Не удалось обновить статус просмотра"
+                                        }
+                                    }
+                                }
+                            } catch (error: CancellationException) {
+                                throw error
+                            } catch (_: Exception) {
+                                "Не удалось выполнить действие"
+                            }
+                            if (message != null) Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                )
+            }
         }
 
         // ── Details ───────────────────────────────────────────────────────────
@@ -304,7 +387,13 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 navArgument(AppDestination.SeriesOverview.detailsUrlArg) { type = NavType.StringType },
             ),
         ) {
-            SeriesOverviewRoute()
+            val history by historyStore.entries.collectAsStateWithLifecycle()
+            val routeScope = rememberCoroutineScope()
+            SeriesOverviewRoute(
+                playbackHistory = history,
+                isResumingEpisode = isContinuingWatching,
+                onResumeEpisode = { entry -> routeScope.launch { resumeWatching(entry) } },
+            )
         }
 
         // ── Movie Overview ───────────────────────────────────────────────────
@@ -324,7 +413,12 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
                 navArgument(AppDestination.SeriesGuide.detailsUrlArg) { type = NavType.StringType },
             ),
         ) {
+            val history by historyStore.entries.collectAsStateWithLifecycle()
+            val routeScope = rememberCoroutineScope()
             SeriesGuideRoute(
+                playbackHistory = history,
+                isResumingEpisode = isContinuingWatching,
+                onResumeEpisode = { entry -> routeScope.launch { resumeWatching(entry) } },
                 onOpenAuth = { navController.navigate(AppDestination.Auth.createRoute(autoStart = true)) },
                 onFavoriteChanged = { url, isFav ->
                     navController.previousBackStackEntry?.savedStateHandle?.set(HOME_FAVORITE_CHANGED_DETAILS_URL_KEY, url)
@@ -415,6 +509,8 @@ fun AppNavGraph(initialDetailsUrl: String? = null) {
             SettingsRoute(
                 viewModel = settingsViewModel,
                 initialSection = sectionArg,
+                initialBackupUri = pendingBackupUri.takeIf { sectionArg == SettingsSection.BACKUP.name },
+                onInitialBackupRead = { pendingBackupUri = null },
                 isAuthenticated = isAuthenticated,
                 onNavigateBack = { navController.popBackStack() },
                 onAuthClick = {

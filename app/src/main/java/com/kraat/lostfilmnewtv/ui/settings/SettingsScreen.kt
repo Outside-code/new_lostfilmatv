@@ -95,6 +95,10 @@ fun SettingsScreen(
     onHomeMenuLabelsVisibilitySelected: (Boolean) -> Unit = {},
     onCheckForUpdatesClick: () -> Unit,
     onInstallUpdateClick: () -> Unit,
+    isBackupBusy: Boolean = false,
+    backupStatusText: String? = null,
+    onSaveBackup: () -> Unit = {},
+    onRestoreBackup: () -> Unit = {},
 ) {
     // Секции разработчика удалены вместе с Prowlarr и Диагностикой (f0ccbacd),
     // так что фильтровать больше нечего: список всегда полный.
@@ -134,6 +138,8 @@ fun SettingsScreen(
             put(SettingsFocusTarget.CheckForUpdates.toTag(), FocusRequester())
             put(SettingsFocusTarget.InstallUpdate.toTag(), FocusRequester())
             put(SettingsFocusTarget.AccountAuth.toTag(), FocusRequester())
+            put(SettingsFocusTarget.SaveBackup.toTag(), FocusRequester())
+            put(SettingsFocusTarget.RestoreBackup.toTag(), FocusRequester())
             put(SettingsFocusTarget.AboutGitHubLink.toTag(), FocusRequester())
         }
     }
@@ -696,6 +702,38 @@ fun SettingsScreen(
                             }
                         }
 
+                        SettingsSection.BACKUP -> {
+                            SettingsOptionsSection {
+                                SettingsOverviewCard(
+                                    title = "Резервная копия",
+                                    subtitle = "Настройки воспроизведения, меню и серверов в файле JSON.",
+                                ) {
+                                    if (isBackupBusy) SettingsOverviewValue(text = "Работаем с файлом…")
+                                    backupStatusText?.let { SettingsOverviewValue(text = it) }
+                                }
+                                listOf(
+                                    Triple(SettingsFocusTarget.SaveBackup, "Сохранить копию", onSaveBackup),
+                                    Triple(SettingsFocusTarget.RestoreBackup, "Восстановить копию", onRestoreBackup),
+                                ).forEach { (action, title, onClick) ->
+                                    SettingsRowButton(
+                                        title = title,
+                                        value = if (action == SettingsFocusTarget.SaveBackup) "Сохранить" else "Открыть",
+                                        onClick = onClick,
+                                        enabled = !isBackupBusy,
+                                        tag = action.toTag(),
+                                        onFocused = {
+                                            rememberedActionBySection = rememberedActionBySection + (
+                                                SettingsSection.BACKUP.name to action
+                                            )
+                                        },
+                                        modifier = Modifier
+                                            .focusRequester(contentRequesters.getValue(action.toTag()))
+                                            .focusProperties { left = railRequesters.getValue(SettingsSection.BACKUP) },
+                                    )
+                                }
+                            }
+                        }
+
                         SettingsSection.ABOUT -> {
                             SettingsOptionsSection {
                                 val context = LocalContext.current
@@ -756,6 +794,7 @@ enum class SettingsSection(
     SERVER("Сервер", "settings-section-server", "settings-section-server-summary"),
     UPDATES("Обновления", "settings-section-updates", "settings-section-updates-summary"),
     ACCOUNT("Аккаунт", "settings-section-account", "settings-section-account-summary"),
+    BACKUP("Резервная копия", "settings-section-backup", "settings-section-backup-summary"),
     ABOUT("О приложении", "settings-section-about", "settings-section-about-summary");
 
     companion object {
@@ -798,6 +837,7 @@ private fun SettingsSectionRail(
                     SettingsSection.TORRSERVE -> torrServeSummary
                     SettingsSection.UPDATES -> updateSummary
                     SettingsSection.ACCOUNT -> accountSummary
+                    SettingsSection.BACKUP -> "Локальный файл"
                     SettingsSection.SERVER -> serverSummary
                     SettingsSection.ABOUT -> aboutSummary
                 },
@@ -985,6 +1025,7 @@ private fun targetContentTag(
         section == SettingsSection.UPDATES -> SettingsFocusTarget.UpdateChannel(selectedUpdateMode)
         section == SettingsSection.ACCOUNT -> SettingsFocusTarget.AccountAuth
         section == SettingsSection.SERVER -> SettingsFocusTarget.LostFilmHost
+        section == SettingsSection.BACKUP -> SettingsFocusTarget.SaveBackup
         section == SettingsSection.ABOUT -> SettingsFocusTarget.AboutGitHubLink
         else -> SettingsFocusTarget.PlaybackQuality(selectedQuality)
     }
